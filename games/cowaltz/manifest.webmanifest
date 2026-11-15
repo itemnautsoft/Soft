@@ -4,8 +4,8 @@
   "start_url": "./",
   "display": "fullscreen",
   "orientation": "portrait",
-  "background_color": "#E8502E",
-  "theme_color": "#E8502E",
+  "background_color": "#15123A",
+  "theme_color": "#15123A",
   "icons": [
     {
       "src": "icon-192.png",

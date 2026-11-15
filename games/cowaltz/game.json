@@ -1,9 +1,14 @@
 {
   "title": "Cowaltz",
-  "blurb": "A new game growing out of the Stick Head planet: Tuto on a giant head-planet. Early build, more coming.",
+  "blurb": "A knight with an egg shield and a fairy princess with a bow defend a blue moon from bullet-hell bee swarms. Knock bees into bees for ricochet chains; every sting costs an EpiPen.",
   "date": "2026-11-15",
   "updated": "2026-11-15",
-  "tags": ["mobile", "3d", "prototype"],
-  "controls": "Joystick to walk, jump button to jump (again to flip, hold to glide), hand button to grab and throw",
+  "tags": [
+    "mobile",
+    "3d",
+    "bullet-hell",
+    "arcade"
+  ],
+  "controls": "Stick to move; Knight: BASH (shield blocks and reflects stingers); Fairy: hold SHOOT; tap a hero or their portrait to switch, the other is AI",
   "artifact": "https://claude.ai/artifact/H4YBKj3D8zdhi26akuu9fW"
 }
