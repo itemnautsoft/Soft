@@ -30,26 +30,28 @@
     border:5px solid #161216; background:#FFE94A; box-shadow:3px 4px 0 #161216; padding:0; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1; }
   #act.on { transform:translate(2px,3px); box-shadow:1px 1px 0 #161216; background:#FFB52E; }
   #act small { font-family:'Bangers', cursive; font-size:19px; letter-spacing:1px; margin-top:2px; }
-  #act .i-bow, body.fairy #act .i-shield { display:none; } body.fairy #act .i-bow { display:block; }
-  body.fairy #act { background:#C9A4FF; } body.fairy #act.on { background:#9A6CF0; }
+  #act .i-bow, #act .i-gun, body[data-hero=fairy] #act .i-shield, body[data-hero=soldier] #act .i-shield { display:none; }
+  body[data-hero=fairy] #act .i-bow, body[data-hero=soldier] #act .i-gun { display:block; }
+  body[data-hero=fairy] #act { background:#C9A4FF; } body[data-hero=fairy] #act.on { background:#9A6CF0; }
+  body[data-hero=soldier] #act { background:#FF9A5C; } body[data-hero=soldier] #act.on { background:#E8702E; }
 
   /* party portraits */
   #party { position:fixed; left:10px; top:calc(10px + env(safe-area-inset-top)); z-index:4; display:flex; gap:8px; }
-  .pt { width:62px; height:62px; border-radius:16px; border:4px solid #161216; background:#2A2560; padding:0; position:relative; opacity:.62; box-shadow:2px 3px 0 #161216; }
+  .pt { width:54px; height:54px; border-radius:16px; border:4px solid #161216; background:#2A2560; padding:0; position:relative; opacity:.62; box-shadow:2px 3px 0 #161216; }
   .pt svg { width:100%; height:100%; display:block; }
   .pt.on { opacity:1; background:#FFE94A; transform:scale(1.08); }
-  .pt b { position:absolute; left:50%; bottom:-11px; transform:translateX(-50%); font-family:'Bangers', cursive; font-weight:normal; font-size:14px; letter-spacing:1px;
-    background:#161216; color:#fff; border-radius:6px; padding:0 5px; white-space:nowrap; }
+  .pt b { position:absolute; left:50%; bottom:-11px; transform:translateX(-50%); font-family:'Bangers', cursive; font-weight:normal; font-size:11px; letter-spacing:.5px;
+    background:#161216; color:#fff; border-radius:6px; padding:0 4px; white-space:nowrap; }
   .pt.hurt { animation: hurt .5s; }
   @keyframes hurt { 0%,100% { background:#2A2560; } 30% { background:#FF2E88; } }
 
-  #pens { position:fixed; left:12px; top:calc(92px + env(safe-area-inset-top)); z-index:4; display:flex; align-items:center; gap:3px; color:#fff;
+  #pens { position:fixed; left:12px; top:calc(84px + env(safe-area-inset-top)); z-index:4; display:flex; align-items:center; gap:3px; color:#fff;
     font-family:'Bangers', cursive; font-size:24px; letter-spacing:1px; text-shadow:2px 2px 0 #161216; }
   #pens svg { width:15px; height:40px; filter:drop-shadow(1px 2px 0 #161216); }
   #pens.low svg { animation: blink .5s infinite; }
   @keyframes blink { 50% { opacity:.3; } }
 
-  #score { position:fixed; left:50%; top:calc(10px + env(safe-area-inset-top)); transform:translateX(-50%); z-index:4; text-align:center; color:#fff;
+  #score { position:fixed; right:68px; top:calc(10px + env(safe-area-inset-top)); z-index:4; text-align:right; color:#fff;
     font-family:'Bangers', cursive; letter-spacing:2px; text-shadow:3px 3px 0 #161216; pointer-events:none; }
   #score .n { font-size:36px; line-height:1; } #score .w { font-size:17px; opacity:.9; }
   #combo { position:fixed; left:50%; top:calc(118px + env(safe-area-inset-top)); transform:translateX(-50%) scale(1); z-index:4; pointer-events:none;
@@ -104,6 +106,7 @@
 <button id="act" class="ui" aria-label="Action">
   <svg class="i-shield" viewBox="0 0 48 52" width="46" height="48"><ellipse cx="24" cy="27" rx="17" ry="22" fill="#F08800" stroke="#161216" stroke-width="4"/><ellipse cx="17" cy="17" rx="5" ry="7" fill="#F5C890"/></svg>
   <svg class="i-bow" viewBox="0 0 52 52" width="48" height="48"><path d="M14 6 Q44 26 14 46" fill="none" stroke="#8A4A42" stroke-width="6" stroke-linecap="round"/><line x1="14" y1="6" x2="14" y2="46" stroke="#161216" stroke-width="2.5"/><line x1="8" y1="26" x2="46" y2="26" stroke="#161216" stroke-width="4" stroke-linecap="round"/><path d="M40 20 L48 26 L40 32 Z" fill="#9aa0aa" stroke="#161216" stroke-width="3" stroke-linejoin="round"/></svg>
+  <svg class="i-gun" viewBox="0 0 56 40" width="52" height="38"><rect x="4" y="10" width="38" height="14" rx="3" fill="#2B2832" stroke="#161216" stroke-width="3"/><rect x="10" y="3" width="20" height="8" rx="2" fill="#1B1820" stroke="#161216" stroke-width="2.5"/><rect x="14" y="22" width="8" height="12" rx="2" fill="#1B1820" stroke="#161216" stroke-width="2.5"/><circle cx="48" cy="17" r="6" fill="#FF7A2F" stroke="#161216" stroke-width="3"/></svg>
   <small id="actL">BASH</small>
 </button>
 <div id="party" class="ui">
@@ -111,6 +114,8 @@
     <svg viewBox="0 0 60 60"><path d="M8 34 Q8 8 30 8 Q52 8 52 34 L52 46 L8 46 Z" fill="#DDF000" stroke="#161216" stroke-width="3"/><path d="M12 22 Q14 6 30 6 Q46 6 48 22 Z" fill="#F08A00" stroke="#161216" stroke-width="3"/><path d="M26 7 L30 -2 L36 7 Z" fill="#F08A00" stroke="#161216" stroke-width="3"/><rect x="15" y="25" width="30" height="24" rx="10" fill="#D8BE84" stroke="#161216" stroke-width="3"/><path d="M15 40 Q30 31 45 40 L45 52 Q30 60 15 52 Z" fill="#161216"/><circle cx="23" cy="33" r="5" fill="#fff" stroke="#161216" stroke-width="2"/><circle cx="37" cy="33" r="5" fill="#fff" stroke="#161216" stroke-width="2"/><circle cx="24" cy="34" r="2.2"/><circle cx="36" cy="34" r="2.2"/></svg><b>KNIGHT</b></button>
   <button class="pt" id="ptF" aria-label="Play as the Fairy Princess">
     <svg viewBox="0 0 60 60"><path d="M6 58 Q4 18 30 10 Q56 18 54 58 Z" fill="#B86E2C" stroke="#161216" stroke-width="3"/><ellipse cx="30" cy="35" rx="18" ry="16" fill="#F5E0B0" stroke="#161216" stroke-width="3"/><path d="M12 28 Q14 12 30 12 Q46 12 48 28 Q30 20 12 28 Z" fill="#B86E2C" stroke="#161216" stroke-width="2.5"/><path d="M12 22 Q30 14 48 22" fill="none" stroke="#eee" stroke-width="4"/><circle cx="23" cy="16" r="3" fill="#9C86D6" stroke="#161216" stroke-width="1.5"/><circle cx="30" cy="14" r="3" fill="#9C86D6" stroke="#161216" stroke-width="1.5"/><circle cx="37" cy="16" r="3" fill="#9C86D6" stroke="#161216" stroke-width="1.5"/><circle cx="23" cy="35" r="5.5" fill="#fff" stroke="#7A4A3A" stroke-width="2.5"/><circle cx="37" cy="35" r="5.5" fill="#fff" stroke="#7A4A3A" stroke-width="2.5"/><circle cx="23" cy="36" r="2.4" fill="#22AA44"/><circle cx="37" cy="36" r="2.4" fill="#22AA44"/><path d="M17 27 L27 29 M43 27 L33 29" stroke="#161216" stroke-width="3" stroke-linecap="round"/></svg><b>FAIRY</b></button>
+  <button class="pt" id="ptS" aria-label="Play as the Trooper">
+    <svg viewBox="0 0 60 60"><ellipse cx="30" cy="26" rx="20" ry="22" fill="#F2F2EE" stroke="#161216" stroke-width="3"/><rect x="11" y="34" width="38" height="18" rx="7" fill="#F2F2EE" stroke="#161216" stroke-width="3"/><rect x="28" y="3" width="4" height="12" rx="2" fill="#C9C9D1"/><rect x="12" y="21" width="16" height="11" rx="4" fill="#1B1820" stroke="#C9C9D1" stroke-width="2.5" transform="rotate(10 20 27)"/><rect x="32" y="21" width="16" height="11" rx="4" fill="#1B1820" stroke="#C9C9D1" stroke-width="2.5" transform="rotate(-10 40 27)"/><path d="M22 39 L30 43 L38 39 M24 45 L30 48 L36 45" fill="none" stroke="#C9C9D1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><b>TROOPER</b></button>
 </div>
 <div id="pens" class="ui"></div>
 <div id="score" class="ui"><div class="n" id="scoreN">0</div><div class="w" id="waveN">WAVE 1</div></div>
@@ -121,12 +126,14 @@
 <div id="title" class="ov">
   <div class="card">
     <h1>COWALTZ</h1>
-    <p class="sub">The Knight &amp; the Fairy Princess vs. the bees of the Blue Moon</p>
+    <p class="sub">The Knight, the Fairy Princess &amp; the Trooper vs. the bees of the Blue Moon</p>
     <div class="help">
       <div>🕹️ <b>Stick</b> to move</div>
-      <div>🛡️ <b>Knight</b>: his shield blocks stingers and bees. Tap <b>BASH</b> to slam bees into other bees.</div>
+      <div>🛡️ <b>Knight</b>: his shield bounces bees and stingers back into the swarm. Tap <b>BASH</b> to slam bees.</div>
       <div>🏹 <b>Fairy</b>: hold <b>SHOOT</b> to fire arrows.</div>
-      <div>👆 <b>Tap a hero</b> (or their portrait) to take control. The other one fights on their own.</div>
+      <div>🔫 <b>Trooper</b>: hold <b>FIRE</b> for big knock-back balls.</div>
+      <div>👆 <b>Tap a hero</b> (or their portrait) to take control. The others fight on their own.</div>
+      <div>🐝 Bees aim (watch for the pink line), then launch themselves stinger-first. Only the queen shoots stingers.</div>
       <div>💉 Every sting uses an <b>EpiPen</b>. Pick more up. Get stung with none left and it's over.</div>
     </div>
     <button class="big" id="startB">PLAY</button>
@@ -147,6 +154,7 @@
 import * as THREE from 'three';
 import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const QS = new URLSearchParams(location.search);
 const AUTOTEST = QS.has('autotest'), GOD = QS.has('god');
@@ -357,6 +365,9 @@ function sfx(name) {
     case 'pick': tone('triangle', 880, 880, 0.08, 0.4); tone('triangle', 1320, 1320, 0.14, 0.4, 0.08); break;
     case 'sting': tone('sawtooth', 300, 90, 0.35, 0.45); noise(0.2, 0.4, 600); break;
     case 'swap': tone('triangle', 500, 1000, 0.12, 0.35); break;
+    case 'boom': tone('sine', 150, 45, 0.2, 0.7); noise(0.14, 0.55, 500); break;
+    case 'whoosh': noise(0.28, 0.3, 1500); tone('sawtooth', 260, 640, 0.2, 0.08); break;
+    case 'buzz': tone('sawtooth', 170, 230, 0.3, 0.1); break;
     case 'wave': [523, 659, 784, 1046].forEach((f, i) => tone('square', f, f, 0.11, 0.14, i * 0.09)); break;
     case 'over': [392, 330, 262, 196].forEach((f, i) => tone('triangle', f, f * 0.98, 0.25, 0.4, i * 0.2)); break;
   }
@@ -469,19 +480,71 @@ function buildFairy() {
   return { root, body, P };
 }
 
+// --- the Trooper (from the Tuto planet): white helmet with black goggles and grey chevrons, black vest, a huge black gun firing orange knock-back balls
+const TRC = { white: 0xF2F2EE, grey: 0xC9C9D1, black: 0x1B1820, dark: 0x2B2832, steel: 0x4F4A5C };
+function buildSoldier() {
+  const root = new THREE.Group(), body = pivot(root), P = {};
+  const rb = (w, h, d, r = 0.04) => new RoundedBoxGeometry(w, h, d, 3, r);
+  for (const s of [-1, 1]) {
+    const hip = pivot(body, [s * 0.14, 0.36, 0]); P[s < 0 ? 'legR' : 'legL'] = hip;
+    part(rb(0.19, 0.3, 0.2), TRC.white, hip, [0, -0.15, 0]);
+    part(rb(0.21, 0.09, 0.28, 0.03), TRC.black, hip, [0, -0.31, 0.03]);
+  }
+  part(rb(0.6, 0.18, 0.42, 0.06), TRC.dark, body, [0, 0.4, 0]);
+  part(rb(0.62, 0.46, 0.46, 0.05), TRC.white, body, [0, 0.68, 0]);
+  part(rb(0.56, 0.4, 0.08, 0.03), TRC.black, body, [0, 0.68, 0.22]);
+  part(rb(0.56, 0.4, 0.08, 0.03), TRC.black, body, [0, 0.68, -0.22]);
+  for (const s of [-1, 1]) part(rb(0.14, 0.08, 0.48, 0.02), TRC.black, body, [0.2 * s, 0.9, 0]);
+  part(rb(0.66, 0.08, 0.48, 0.02), TRC.black, body, [0, 0.47, 0]);
+  part(rb(0.1, 0.08, 0.05, 0.015), TRC.steel, body, [0, 0.47, 0.25]);
+  for (const s of [-1, 1]) part(rb(0.15, 0.12, 0.07, 0.02), TRC.steel, body, [0.14 * s, 0.58, 0.27]);
+  const shR = pivot(body, [-0.36, 0.84, 0]); P.armR = shR;
+  part(new THREE.CylinderGeometry(0.085, 0.08, 0.3, 10), TRC.white, shR, [0, -0.15, 0]);
+  part(SPH(0.11, 12, 8), TRC.black, shR, [0, -0.32, 0]);
+  const shL = pivot(body, [0.36, 0.84, 0]); P.armL = shL;
+  part(new THREE.CylinderGeometry(0.085, 0.08, 0.3, 10), TRC.white, shL, [0, -0.15, 0]);
+  part(SPH(0.11, 12, 8), TRC.black, shL, [0, -0.32, 0]);
+  // helmet head
+  const head = pivot(body, [0, 1.2, 0]); P.head = head; head.scale.setScalar(1.12);
+  part(SPH(1, 28, 20), TRC.white, head, [0, 0.04, 0], [0.37, 0.43, 0.4]);
+  part(rb(0.62, 0.24, 0.52, 0.07), TRC.white, head, [0, -0.27, 0]);
+  part(rb(0.08, 0.05, 0.5, 0.02), TRC.grey, head, [0, 0.46, 0]);
+  for (const s of [-1, 1]) {
+    part(rb(0.3, 0.19, 0.06, 0.04), TRC.grey, head, [0.16 * s, 0.07, 0.345], null, [0, 0.4 * s, 0.18 * s]);
+    part(rb(0.25, 0.14, 0.08, 0.04), TRC.black, head, [0.16 * s, 0.07, 0.365], null, [0, 0.4 * s, 0.18 * s]);
+    part(SPH(0.04, 10, 8), TRC.grey, head, [0.215 * s, -0.3, 0.3]);
+    part(rb(0.17, 0.05, 0.06, 0.015), TRC.grey, head, [0.08 * s, -0.19, 0.345], null, [0, 0, 0.5 * s]);
+    part(rb(0.12, 0.04, 0.05, 0.015), TRC.grey, head, [0.06 * s, -0.27, 0.32], null, [0, 0, 0.5 * s]);
+  }
+  part(rb(0.1, 0.07, 0.05, 0.02), TRC.grey, head, [0, -0.36, 0.3]);
+  // the gun: a huge black block with a scope, grip, magazine and a rimmed muzzle
+  const gun = pivot(body, [-0.12, 0.5, 0.36]); gun.scale.setScalar(0.5); P.gun = gun;
+  part(rb(0.5, 0.7, 2.2, 0.05), TRC.dark, gun, [0, 0.55, 0.95]);
+  part(rb(0.52, 0.12, 1.0, 0.03), TRC.black, gun, [0, 0.3, 1.1]);
+  part(rb(0.26, 0.4, 0.3, 0.04), TRC.black, gun, [0, 0, 0]);
+  part(rb(0.22, 0.66, 0.36, 0.04), TRC.black, gun, [0, -0.1, 1.5], null, [-0.3, 0, 0]);
+  part(rb(0.36, 0.2, 1.1, 0.04), TRC.black, gun, [0, 1.03, 1.0]);
+  for (const z of [0.6, 1.4]) part(rb(0.12, 0.12, 0.12, 0.02), TRC.steel, gun, [0, 0.92, z]);
+  part(new THREE.CylinderGeometry(0.2, 0.2, 0.38, 14).rotateX(Math.PI / 2), TRC.black, gun, [0, 0.55, 2.2]);
+  part(new THREE.TorusGeometry(0.2, 0.04, 6, 16), TRC.steel, gun, [0, 0.55, 2.4]);
+  part(rb(0.08, 0.34, 1.2, 0.02), TRC.steel, gun, [0.26, 0.55, 0.9]); part(rb(0.08, 0.34, 1.2, 0.02), TRC.steel, gun, [-0.26, 0.55, 0.9]);
+  return { root, body, P };
+}
+
+const HERO_COL = { knight: 0xFFE94A, fairy: 0xD9A8FF, soldier: 0xFF9A5C };
 function makeHero(kind) {
-  const m = kind === 'knight' ? buildKnight() : buildFairy();
+  const m = kind === 'knight' ? buildKnight() : kind === 'fairy' ? buildFairy() : buildSoldier();
   m.root.scale.setScalar(0.95);
   scene.add(m.root);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.06, 6, 36).rotateX(Math.PI / 2), noLine(new THREE.MeshBasicMaterial({ color: kind === 'knight' ? 0xFFE94A : 0xD9A8FF })));
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.06, 6, 36).rotateX(Math.PI / 2), noLine(new THREE.MeshBasicMaterial({ color: HERO_COL[kind] })));
   scene.add(ring);
   return Object.assign(m, {
     kind, ring, u: new THREE.Vector3(0, 1, 0), face: new THREE.Vector3(0, 0, 1), vel: new THREE.Vector3(),
-    h: 0, inv: 0, phase: 0, walk: 0, bashT: 0, bashCd: 0, fireCd: 0, draw: 0, block: 0, hitSet: new Set(), dodge: new THREE.Vector3(), aiT: 0
+    h: 0, inv: 0, phase: 0, walk: 0, bashT: 0, bashCd: 0, fireCd: 0, draw: 0, block: 0, recoil: 0, hitSet: new Set()
   });
 }
-const knight = makeHero('knight'), fairy = makeHero('fairy');
-const heroes = [knight, fairy];
+const knight = makeHero('knight'), fairy = makeHero('fairy'), soldier = makeHero('soldier');
+const heroes = [knight, fairy, soldier];
 let active = knight;
 
 // ======================= bees =======================
@@ -504,11 +567,11 @@ function faceTex(col) {
   x.beginPath(); x.ellipse(fx, 160, 15, 11, 0, 0, 6.3); x.fillStyle = '#FF8A1F'; x.fill(); x.lineWidth = 6; x.stroke();
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
-const BEE_KIND = {
-  buzz: { col: '#FFE800', hp: 2, rad: 0.55, pts: 100, scale: 0.85 },
-  shoot: { col: '#FFA21F', hp: 3, rad: 0.6, pts: 150, scale: 0.95 },
-  ring: { col: '#FF6FB4', hp: 4, rad: 0.62, pts: 200, scale: 1.0 },
-  queen: { col: '#FFD23C', hp: 40, rad: 1.4, pts: 2500, scale: 2.2 },
+const BEE_KIND = {          // every bee but the queen is a living missile: it aims, then launches itself stinger-first
+  dart: { col: '#FFE800', hp: 3, rad: 0.55, pts: 100, scale: 0.85, spd: 1.0 },    // straight dive
+  homer: { col: '#FFA21F', hp: 4, rad: 0.6, pts: 150, scale: 0.95, spd: 0.82 },   // curves after you
+  zig: { col: '#FF6FB4', hp: 4, rad: 0.6, pts: 175, scale: 0.95, spd: 0.95 },     // zig-zags in
+  queen: { col: '#FFD23C', hp: 40, rad: 1.4, pts: 2500, scale: 2.2, spd: 1 },     // the only one that shoots stingers
 };
 const BEE_GEO = {
   abd: new THREE.SphereGeometry(0.4, 20, 16).rotateX(Math.PI / 2),
@@ -546,11 +609,12 @@ function spawnBee(kind, u) {
   const b = Object.assign(m, {
     kind, u: u.clone(), vel: new THREE.Vector3(), face: anyTangent(u, new THREE.Vector3()), h: 1.1,
     hp: Math.round(K.hp * hpMul), maxHp: Math.round(K.hp * hpMul), rad: K.rad, t: Math.random() * 10, knock: 0, chain: 0, ricoCd: 0,
-    fireT: 1.5 + Math.random() * 1.5, dying: 0, squash: 0, pat: 0, patT: 0, spin: 0, orbit: Math.random() < 0.5 ? 1 : -1
+    fireT: 1.5 + Math.random() * 1.5, dying: 0, squash: 0, pat: 0, patT: 0, spin: 0, orbit: Math.random() < 0.5 ? 1 : -1,
+    mode: 'approach', st: 0, cd: 0.8 + Math.random() * 1.6, ldir: new THREE.Vector3(), tgt: null, line: null, em: 0
   });
   bees.push(b); return b;
 }
-function removeBee(b) { scene.remove(b.root); const i = bees.indexOf(b); if (i >= 0) bees.splice(i, 1); }
+function removeBee(b) { scene.remove(b.root); if (b.line) scene.remove(b.line); const i = bees.indexOf(b); if (i >= 0) bees.splice(i, 1); }
 
 // ======================= projectiles: stingers (instanced) + arrows =======================
 const MAXB = 520;
@@ -600,6 +664,14 @@ function fireArrow(u, dir) {
   sfx('twang');
 }
 
+const balls = [];
+const BALL_GEO = new THREE.SphereGeometry(0.21, 14, 10), BALL_RING = new THREE.TorusGeometry(0.212, 0.02, 5, 18);
+const BALL_SEAM = noLine(new THREE.MeshBasicMaterial({ color: 0x161216 }));
+function makeBall() {
+  const m = new THREE.Mesh(BALL_GEO, toon(0xFF7A2F)); m.add(new THREE.Mesh(BALL_RING, BALL_SEAM)); const r2 = new THREE.Mesh(BALL_RING, BALL_SEAM); r2.rotation.y = Math.PI / 2; m.add(r2);
+  scene.add(m); return { m, on: false, u: new THREE.Vector3(), v: new THREE.Vector3(), life: 0, em: 0 };
+}
+
 // ======================= EpiPen pickups =======================
 const pickups = [];
 function buildPen() {
@@ -623,20 +695,21 @@ let wave = 0, score = 0, pens = 3, best = 0, combo = 0, comboT = 0, waveQueue = 
 let slowmo = 1, overT = 0, simT = 0, shake = 0;
 try { best = +localStorage.getItem('cowaltz-best') || 0; } catch (e) { }
 const $ = id => document.getElementById(id);
-const stats = { kills: 0, stings: 0, ricochets: 0, blocks: 0, pens: 0, arrows: 0, bashes: 0, maxWave: 0 };
+const stats = { kills: 0, stings: 0, ricochets: 0, blocks: 0, pens: 0, arrows: 0, balls: 0, bashes: 0, launches: 0, maxWave: 0 };
 
 function resetHeroes() {
   const u0 = new THREE.Vector3(0, 0.35, 1).normalize();
   knight.u.copy(u0); knight.face.set(0, 1, 0); tangent(knight.face, knight.u).normalize();
-  const side = tA.crossVectors(knight.u, knight.face).normalize();
-  offsetU(u0, side.negate(), 1.3, fairy.u); fairy.face.copy(knight.face); tangent(fairy.face, fairy.u).normalize();
-  for (const h of heroes) { h.vel.set(0, 0, 0); h.inv = 0; h.bashT = 0; h.bashCd = 0; h.fireCd = 0; }
-  camU.copy(u0).lerp(fairy.u, 0.5).normalize(); camFwd.copy(knight.face); tangent(camFwd, camU).normalize();
+  const side = new THREE.Vector3().crossVectors(knight.u, knight.face).normalize();
+  offsetU(u0, side, -1.4, fairy.u); offsetU(u0, side, 1.4, soldier.u);
+  for (const h of heroes) { if (h !== knight) { h.face.copy(knight.face); tangent(h.face, h.u).normalize(); } h.vel.set(0, 0, 0); h.inv = 0; h.bashT = 0; h.bashCd = 0; h.fireCd = 0; }
+  camU.copy(u0); camFwd.copy(knight.face); tangent(camFwd, camU).normalize();
 }
 function clearField() {
   for (const b of [...bees]) removeBee(b);
   for (const b of bullets) b.on = false;
   for (const a of arrows) { a.on = false; a.g.visible = false; }
+  for (const b of balls) { b.on = false; b.m.visible = false; }
   for (const p of pickups) scene.remove(p.g); pickups.length = 0;
 }
 function startGame() {
@@ -660,11 +733,10 @@ function banner(text, sub = '', ms = 1700) {
   clearTimeout(banner.t); banner.t = setTimeout(() => el.classList.remove('on'), ms);
 }
 function planWave(n) {
-  const q = [];
-  const nb = 5 + n * 2, ns = n >= 2 ? 1 + Math.floor(n * 0.75) : 0, nr = n >= 4 ? Math.floor((n - 2) / 2) : 0;
-  for (let i = 0; i < nb; i++) q.push('buzz');
-  for (let i = 0; i < ns; i++) q.splice(Math.floor(Math.random() * (q.length + 1)), 0, 'shoot');
-  for (let i = 0; i < nr; i++) q.splice(Math.floor(Math.random() * (q.length + 1)), 0, 'ring');
+  const q = [], mix = (k, c) => { for (let i = 0; i < c; i++) q.splice(Math.floor(Math.random() * (q.length + 1)), 0, k); };
+  for (let i = 0; i < 5 + n * 2; i++) q.push('dart');
+  mix('homer', n >= 2 ? 1 + Math.floor(n * 0.75) : 0);
+  mix('zig', n >= 4 ? Math.floor((n - 2) / 1.5) : 0);
   if (n % 5 === 0) q.unshift('queen');
   return q;
 }
@@ -674,7 +746,7 @@ function startWave() {
   sfx('wave'); updateHud(true);
 }
 function spawnPoint(minA, maxA) {
-  const c = tA.copy(knight.u).add(fairy.u).normalize();
+  const c = tA.copy(knight.u).add(fairy.u).add(soldier.u).normalize();
   const d = anyTangent(c, new THREE.Vector3()).applyAxisAngle(c, Math.random() * 6.283);
   return offsetU(c.clone(), d, R * (minA + Math.random() * (maxA - minA)), new THREE.Vector3());
 }
@@ -694,16 +766,14 @@ function showCombo() {
   if (combo >= 2) { el.textContent = `${combo} HIT RICOCHET!`; el.classList.add('on'); el.style.transform = `translateX(-50%) scale(${1 + Math.min(0.6, combo * 0.05)})`; }
   else el.classList.remove('on');
 }
+const HERO_UI = { knight: { pt: 'ptK', name: 'KNIGHT', act: 'BASH', col: '#F08A00' }, fairy: { pt: 'ptF', name: 'FAIRY', act: 'SHOOT', col: '#9A5CF0' }, soldier: { pt: 'ptS', name: 'TROOPER', act: 'FIRE', col: '#2B2832' } };
 function setActive(h, quiet) {
-  if (active !== h && !quiet) { sfx('swap'); popWord(h === knight ? 'KNIGHT!' : 'FAIRY!', h.u, 2.4, { fill: '#fff', burst: h === knight ? '#F08A00' : '#9A5CF0', size: 1.1, life: 0.7 }); }
+  if (active !== h && !quiet) { sfx('swap'); popWord(HERO_UI[h.kind].name + '!', h.u, 2.4, { fill: '#fff', burst: HERO_UI[h.kind].col, size: 1.1, life: 0.7 }); }
   active = h;
-  $('ptK').classList.toggle('on', h === knight); $('ptF').classList.toggle('on', h === fairy);
-  document.body.classList.toggle('fairy', h === fairy);
-  $('actL').textContent = h === knight ? 'BASH' : 'SHOOT';
-  $('ptK').querySelector('b').textContent = h === knight ? 'YOU' : 'KNIGHT'; $('ptF').querySelector('b').textContent = h === fairy ? 'YOU' : 'FAIRY';
+  for (const x of heroes) { const el = $(HERO_UI[x.kind].pt); el.classList.toggle('on', x === h); el.querySelector('b').textContent = x === h ? 'YOU' : HERO_UI[x.kind].name; }
+  document.body.dataset.hero = h.kind; $('actL').textContent = HERO_UI[h.kind].act;
 }
-$('ptK').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (state === 'play') setActive(knight); });
-$('ptF').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (state === 'play') setActive(fairy); });
+for (const x of heroes) $(HERO_UI[x.kind].pt).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (state === 'play') setActive(x); });
 $('startB').addEventListener('click', startGame);
 $('againB').addEventListener('click', startGame);
 $('bestT').textContent = best ? 'Best: ' + best.toLocaleString() : '';
@@ -714,7 +784,7 @@ let actHeld = false, actPressed = false;
 addEventListener('keydown', e => {
   keys.add(e.code);
   if ((e.code === 'Space' || e.code === 'KeyJ') && !e.repeat) { actPressed = true; actHeld = true; e.preventDefault(); }
-  if ((e.code === 'KeyQ' || e.code === 'KeyE' || e.code === 'Tab') && !e.repeat && state === 'play') { setActive(active === knight ? fairy : knight); e.preventDefault(); }
+  if ((e.code === 'KeyQ' || e.code === 'KeyE' || e.code === 'Tab') && !e.repeat && state === 'play') { setActive(heroes[(heroes.indexOf(active) + 1) % heroes.length]); e.preventDefault(); }
   if (e.code === 'Enter' && state !== 'play') startGame();
 });
 addEventListener('keyup', e => { keys.delete(e.code); if (e.code === 'Space' || e.code === 'KeyJ') actHeld = false; });
@@ -777,7 +847,7 @@ cvs.addEventListener('wheel', e => { e.preventDefault(); camDist = clamp(camDist
 // ======================= camera frame =======================
 const camU = new THREE.Vector3(0, 0.35, 1).normalize(), camFwd = new THREE.Vector3(0, 1, 0);
 tangent(camFwd, camU).normalize();
-const _prevCamU = new THREE.Vector3(), _qq = new THREE.Quaternion(), camCur = { p: QS.has('icon') ? 0.22 : 0.32, d: QS.has('icon') ? 4.4 : 6.5 };
+const _prevCamU = new THREE.Vector3(), _qq = new THREE.Quaternion(), camCur = { p: QS.has('icon') ? 0.22 : 0.32, d: QS.has('icon') ? 5.4 : 7 };
 function updateCamera(dt, follow, dist, pitch) {
   _prevCamU.copy(camU);
   camU.lerp(follow, 1 - Math.exp(-5 * dt)).normalize();
@@ -806,12 +876,13 @@ function nearestBee(u, maxD, coneFace = null, coneCos = -2) {
   }
   return best;
 }
-function nearestHero(u) { return chord(u, knight.u) < chord(u, fairy.u) ? knight : fairy; }
+function nearestHero(u) { let best = knight, bd = 1e9; for (const h of heroes) { const d = chord(u, h.u); if (d < bd) { bd = d; best = h; } } return best; }
 function addScore(n) { score += n; }
 function knockBee(b, dir, speed, chain = 0) {
   const mul = b.kind === 'queen' ? 0.15 : 1;
   b.vel.copy(dir).multiplyScalar(speed * mul); tangent(b.vel, b.u);
   b.knock = b.kind === 'queen' ? 0.15 : 0.75; b.chain = chain; b.squash = 1;
+  if (b.kind !== 'queen' && (b.mode === 'aim' || b.mode === 'launch')) { b.mode = 'recover'; b.st = 1.1; b.tgt = null; }
 }
 function damageBee(b, n, src) {
   if (b.dying) return;
@@ -838,7 +909,7 @@ function stingHero(h, fromU) {
   stats.stings++;
   dirTo(fromU, h.u, tA); h.vel.addScaledVector(tA, 7);
   shake = 0.45; sfx('sting');
-  const el = h === knight ? $('ptK') : $('ptF'); el.classList.remove('hurt'); void el.offsetWidth; el.classList.add('hurt');
+  const el = $(HERO_UI[h.kind].pt); el.classList.remove('hurt'); void el.offsetWidth; el.classList.add('hurt');
   if (pens <= 0) { popWord('OUCH!!', h.u, 2.2, { fill: '#fff', burst: '#FF2E88', size: 1.8, life: 1.2 }); slowmo = 0.25; overT = 1.1; h.inv = 99; updateHud(true); return; }
   pens--; h.inv = 2.0;
   popWord('STUNG!', h.u, 2.4, { fill: '#fff', burst: '#FF2E88', size: 1.3, life: 0.9 });
@@ -851,56 +922,90 @@ function inShieldArc(fromU, cosLim = 0.3) { dirTo(knight.u, fromU, tD); return t
 
 // ======================= hero update (player + AI) =======================
 const _want = new THREE.Vector3(), _aim = new THREE.Vector3(), _tmp = new THREE.Vector3(), _tmp2 = new THREE.Vector3();
+const isDanger = b => b.mode === 'aim' || b.mode === 'launch' || b.kind === 'queen';
 function threatDir(u, range, out) {      // weighted direction toward nearby danger
   out.set(0, 0, 0);
-  for (const b of bees) { if (b.dying) continue; const d = chord(u, b.u); if (d < range) out.addScaledVector(dirTo(u, b.u, tD), (b.kind === 'queen' ? 3 : 1) / Math.max(1, d)); }
+  for (const b of bees) { if (b.dying) continue; const d = chord(u, b.u); if (d < range) out.addScaledVector(dirTo(u, b.u, tD), (b.kind === 'queen' ? 3 : isDanger(b) ? 2 : 1) / Math.max(1, d)); }
   for (const b of bullets) { if (!b.on || b.friend) continue; const d = chord(u, b.u); if (d < range * 0.6) out.addScaledVector(dirTo(u, b.u, tD), 0.35 / Math.max(1, d)); }
   return out;
 }
-function dodgeBullets(h, out, range = 3.2, strength = 1) {
-  for (const b of bullets) {
-    if (!b.on || b.friend) continue; const d = chord(h.u, b.u); if (d > range) continue;
-    dirTo(b.u, h.u, tD); const vdir = _tmp2.copy(b.v).normalize(); if (vdir.dot(tD) < 0.2) continue;   // not heading to us
-    const lat = Math.sqrt(Math.max(0, 1 - vdir.dot(tD) ** 2)) * d;   // miss distance
-    if (lat > 1.0) continue;
-    const side = tC.crossVectors(h.u, vdir).normalize();        // sidestep perpendicular to the bullet path
-    if (side.dot(tD) < 0) side.negate();
-    out.addScaledVector(side, strength * (1.2 - lat) * (range - d + 1));
+function dodgeOne(h, pu, v, out, range, strength, hitR) {     // sidestep something flying at us
+  const d = chord(h.u, pu); if (d > range) return;
+  dirTo(pu, h.u, tD); const vdir = _tmp2.copy(v).normalize(), c = vdir.dot(tD); if (c < 0.2) return;
+  const lat = Math.sqrt(Math.max(0, 1 - c * c)) * d; if (lat > hitR) return;
+  const side = tC.crossVectors(h.u, vdir).normalize(); if (side.dot(tD) < 0) side.negate();
+  out.addScaledVector(side, strength * (hitR + 0.2 - lat) * (range - d + 1));
+}
+function dodgeThreats(h, out, range = 3.4, strength = 1) {
+  for (const b of bullets) if (b.on && !b.friend) dodgeOne(h, b.u, b.v, out, range, strength, 1.0);
+  for (const b of bees) {
+    if (b.dying || b.knock > 0) continue;
+    if (!b.seen) continue;                         // the AI doesn't read every attack
+    if (b.mode === 'launch') dodgeOne(h, b.u, b.vel, out, range * 2.2, strength * 1.3, 1.5);
+    else if (b.mode === 'aim' && b.tgt === h) { dirTo(b.u, h.u, tD); out.addScaledVector(tC.crossVectors(h.u, tD).normalize(), strength * 2.2 * b.orbit); }
   }
 }
+function dangerBee(u, maxD) {           // the bee to deal with first: launched > aiming > closest
+  let best = null, bd = maxD;
+  for (const b of bees) { if (b.dying) continue; let d = chord(u, b.u); if (b.mode === 'launch') d *= 0.5; else if (b.mode === 'aim') d *= 0.7; if (d < bd) { bd = d; best = b; } }
+  return best;
+}
 function nearestPen(u, maxD) { let best = null, bd = maxD; for (const p of pickups) { const d = chord(u, p.u); if (d < bd) { bd = d; best = p; } } return best; }
+function leadDir(h, b, speed, out) {    // aim where a bee will be when the shot gets there
+  const t = chord(h.u, b.u) / speed;
+  const sp = b.vel.length();
+  if (sp > 0.5) offsetU(b.u, _f.copy(b.vel).divideScalar(sp), Math.min(6, sp * t), _p); else _p.copy(b.u);
+  return dirTo(h.u, _p, out);
+}
 
 function aiKnight(h, want, dt) {
-  const f = fairy;
-  threatDir(f.u, 9, _aim);
+  // guard whichever teammate is in the most trouble (the fairy, unless the trooper is swamped)
+  let ward = fairy, worst = -1;
+  for (const x of [fairy, soldier]) { const t = threatDir(x.u, 9, _tmp2).length() + (x === fairy ? 0.15 : 0); if (t > worst) { worst = t; ward = x; } }
+  threatDir(ward.u, 9, _aim);
   const pen = nearestPen(h.u, 5);
   if (pen && _aim.length() < 0.25) dirTo(h.u, pen.u, want).multiplyScalar(4.6);
   else {
-    // stand between the fairy and the danger, a little in front of her
     let target;
-    if (_aim.lengthSq() > 1e-4) { _aim.normalize(); target = offsetU(f.u, _aim, 1.8, _tmp); }
-    else target = offsetU(f.u, f.face, 1.2, _tmp);
-    const d = chord(h.u, target);
-    dirTo(h.u, target, want).multiplyScalar(Math.min(4.8, d * 2.2));
+    if (_aim.lengthSq() > 1e-4) { _aim.normalize(); target = offsetU(ward.u, _aim, 1.8, _tmp); }
+    else target = offsetU(ward.u, ward.face, 1.2, _tmp);
+    dirTo(h.u, target, want).multiplyScalar(Math.min(4.8, chord(h.u, target) * 2.2));
   }
-  // face the nearest threat to me
-  const nb = nearestBee(h.u, 6.5);
-  if (nb) { dirTo(h.u, nb.u, _tmp2); turnToward(h.face, h.u, _tmp2, 7 * dt); }
-  else { threatDir(h.u, 5, _tmp2); if (_tmp2.lengthSq() > 1e-4) turnToward(h.face, h.u, _tmp2.normalize(), 7 * dt); else if (want.lengthSq() > 0.5) turnToward(h.face, h.u, _tmp2.copy(want).normalize(), 6 * dt); }
+  const nb = dangerBee(h.u, 8);
+  if (nb) turnToward(h.face, h.u, dirTo(h.u, nb.u, _tmp2), 8 * dt);
+  else if (want.lengthSq() > 0.5) turnToward(h.face, h.u, _tmp2.copy(want).normalize(), 6 * dt);
   if (nb && h.bashCd <= 0 && chord(h.u, nb.u) < 2.6 && inShieldArc(nb.u, 0.6)) startBash(h);
 }
 function aiFairy(h, want, dt) {
-  // keep distance from bees, stay near the knight (behind him from the danger), dodge stingers, grab pens
+  // keep away from bees, stay behind the knight, dodge, grab pens, shoot
   const k = knight;
   for (const b of bees) { if (b.dying) continue; const d = chord(h.u, b.u); if (d < 4.5) want.addScaledVector(dirTo(b.u, h.u, tD), (4.5 - d) * 1.6 * (b.kind === 'queen' ? 1.6 : 1)); }
   threatDir(k.u, 10, _aim);
-  let target = _aim.lengthSq() > 1e-4 ? offsetU(k.u, _aim.normalize().negate(), 2.2, _tmp) : offsetU(k.u, tA.copy(k.face).negate(), 2.0, _tmp);
-  const dk = chord(h.u, target); want.addScaledVector(dirTo(h.u, target, tD), Math.min(4, dk * 1.5));
-  dodgeBullets(h, want, 3.4, 1.3);
+  const target = _aim.lengthSq() > 1e-4 ? offsetU(k.u, _aim.normalize().negate(), 2.2, _tmp) : offsetU(k.u, tA.copy(k.face).negate(), 2.0, _tmp);
+  want.addScaledVector(dirTo(h.u, target, tD), Math.min(4, chord(h.u, target) * 1.5));
+  dodgeThreats(h, want, 3.4, 1.3);
   const pen = nearestPen(h.u, 7); if (pen) want.addScaledVector(dirTo(h.u, pen.u, tD), 3);
   if (want.length() > 5.2) want.setLength(5.2);
-  const tgt = nearestBee(h.u, 13);
-  if (tgt) { dirTo(h.u, tgt.u, _tmp2); turnToward(h.face, h.u, _tmp2, 10 * dt); if (h.fireCd <= 0 && _tmp2.dot(h.face) > 0.9) shoot(h, _tmp2, 0.26); }
+  const tgt = nearestBee(h.u, 12);
+  if (tgt) { leadDir(h, tgt, 21, _aim); turnToward(h.face, h.u, _aim, 8 * dt); if (h.fireCd <= 0 && _aim.dot(h.face) > 0.9) shoot(h, _aim, 0.34); }
+  else if (want.lengthSq() > 0.3) turnToward(h.face, h.u, _tmp2.copy(want).normalize(), 6 * dt);
+}
+function aiSoldier(h, want, dt) {
+  // hold the flank beside the knight (the side away from the fairy) and blast whatever is coming
+  const k = knight;
+  for (const b of bees) { if (b.dying) continue; const d = chord(h.u, b.u); if (d < 4) want.addScaledVector(dirTo(b.u, h.u, tD), (4 - d) * 1.5 * (b.kind === 'queen' ? 1.6 : 1)); }
+  threatDir(k.u, 10, _aim);
+  let target;
+  const side = _tmp2.crossVectors(k.u, _aim.lengthSq() > 1e-4 ? _aim.normalize() : k.face).normalize();
+  if (side.dot(dirTo(k.u, fairy.u, tD)) > 0) side.negate();
+  if (_aim.lengthSq() > 1e-4) side.multiplyScalar(0.9).addScaledVector(_aim, 0.3).normalize();
+  target = offsetU(k.u, side, 2.4, _tmp);
+  want.addScaledVector(dirTo(h.u, target, tD), Math.min(4, chord(h.u, target) * 1.5));
+  dodgeThreats(h, want, 3.4, 1.2);
+  const pen = nearestPen(h.u, 6); if (pen) want.addScaledVector(dirTo(h.u, pen.u, tD), 3);
+  if (want.length() > 4.8) want.setLength(4.8);
+  const tgt = nearestBee(h.u, 11);
+  if (tgt) { leadDir(h, tgt, 16, _aim); turnToward(h.face, h.u, _aim, 7 * dt); if (h.fireCd <= 0 && _aim.dot(h.face) > 0.93) fireBall(h, _aim, 0.75); }
   else if (want.lengthSq() > 0.3) turnToward(h.face, h.u, _tmp2.copy(want).normalize(), 6 * dt);
 }
 function startBash(h) { h.bashT = 0.24; h.bashCd = 0.65; h.hitSet.clear(); sfx('bash'); stats.bashes++; }
@@ -908,6 +1013,14 @@ function shoot(h, dir, cd) {
   h.fireCd = cd; h.draw = 1; stats.arrows++;
   fireArrow(offsetU(h.u, dir, 0.4, _tmp), dir);
 }
+function fireBall(h, dir, cd) {
+  h.fireCd = cd; h.recoil = 1; stats.balls++;
+  let b = balls.find(x => !x.on); if (!b) { if (balls.length > 24) return; b = makeBall(); balls.push(b); }
+  offsetU(h.u, dir, 0.9, b.u); b.on = true; b.m.visible = true; b.v.copy(dir).multiplyScalar(16); tangent(b.v, b.u); b.life = 0.95; b.em = 0;
+  _p.copy(b.u).multiplyScalar(R + 0.8); for (let i = 0; i < 5; i++) emitSpark(_p, b.u, 0xFFB52E, i < 2);
+  sfx('boom');
+}
+const SPEED = { knight: 4.9, fairy: 5.4, soldier: 4.7 };
 function playerHero(h, want, dt) {
   let ix = stick.x, iy = stick.y;
   if (keys.has('KeyA') || keys.has('ArrowLeft')) ix -= 1; if (keys.has('KeyD') || keys.has('ArrowRight')) ix += 1;
@@ -915,30 +1028,27 @@ function playerHero(h, want, dt) {
   const mag = Math.min(1, Math.hypot(ix, iy));
   const right = tC.crossVectors(camFwd, camU);
   want.copy(right).multiplyScalar(ix).addScaledVector(camFwd, iy); tangent(want, h.u);
-  if (want.lengthSq() > 1e-6) want.setLength(mag * (h === knight ? 4.9 : 5.4));
+  if (want.lengthSq() > 1e-6) want.setLength(mag * SPEED[h.kind]);
   if (h === knight) {
     if (mag > 0.15) turnToward(h.face, h.u, _tmp2.copy(want).normalize(), 12 * dt);
-    else { const nb = nearestBee(h.u, 6); if (nb) turnToward(h.face, h.u, dirTo(h.u, nb.u, _tmp2), 6 * dt); }
+    else { const nb = dangerBee(h.u, 7); if (nb) turnToward(h.face, h.u, dirTo(h.u, nb.u, _tmp2), 7 * dt); }
     if (actPressed && h.bashCd <= 0) startBash(h);
-  } else {
-    if (actHeld) {
-      const tgt = nearestBee(h.u, 14, h.face, 0.35) || (mag < 0.15 ? nearestBee(h.u, 14) : null);
-      if (tgt) dirTo(h.u, tgt.u, _aim); else _aim.copy(h.face);
-      turnToward(h.face, h.u, _aim, 14 * dt);
-      if (h.fireCd <= 0) shoot(h, _aim, 0.15);
-    } else if (mag > 0.15) turnToward(h.face, h.u, _tmp2.copy(want).normalize(), 12 * dt);
-  }
+  } else if (actHeld) {
+    const tgt = nearestBee(h.u, 14, h.face, h === soldier ? 0.5 : 0.35) || (mag < 0.15 ? dangerBee(h.u, 14) : null);
+    if (tgt) leadDir(h, tgt, h === soldier ? 16 : 21, _aim); else _aim.copy(h.face);
+    turnToward(h.face, h.u, _aim, 14 * dt);
+    if (h.fireCd <= 0) { if (h === soldier) fireBall(h, _aim, 0.32); else shoot(h, _aim, 0.15); }
+  } else if (mag > 0.15) turnToward(h.face, h.u, _tmp2.copy(want).normalize(), 12 * dt);
 }
+const AI = { knight: aiKnight, fairy: aiFairy, soldier: aiSoldier };
 function updateHero(h, dt) {
-  h.inv = Math.max(0, h.inv - dt); h.bashCd -= dt; h.fireCd -= dt; h.draw = Math.max(0, h.draw - dt * 4);
+  h.inv = Math.max(0, h.inv - dt); h.bashCd -= dt; h.fireCd -= dt; h.draw = Math.max(0, h.draw - dt * 4); h.recoil = Math.max(0, h.recoil - dt * 5);
   _want.set(0, 0, 0);
-  if (state === 'play') { if (h === active && !AUTOTEST) playerHero(h, _want, dt); else (h === knight ? aiKnight : aiFairy)(h, _want, dt); }
+  if (state === 'play') { if (h === active && !AUTOTEST) playerHero(h, _want, dt); else AI[h.kind](h, _want, dt); }
   else if (state === 'title') turnToward(h.face, h.u, _tmp2.copy(camFwd).negate(), 8 * dt);
   if (h.bashT > 0) { h.bashT -= dt; _want.copy(h.face).multiplyScalar(13); }
   h.vel.lerp(_want, 1 - Math.exp(-(h.bashT > 0 ? 30 : 11) * dt)); tangent(h.vel, h.u);
-  // keep the two apart a little
-  const other = h === knight ? fairy : knight, dd = chord(h.u, other.u);
-  if (dd < 0.95) h.vel.addScaledVector(dirTo(other.u, h.u, tD), (0.95 - dd) * 8);
+  for (const o of heroes) { if (o === h) continue; const dd = chord(h.u, o.u); if (dd < 0.95) h.vel.addScaledVector(dirTo(o.u, h.u, tD), (0.95 - dd) * 8); }
   moveOnSphere(h.u, h.vel, dt, [h.face]);
   // animation
   const sp = h.vel.length(); h.walk += (Math.min(1, sp / 4) - h.walk) * Math.min(1, 10 * dt); h.phase += sp * dt * 3.2;
@@ -946,7 +1056,7 @@ function updateHero(h, dt) {
   h.h = h.kind === 'fairy' ? 0.1 + Math.sin(simT * 3) * 0.05 : 0;
   place(h.root, h.u, h.face, h.h + Math.abs(s) * 0.07 * w);
   h.body.rotation.z = s * 0.09 * w; h.body.rotation.x = 0.12 * w;
-  if (P.legL) { P.legL.rotation.x = s * 0.7 * w; P.legR.rotation.x = -s * 0.7 * w; }
+  P.legL.rotation.x = s * 0.7 * w; P.legR.rotation.x = -s * 0.7 * w;
   P.armR.rotation.x = s * 0.6 * w; P.armL.rotation.x = -s * 0.6 * w;
   P.head.rotation.z = -s * 0.05 * w;
   if (h.kind === 'knight') {
@@ -955,13 +1065,17 @@ function updateHero(h, dt) {
     P.shield.position.set(0.46 - 0.32 * h.block, 0.58 + 0.04 * h.block, 0.28 + 0.26 * h.block);
     P.shield.rotation.y = -0.35 * h.block; P.armL.rotation.x = -0.9 * h.block - s * 0.3 * w; P.armL.rotation.z = 0.4 * h.block;
     h.body.rotation.x += 0.35 * bash;
-  } else {
+  } else if (h.kind === 'fairy') {
     const dr = h.draw;
     P.armR.rotation.x -= 1.3 * dr; P.armR.rotation.z = -0.25 * dr;
     P.armL.rotation.x -= 1.1 * dr; P.armL.rotation.z = 0.55 * dr;
     P.string.position.z = -0.25 - 0.12 * dr;
     const flap = Math.sin(simT * (w > 0.2 ? 22 : 9)) * 0.55;
     P.wings[0].rotation.y = 0.4 + flap; P.wings[1].rotation.y = -0.4 - flap;
+  } else {
+    const rc = h.recoil;
+    P.armR.rotation.set(-1.2 + rc * 0.3, 0, 0.2); P.armL.rotation.set(-1.45 + rc * 0.3, 0, -0.55);
+    P.gun.position.z = 0.36 - rc * 0.16; P.gun.rotation.x = -rc * 0.14; h.body.rotation.x -= rc * 0.08;
   }
   h.root.visible = h.inv > 0 && h.inv < 50 ? Math.floor(h.inv * 12) % 2 === 0 : true;
   h.ring.visible = state === 'play' && h === active;
@@ -969,104 +1083,150 @@ function updateHero(h, dt) {
 }
 
 // ======================= bee update =======================
-const _bw = new THREE.Vector3();
+// Bees hover at a distance, pick a hero, aim (a pink dashed line + "!"), spin round so the stinger points at you,
+// then launch themselves like missiles. Hit one (arrow, ball, bash, or the knight's shield) and it flies off and
+// ricochets into its friends. Only the queen shoots stingers.
+const _bw = new THREE.Vector3(), _lq = new THREE.Quaternion(), _lu = new THREE.Vector3(), _ld = new THREE.Vector3(), _ax = new THREE.Vector3();
+const DASHES = 9, DASH_GEO = new THREE.BoxGeometry(0.16, 0.03, 0.5);
+const DASH_MAT = noLine(new THREE.MeshBasicMaterial({ color: 0xFF2E88, transparent: true, opacity: 0.7, depthWrite: false }));
+function aimLine(b, dir, len) {
+  if (!b.line) { b.line = new THREE.Group(); for (let i = 0; i < DASHES; i++) b.line.add(new THREE.Mesh(DASH_GEO, DASH_MAT)); scene.add(b.line); }
+  b.line.visible = true;
+  _ax.crossVectors(b.u, dir).normalize();
+  b.line.children.forEach((m, i) => {
+    _lq.setFromAxisAngle(_ax, (i + 0.5) / DASHES * len / R); _lu.copy(b.u).applyQuaternion(_lq); _ld.copy(dir).applyQuaternion(_lq);
+    place(m, _lu, _ld, 0.06);
+  });
+}
+function ricochets(b) {       // a knocked bee flying fast bonks into others
+  const sp = b.vel.length(); if (sp < 3.5) return;
+  for (const o of bees) {
+    if (o === b || o.dying || o.ricoCd > 0) continue;
+    const d = chord(b.u, o.u); if (d > (b.rad + o.rad) * 0.85) continue;
+    const n = dirTo(b.u, o.u, _bw);
+    o.ricoCd = 0.25; b.ricoCd = 0.12;
+    const ch = b.chain + 1; combo = Math.max(combo, ch + 1); comboT = 1.6; stats.ricochets++;
+    knockBee(o, n, sp * 0.85, ch);
+    damageBee(o, 1 + Math.floor(ch / 2), 'rico'); damageBee(b, 1, 'rico');
+    addScore(50 * ch);
+    b.vel.addScaledVector(n, -2 * b.vel.dot(n)).multiplyScalar(0.55);
+    sfx('bonk'); popWord('BONK!', o.u, o.h + 0.6, { fill: '#fff', burst: '#FF8A1F', size: 0.9, life: 0.5 });
+    tA.copy(o.u).add(b.u).normalize().multiplyScalar(R + b.h); for (let j = 0; j < 4; j++) emitSpark(tA, o.u, 0xFFE94A, false);
+    if (b.dying) return;
+  }
+}
+function beeContacts(b) {
+  const k = knight, launched = b.mode === 'launch' || b.kind === 'queen';
+  shieldPoint(_shield);
+  const dk = chord(b.u, k.u), ds = chord(b.u, _shield);
+  if (k.bashT > 0 && dk < 1.6 + b.rad * 0.5 && inShieldArc(b.u, 0.0) && !k.hitSet.has(b)) {     // BASH
+    k.hitSet.add(b); knockBee(b, dirTo(k.u, b.u, _bw).add(k.face).normalize(), 15, 0); damageBee(b, 2, 'bash');
+    sfx('clang'); popWord('THWACK!', b.u, b.h + 0.6, { fill: '#FFE94A', burst: '#F08A00', size: 1.1, life: 0.5 }); shake = Math.max(shake, 0.25); return;
+  }
+  if (launched && ds < b.rad + 0.45 && inShieldArc(b.u, 0.1)) {                                   // shield bounce
+    if (b.kind === 'queen') { knockBee(b, dirTo(k.u, b.u, _bw), 8, 0); sfx('clang'); return; }
+    const n = dirTo(k.u, _shield, _bw), v = _tmp2.copy(b.vel), vn = v.dot(n); if (vn < 0) v.addScaledVector(n, -2 * vn);
+    if (v.lengthSq() < 1e-4) v.copy(n); v.normalize();
+    knockBee(b, v, Math.max(12, b.vel.length() * 1.05), 0); damageBee(b, 1, 'block'); stats.blocks++;
+    sfx('clang'); popWord('BOING!', b.u, b.h + 0.6, { fill: '#fff', burst: '#F08A00', size: 0.9, life: 0.45 });
+    _p.copy(b.u).multiplyScalar(R + b.h); for (let j = 0; j < 4; j++) emitSpark(_p, b.u, 0xFFE94A, false);
+    return;
+  }
+  for (const h of heroes) {
+    if (chord(b.u, h.u) > b.rad + 0.35) continue;
+    if (launched) { stingHero(h, b.u); if (b.kind !== 'queen') knockBee(b, dirTo(h.u, b.u, _bw), 6, 0); return; }
+    b.vel.addScaledVector(dirTo(h.u, b.u, _bw), 3);     // a hovering bee just gets bumped
+  }
+}
+function queenThink(b, dt, toT, dT, tgt, shotSpd) {
+  const side = tC.crossVectors(b.u, toT);
+  _want.copy(toT).multiplyScalar(clamp((dT - 6.5) * 1.2, -3, 3)).addScaledVector(side, b.orbit * 1.4);
+  b.fireT -= dt; b.patT += dt;
+  if (b.fireT <= 0 && dT < 15) {
+    const cyc = b.patT % 9;
+    if (cyc < 3.2) {          // spiral of stingers
+      b.pat += 0.42;
+      for (let a = 0; a < 4; a++) fireBullet(b.u, _bw.copy(toT).applyAxisAngle(b.u, b.pat + a * 1.5708), shotSpd * 0.8);
+      b.fireT = 0.11;
+    } else if (cyc < 5.6) {   // aimed fans of stingers
+      for (let j = 0; j < 7; j++) fireBullet(b.u, _bw.copy(toT).applyAxisAngle(b.u, (j / 6 - 0.5) * 0.9), shotSpd);
+      b.fireT = 0.6;
+    } else {                  // flings two of her guards at you, plus a ring
+      for (let j = 0; j < 2; j++) { const g = spawnBee('dart', offsetU(b.u, _bw.copy(toT).applyAxisAngle(b.u, (j - 0.5) * 1.6), 1.7, new THREE.Vector3())); g.mode = 'aim'; g.st = 0.5; g.tgt = tgt; }
+      const n = 16, off = Math.random() * 6.28;
+      for (let j = 0; j < n; j++) fireBullet(b.u, _bw.copy(toT).applyAxisAngle(b.u, off + j * 6.2832 / n), shotSpd * 0.7);
+      b.fireT = 1.6;
+    }
+    sfx('zap');
+  }
+  b.vel.lerp(_want, 1 - Math.exp(-3 * dt));
+  turnToward(b.face, b.u, toT, 4 * dt);
+}
 function updateBees(dt) {
-  const bSpd = Math.min(5.2, 2.5 + wave * 0.13), shotSpd = Math.min(7.5, 4.4 + wave * 0.12);
+  const lSpd = Math.min(15, 10 + wave * 0.35), aimT = Math.max(0.5, 0.95 - wave * 0.03), shotSpd = Math.min(7.5, 4.4 + wave * 0.12);
+  let busy = 0; for (const b of bees) if (!b.dying && (b.mode === 'aim' || b.mode === 'launch')) busy++;
+  const maxBusy = 2 + Math.floor(wave / 2);
+  DASH_MAT.opacity = 0.45 + 0.3 * Math.sin(simT * 18);
   for (let i = bees.length - 1; i >= 0; i--) {
-    const b = bees[i]; b.t += dt; b.ricoCd -= dt;
+    const b = bees[i], K = BEE_KIND[b.kind]; b.t += dt; b.ricoCd -= dt;
     b.squash = Math.max(0, b.squash - dt * 5);
     if (b.dying) {
+      if (b.line) b.line.visible = false;
       b.dying += dt; const k = b.dying / 0.45;
       if (k >= 1) { removeBee(b); continue; }
-      b.root.scale.setScalar(BEE_KIND[b.kind].scale * (1 - k)); b.body.rotation.z += dt * 20; b.h += dt * 2;
+      b.root.scale.setScalar(K.scale * (1 - k)); b.body.rotation.z += dt * 20; b.h += dt * 2;
       place(b.root, b.u, b.face, b.h); continue;
     }
-    const tgt = nearestHero(b.u), dT = chord(b.u, tgt.u);
     if (b.knock > 0) {
       b.knock -= dt; b.vel.multiplyScalar(Math.exp(-2.0 * dt)); b.spin += dt * 18;
-      // ricochet into other bees
-      const sp = b.vel.length();
-      if (sp > 3.5) for (const o of bees) {
-        if (o === b || o.dying || o.ricoCd > 0) continue;
-        const d = chord(b.u, o.u); if (d > (b.rad + o.rad) * 0.85) continue;
-        const n = dirTo(b.u, o.u, _bw);
-        o.ricoCd = 0.25; b.ricoCd = 0.12;
-        const ch = b.chain + 1; combo = Math.max(combo, ch + 1); comboT = 1.6; stats.ricochets++;
-        knockBee(o, n, sp * 0.85, ch);
-        damageBee(o, 1 + Math.floor(ch / 2), 'rico'); damageBee(b, 1, 'rico');
-        addScore(50 * ch);
-        b.vel.addScaledVector(n, -2 * b.vel.dot(n)).multiplyScalar(0.55);
-        sfx('bonk'); popWord('BONK!', o.u, o.h + 0.6, { fill: '#fff', burst: '#FF8A1F', size: 0.9, life: 0.5 });
-        tA.copy(o.u).add(b.u).normalize().multiplyScalar(R + b.h); for (let j = 0; j < 4; j++) emitSpark(tA, o.u, 0xFFE94A, false);
-        if (b.dying) break;
-      }
-      if (b.dying) continue;
+      ricochets(b); if (b.dying) continue;
     } else {
       b.spin *= Math.exp(-6 * dt);
+      const tgt = b.tgt && (b.mode === 'aim' || b.mode === 'launch') ? b.tgt : nearestHero(b.u);
+      const toT = dirTo(b.u, tgt.u, _tmp), dT = chord(b.u, tgt.u);
       _want.set(0, 0, 0);
-      const toT = dirTo(b.u, tgt.u, _tmp);
-      if (b.kind === 'buzz') {
-        _want.copy(toT).multiplyScalar(bSpd);
-        const side = tC.crossVectors(b.u, toT); _want.addScaledVector(side, Math.sin(b.t * 2.6 + i) * 1.6);
-      } else {
-        const keep = b.kind === 'queen' ? 6.5 : b.kind === 'ring' ? 7 : 6;
+      if (b.kind === 'queen') queenThink(b, dt, toT, dT, tgt, shotSpd);
+      else if (b.mode === 'approach') {
         const side = tC.crossVectors(b.u, toT);
-        _want.addScaledVector(toT, clamp((dT - keep) * 1.2, -3, 3)).addScaledVector(side, b.orbit * (b.kind === 'queen' ? 1.4 : 2.2));
-        b.fireT -= dt;
-        if (b.fireT <= 0 && dT < 15) {
-          if (b.kind === 'shoot') {
-            const n = wave >= 6 ? 5 : 3, spread = 0.55;
-            for (let j = 0; j < n; j++) fireBullet(b.u, _bw.copy(toT).applyAxisAngle(b.u, (j / (n - 1) - 0.5) * spread), shotSpd);
-            b.fireT = Math.max(1.3, 2.6 - wave * 0.06); sfx('zap');
-          } else if (b.kind === 'ring') {
-            const n = Math.min(22, 10 + wave), off = Math.random() * 6.28;
-            for (let j = 0; j < n; j++) fireBullet(b.u, _bw.copy(toT).applyAxisAngle(b.u, off + j * 6.2832 / n), shotSpd * 0.85);
-            b.fireT = Math.max(2.2, 3.6 - wave * 0.05); sfx('zap');
-          } else if (b.kind === 'queen') {
-            b.patT += dt;
-            const cyc = b.patT % 9;
-            if (cyc < 3.2) {          // spiral
-              b.pat += 0.42;
-              for (let a = 0; a < 4; a++) fireBullet(b.u, _bw.copy(toT).applyAxisAngle(b.u, b.pat + a * 1.5708), shotSpd * 0.8);
-              b.fireT = 0.11;
-            } else if (cyc < 5.6) {   // aimed fans
-              for (let j = 0; j < 7; j++) fireBullet(b.u, _bw.copy(toT).applyAxisAngle(b.u, (j / 6 - 0.5) * 0.9), shotSpd);
-              b.fireT = 0.6;
-            } else {                  // summon guards + a ring
-              for (let j = 0; j < 2; j++) spawnBee('buzz', offsetU(b.u, _bw.copy(toT).applyAxisAngle(b.u, (j - 0.5) * 2.2), 1.6, new THREE.Vector3()));
-              const n = 16, off = Math.random() * 6.28;
-              for (let j = 0; j < n; j++) fireBullet(b.u, _bw.copy(toT).applyAxisAngle(b.u, off + j * 6.2832 / n), shotSpd * 0.7);
-              b.fireT = 1.6;
-            }
-            sfx('zap');
-          }
+        _want.addScaledVector(toT, clamp((dT - 6.5) * 1.3, -3, 3.4) * K.spd).addScaledVector(side, b.orbit * 1.8);
+        b.vel.lerp(_want, 1 - Math.exp(-3 * dt));
+        turnToward(b.face, b.u, toT, 5 * dt);
+        b.cd -= dt;
+        if (b.cd <= 0 && dT < 11 && busy < maxBusy && state === 'play') {
+          b.mode = 'aim'; b.st = aimT; b.tgt = tgt; b.seen = Math.random() < 0.6; busy++; sfx('buzz');
+          popWord('!', b.u, b.h + 1.1, { fill: '#FF2E88', size: 0.8, life: aimT, rise: 0 });
         }
+      } else if (b.mode === 'aim') {
+        b.vel.multiplyScalar(Math.exp(-6 * dt));
+        turnToward(b.face, b.u, _bw.copy(toT).negate(), 9 * dt);      // spin round: stinger toward the target
+        aimLine(b, toT, Math.min(dT + 2.5, 14));
+        b.st -= dt;
+        if (b.st <= 0) { b.mode = 'launch'; b.ldir.copy(toT); b.st = 1.5; stats.launches++; sfx('whoosh'); }
+      } else if (b.mode === 'launch') {
+        if (b.kind === 'homer' && b.st > 0.55) turnToward(b.ldir, b.u, toT, 1.8 * dt);
+        b.vel.copy(b.ldir).multiplyScalar(lSpd * K.spd);
+        if (b.kind === 'zig') b.vel.addScaledVector(tC.crossVectors(b.u, b.ldir), Math.sin(b.t * 11) * 6.5);
+        tangent(b.vel, b.u);
+        b.face.copy(b.vel).normalize().negate();                         // stinger first
+        b.em += dt; if (b.em > 0.04) { b.em = 0; _p.copy(b.u).multiplyScalar(R + b.h); emitSpark(_p, b.u, 0xFFFFFF, false); }
+        b.st -= dt; if (b.st <= 0) { b.mode = 'recover'; b.st = 0.8; b.tgt = null; }
+      } else {                                                           // recover, then back to hovering
+        b.vel.multiplyScalar(Math.exp(-3 * dt)); turnToward(b.face, b.u, toT, 5 * dt);
+        b.st -= dt; if (b.st <= 0) { b.mode = 'approach'; b.cd = Math.max(0.5, 1 + Math.random() * 1.8 - wave * 0.05); }
       }
-      b.vel.lerp(_want, 1 - Math.exp(-3 * dt));
-      // personal space between bees
-      for (const o of bees) { if (o === b || o.dying) continue; const d = chord(b.u, o.u), lim = (b.rad + o.rad) * 0.9; if (d < lim && d > 1e-4) b.vel.addScaledVector(dirTo(o.u, b.u, _bw), (lim - d) * 5); }
-      turnToward(b.face, b.u, toT, 6 * dt);
-      // contact with heroes
-      for (const h of heroes) {
-        const d = chord(b.u, h.u);
-        if (h === knight) {
-          shieldPoint(_shield); const ds = chord(b.u, _shield);
-          if ((ds < b.rad + 0.45 || (h.bashT > 0 && d < 1.6)) && (inShieldArc(b.u, 0.15) || h.bashT > 0)) {
-            if (h.bashT > 0) { if (!h.hitSet.has(b)) { h.hitSet.add(b); knockBee(b, dirTo(h.u, b.u, _bw).add(h.face).normalize(), 15, 0); damageBee(b, 2, 'bash'); sfx('clang'); popWord('THWACK!', b.u, b.h + 0.6, { fill: '#FFE94A', burst: '#F08A00', size: 1.1, life: 0.5 }); shake = Math.max(shake, 0.25); } }
-            else { knockBee(b, dirTo(h.u, b.u, _bw), 10, 0); damageBee(b, 1, 'block'); sfx('clang'); stats.blocks++; }
-            break;
-          }
-        }
-        if (d < b.rad + 0.35) { stingHero(h, b.u); knockBee(b, dirTo(h.u, b.u, _bw), 6, 0); b.knock = 0.3; break; }
-      }
+      if (b.mode !== 'launch') for (const o of bees) { if (o === b || o.dying) continue; const d = chord(b.u, o.u), lim = (b.rad + o.rad) * 0.9; if (d < lim && d > 1e-4) b.vel.addScaledVector(dirTo(o.u, b.u, _bw), (lim - d) * 5); }
+      beeContacts(b);
     }
-    moveOnSphere(b.u, b.vel, dt, [b.face]);
-    b.h = 1.1 + Math.sin(b.t * 4 + i) * 0.12;
+    if (b.line && b.mode !== 'aim') b.line.visible = false;
+    if (b.dying) continue;
+    moveOnSphere(b.u, b.vel, dt, [b.face, b.ldir]);
+    b.h = 1.1 + Math.sin(b.t * 4 + i) * (b.mode === 'launch' ? 0.02 : 0.12);
     place(b.root, b.u, b.face, b.h);
-    const sq = b.squash; const sc = BEE_KIND[b.kind].scale;
+    const sq = b.squash, sc = K.scale;
     b.root.scale.set(sc * (1 + sq * 0.35), sc * (1 - sq * 0.25), sc * (1 + sq * 0.2));
-    b.body.rotation.z = b.spin; b.body.rotation.x = b.knock > 0 ? -0.5 : 0.15;
-    const fl = Math.sin(b.t * 60) * 0.6; b.wings[0].rotation.z = 0.3 + fl; b.wings[1].rotation.z = -0.3 - fl;
+    b.body.rotation.z = b.spin; b.body.rotation.x = b.knock > 0 ? -0.5 : b.mode === 'launch' ? 0 : 0.15;
+    b.body.position.x = b.mode === 'aim' ? (Math.random() - 0.5) * 0.12 : 0;
+    const fl = Math.sin(b.t * (b.mode === 'launch' ? 90 : 60)) * 0.6; b.wings[0].rotation.z = 0.3 + fl; b.wings[1].rotation.z = -0.3 - fl;
   }
 }
 
@@ -1098,7 +1258,22 @@ function updateProjectiles(dt) {
     _f.copy(a.v).normalize(); place(a.g, a.u, _f, 0.95);
     for (const e of bees) {
       if (e.dying) continue;
-      if (chord(a.u, e.u) < e.rad + 0.12) { knockBee(e, _f, 9.5, 0); damageBee(e, 1, 'arrow'); sfx('bonk'); a.on = false; a.g.visible = false; break; }
+      if (chord(a.u, e.u) < e.rad + 0.12) { if (e.mode !== 'aim') knockBee(e, _f, 9.5, 0); else e.squash = 1; damageBee(e, 1, 'arrow'); sfx('bonk'); a.on = false; a.g.visible = false; break; }
+    }
+  }
+  for (const b of balls) {
+    if (!b.on) continue;
+    b.life -= dt; if (b.life <= 0) { b.on = false; b.m.visible = false; continue; }
+    moveOnSphere(b.u, b.v, dt);
+    b.m.position.copy(b.u).multiplyScalar(R + 0.8); b.m.rotation.x += dt * 14;
+    b.em += dt; if (b.em > 0.05) { b.em = 0; emitSpark(b.m.position, b.u, 0xFFE94A, false); }
+    for (const e of bees) {
+      if (e.dying) continue;
+      if (chord(b.u, e.u) < e.rad + 0.24) {
+        _f.copy(b.v).normalize(); knockBee(e, _f, 16, 0); damageBee(e, 2, 'ball');
+        sfx('bonk'); for (let j = 0; j < 10; j++) emitSpark(b.m.position, b.u, [0xFF7A2F, 0xFFE94A][j % 2], true);
+        b.on = false; b.m.visible = false; break;
+      }
     }
   }
   drawBullets();
@@ -1128,7 +1303,7 @@ function updateGame(dt) {
       if (spawnT <= 0) {
         const k = waveQueue.shift();
         spawnBee(k, spawnPoint(k === 'queen' ? 0.85 : 0.95, k === 'queen' ? 0.95 : 1.5));
-        if (k === 'buzz' && waveQueue[0] === 'buzz' && Math.random() < 0.5) spawnBee(waveQueue.shift(), spawnPoint(0.95, 1.5));
+        if (k === 'dart' && waveQueue[0] === 'dart' && Math.random() < 0.5) spawnBee(waveQueue.shift(), spawnPoint(0.95, 1.5));
         spawnT = Math.max(0.35, 1.0 - wave * 0.05);
       }
     } else if (bees.every(b => b.dying) && state === 'play') {
@@ -1153,7 +1328,7 @@ function frame(now) {
   if (state === 'over' && overT <= 0) slowmo += (1 - slowmo) * Math.min(1, dt * 2);
   const gdt = dt * slowmo; simT += gdt;
   updateGame(gdt);
-  if (state === 'title') { if (!QS.has('icon')) orbitDelta += dt * 18; updateCamera(dt, tA.copy(knight.u).add(fairy.u).normalize(), QS.has('icon') ? 4.4 : 6.5, QS.has('icon') ? 0.22 : 0.32); }
+  if (state === 'title') { if (!QS.has('icon')) orbitDelta += dt * 18; updateCamera(dt, tA.copy(knight.u).add(fairy.u).add(soldier.u).normalize(), QS.has('icon') ? 5.4 : 7, QS.has('icon') ? 0.22 : 0.32); }
   else updateCamera(dt, active.u);
   for (const s of twinklers) { const u = s.userData; s.scale.setScalar(u.base * (0.8 + 0.25 * Math.sin(simT * u.sp + u.ph))); }
   effect.render(scene, camera);
@@ -1166,7 +1341,7 @@ addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; cam
 document.addEventListener('visibilitychange', () => { if (document.hidden) bgm.pause(); else if (state === 'play') playMusic(); });
 if (document.fonts) document.fonts.load('40px Bangers').then(() => { for (const k in wordCache) delete wordCache[k]; }).catch(() => { });
 if (AUTOTEST) startGame();
-window.__cw = { get active() { return active.kind; }, heroScreen(k) { const h = k === 'knight' ? knight : fairy; const p = h.u.clone().multiplyScalar(R + h.h + 0.75).project(camera); return { x: (p.x * 0.5 + 0.5) * innerWidth, y: (-p.y * 0.5 + 0.5) * innerHeight }; }, get state() { return state; }, get wave() { return wave; }, get score() { return score; }, get pens() { return pens; }, set pens(v) { pens = v; }, bees, bullets, heroes, stats, setActive, startGame, get bulletCount() { return bulletCount; }, spawnBee, spawnPen, camU, camFwd, knight, fairy };
+window.__cw = { get active() { return active.kind; }, heroScreen(k) { const h = heroes.find(x => x.kind === k); const p = h.u.clone().multiplyScalar(R + h.h + 0.75).project(camera); return { x: (p.x * 0.5 + 0.5) * innerWidth, y: (-p.y * 0.5 + 0.5) * innerHeight }; }, get state() { return state; }, get wave() { return wave; }, get score() { return score; }, get pens() { return pens; }, set pens(v) { pens = v; }, bees, bullets, heroes, stats, setActive, startGame, get bulletCount() { return bulletCount; }, spawnBee, spawnPen, camU, camFwd, knight, fairy, soldier };
 </script>
 </body>
 </html>
