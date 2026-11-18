@@ -329,7 +329,7 @@ function realFail(msg) {
 }
 function alertCard(msg) {
   const d = document.createElement('div'); d.className = 'screen'; d.innerHTML = `<div class="card"><h2>Real Hoboken didn't load</h2><div>${msg}</div>
-    ${IN_CLAUDE ? '<div class="note" style="margin-top:6px">Play it at <a href="https://itemnautsoft.github.io/ISLANAUT/games/mile-square-mayhem/" target="_blank" rel="noopener">itemnautsoft.github.io/ISLANAUT</a>.</div>' : ''}
+    ${IN_CLAUDE ? '<div class="note" style="margin-top:6px">Play it at <a href="https://itemnautsoft.github.io/Soft/games/mile-square-mayhem/" target="_blank" rel="noopener">itemnautsoft.github.io/Soft</a>.</div>' : ''}
     <div class="row"><button class="big yel">Play Toy Hoboken</button><button class="big">Close</button></div></div>`;
   document.body.appendChild(d);
   const [a, b] = d.querySelectorAll('button'); a.onclick = () => { d.remove(); $('title').style.display = 'none'; startToy(); }; b.onclick = () => d.remove();

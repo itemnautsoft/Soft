@@ -1,5 +1,5 @@
 # Rebuilds the front page and publishes the whole repo to GitHub Pages
-# on every push to main. Play at https://itemnautsoft.github.io/ISLANAUT/
+# on every push to main. Play at https://itemnautsoft.github.io/Soft/
 #
 # Publishes two ways so the site works whichever Pages source is set:
 #  1. pushes the built site to the `gh-pages` branch (Settings → Pages → Deploy from a branch → gh-pages / root).

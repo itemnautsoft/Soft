@@ -103,7 +103,7 @@ ${apps.length ? `<h2 class="section">Apps</h2>
 <main>
 ${apps.map((a, i) => card(a, i + games.length)).join("")}
 </main>` : ""}
-<footer><a href="https://github.com/itemnautsoft/ISLANAUT">source on GitHub</a></footer>
+<footer><a href="https://github.com/itemnautsoft/Soft">source on GitHub</a></footer>
 </body>
 </html>
 `;

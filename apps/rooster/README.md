@@ -1,6 +1,6 @@
 # ROOSTER
 
-Time management as a coil of gooey tubes. Live at https://itemnautsoft.github.io/ISLANAUT/apps/rooster/
+Time management as a coil of gooey tubes. Live at https://itemnautsoft.github.io/Soft/apps/rooster/
 
 ## Timeline world (tap the date)
 
