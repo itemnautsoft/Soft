@@ -15,6 +15,13 @@ artifact https://claude.ai/artifact/9r6kfueP1DJ5TWi8ZPS6yf.
   Cutting across the grain can chip, and undo only goes back five steps.
 - **Mirror (🪞):** copies every edit across the centre line (x = 0), including the carving.
 
+## Tuto
+Tuto from [Tuto](https://github.com/itemnautsoft/Tuto) lives in the app, with his body, poses and basketball dribble
+copied straight from Tuto Maker. He laps your model dribbling (crossovers, spin moves, fingertip spins), leaps up
+to swing from your points, goes hand over hand along your edges, and stands on the top points. He only looks at the
+mesh and never changes it. If you drag a point he's holding, he holds on. Poke him and he hops out of the way, or
+hangs on no longer; drag him to carry him somewhere else. 🏀 turns him on or off.
+
 ## Touch controls
 - Tap the surface to drop a point. Four points make a quad, or tap the first point again to make a triangle.
 - Drag a point or an edge to move it.
@@ -31,6 +38,5 @@ artifact https://claude.ai/artifact/9r6kfueP1DJ5TWi8ZPS6yf.
   through, so apply the modifier first.
 
 ## Not done yet
-- Tuto, who will swing from your points and edges (see `itemnautsoft/Tuto`).
 - In-app drawing on the reference box.
 - A clean quad automatic retopology.

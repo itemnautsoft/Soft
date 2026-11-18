@@ -50,6 +50,7 @@ canvas{display:block;position:fixed;inset:0}
 <input type="range" id="op" min="0.1" max="1" step="0.05" value="0.85" title="Low-poly opacity">
 <button class="b" id="bSnap" title="Snap to sculpt on/off">🧲</button>
 <button class="b off" id="bMir" title="Mirror edits across the centre">🪞</button>
+<button class="b" id="bTuto" title="Tuto on or off">🏀</button>
 <button class="b" id="bTex" title="Use sculpt texture on low-poly">🎨</button>
 <button class="b" id="bAuto" title="Auto retopo">✨</button>
 <button class="b" id="bUndo" title="Undo">↶</button>
@@ -85,6 +86,7 @@ import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
 import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 import {STLExporter} from 'three/addons/exporters/STLExporter.js';
 import {PLYExporter} from 'three/addons/exporters/PLYExporter.js';
+import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {MarchingCubes} from 'three/addons/objects/MarchingCubes.js';
 import {SimplifyModifier} from 'three/addons/modifiers/SimplifyModifier.js';
 import {mergeVertices,mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
@@ -114,8 +116,9 @@ function ask(text,{value,ok='OK'}={}){return new Promise(res=>{const A=$('ask'),
   $('askF').onsubmit=e=>{e.preventDefault();done(value===undefined?true:I.value)};
   $('askNo').onclick=()=>done(value===undefined?false:null);
   setTimeout(()=>(value===undefined?$('askYes'):I).focus(),0)})}
-const save=()=>{hist.push(JSON.stringify([V,F]));if(hist.length>80)hist.shift()};
-const undo=()=>{if(woodMode){if(!woodUndo.length)return hint('No more undo: wood remembers');wood.field.set(woodUndo.pop());return woodRefresh()}
+let meshVer=0;
+const save=()=>{meshVer++;hist.push(JSON.stringify([V,F]));if(hist.length>80)hist.shift()};
+const undo=()=>{meshVer++;if(woodMode){if(!woodUndo.length)return hint('No more undo: wood remembers');wood.field.set(woodUndo.pop());return woodRefresh()}
   if(!hist.length)return;[V,F]=JSON.parse(hist.pop());pend=[];rebuild()};
 
 // ---------- high-res sculpt ----------
@@ -124,6 +127,7 @@ function geoMesh(g){g.computeVertexNormals();
   return new THREE.Mesh(g,g.attributes.color?new THREE.MeshStandardMaterial({vertexColors:true,roughness:.8}):hiMat)}
 let highGeo=null;
 function setHigh(root){
+  meshVer++;
   refMode=false;
   if(high)scene.remove(high);
   root.traverse(o=>{if(o.isMesh&&!o.geometry.attributes.normal)o.geometry.computeVertexNormals()});
@@ -375,7 +379,8 @@ const wood=new MarchingCubes(RES,woodMat,false,false,90000);
 wood.isolation=50;wood.scale.setScalar(1.3);wood.visible=false;scene.add(wood);
 const WH=RES/2,K=25*WH;
 const wl=i=>(i-WH)/WH, wi=x=>x*WH+WH;
-function newBlock(){const b=refMode&&boxDim?boxDim.map(v=>v/Math.max(...boxDim)*.8):[.55,.8,.55];
+let woodHalf=[.55,.8,.55];
+function newBlock(){const b=refMode&&boxDim?boxDim.map(v=>v/Math.max(...boxDim)*.8):[.55,.8,.55];woodHalf=b;
   const f=wood.field,N=RES;
   for(let z=0;z<N;z++)for(let y=0;y<N;y++)for(let x=0;x<N;x++){
     const qx=Math.abs(wl(x))-b[0],qy=Math.abs(wl(y))-b[1],qz=Math.abs(wl(z))-b[2];
@@ -586,16 +591,18 @@ function woodGeo(){const n=wood.count*3,g=new THREE.BufferGeometry();
   g.setAttribute('position',new THREE.Float32BufferAttribute(pa,3));g.computeVertexNormals();return g}
 
 // ---------- touch gestures (registered before OrbitControls so we can claim a touch) ----------
-let G=null,touches=0,lastTap={t:0,k:null};
+let TG=null,G=null,touches=0,lastTap={t:0,k:null};
 el.addEventListener('pointerdown',e=>{touches++;
-  if(touches>1){if(G){clearTimeout(G.lp);G=null}W=null;controls.enabled=true;return}
+  if(touches>1){if(G){clearTimeout(G.lp);G=null}if(TG){if(TG.moved)TUTO.release();TG=null}W=null;controls.enabled=true;return}
+  if(TUTO.hit(e.clientX,e.clientY)){TG={x:e.clientX,y:e.clientY,moved:false};controls.enabled=false;return}
   if(woodMode){woodDown(e);return}
   const x=e.clientX,y=e.clientY,vi=pickV(x,y),ed=vi<0?pickE(x,y):null;
   G={x,y,t:performance.now(),vi,ed,moved:false,saved:false,hitStart:hitScreen(x,y,ed?V[ed.a].map((v,k)=>(v+V[ed.b][k])/2):undefined)};
   controls.enabled=!(vi>=0||ed);
   G.lp=setTimeout(()=>{if(!G||G.moved)return;
     if(G.vi>=0)delV(G.vi);else if(G.ed)loopCut(G.ed);else holdFace(G.x,G.y);G=null;controls.enabled=true},550)});
-el.addEventListener('pointermove',e=>{if(woodMode)return woodMove(e);if(!G)return;const dx=e.clientX-G.x,dy=e.clientY-G.y;
+el.addEventListener('pointermove',e=>{if(TG){if(!TG.moved&&Math.hypot(e.clientX-TG.x,e.clientY-TG.y)>7){TG.moved=true;TUTO.grabAt(TG.x,TG.y)}if(TG.moved)TUTO.dragTo(e.clientX,e.clientY);return}
+  if(woodMode)return woodMove(e);if(!G)return;const dx=e.clientX-G.x,dy=e.clientY-G.y;
   if(!G.moved&&Math.hypot(dx,dy)>7){G.moved=true;clearTimeout(G.lp)}
   if(!G.moved||controls.enabled)return;
   if(!G.saved){save();G.saved=true;if(mirOn){if(G.vi>=0)G.mv=mir(G.vi);else if(G.ed)G.me=[mir(G.ed.a),mir(G.ed.b)]}}
@@ -607,7 +614,8 @@ el.addEventListener('pointermove',e=>{if(woodMode)return woodMove(e);if(!G)retur
     if(mirOn&&G.me){const ab=[G.ed.a,G.ed.b];ab.forEach((i,k)=>{const m=G.me[k];if(m===i)V[i][0]=0;else if(m>=0&&!ab.includes(m))V[m]=mp(V[i])});
       if(G.me[0]===G.ed.b)V[G.ed.b]=mp(V[G.ed.a])}}
   rebuild()});
-const up=e=>{touches=Math.max(0,touches-1);if(woodMode){W=null;setTimeout(()=>controls.enabled=true,0);return}if(!G)return;clearTimeout(G.lp);const g=G;G=null;
+const up=e=>{touches=Math.max(0,touches-1);if(TG){const g=TG;TG=null;if(g.moved)TUTO.release();else TUTO.poke(g.x);setTimeout(()=>controls.enabled=true,0);return}
+  if(woodMode){W=null;setTimeout(()=>controls.enabled=true,0);return}if(!G)return;clearTimeout(G.lp);const g=G;G=null;
   setTimeout(()=>controls.enabled=true,0);
   if(g.moved||performance.now()-g.t>400)return;
   // it's a tap
@@ -637,13 +645,683 @@ $('bTex').onclick=()=>{texOn=!texOn;$('bTex').classList.toggle('off',!texOn);
   if(texOn){sampleAll();if(!texMat)hint('No material found on the sculpt');else hint('Low-poly uses the sculpt texture')}else hint('Plain blue view');meshGeo()};
 $('bAuto').onclick=auto;$('bUndo').onclick=undo;$('bExp').onclick=()=>{const m=$('expMenu'),r=$('bExp').getBoundingClientRect();m.style.top=r.top+'px';m.style.display=m.style.display==='flex'?'none':'flex'};
 document.querySelectorAll('#expMenu button').forEach(b=>b.onclick=()=>{$('expMenu').style.display='none';exportAs(b.dataset.f)});
-const HELP='Mirror button: copy edits across the centre · Tap sculpt: drop point (4 make a quad, tap the first to close a triangle) · Drag point or edge: move it on the surface · Double-tap edge: extrude · Hold edge: edge loop · Hold point: delete · One finger on empty space: orbit · Two fingers: zoom and pan';
+const HELP='Poke Tuto to shoo him, drag him to carry him · Mirror button: copy edits across the centre · Tap sculpt: drop point (4 make a quad, tap the first to close a triangle) · Drag point or edge: move it on the surface · Double-tap edge: extrude · Hold edge: edge loop · Hold point: delete · One finger on empty space: orbit · Two fingers: zoom and pan';
 $('bHelp').onclick=()=>hint(HELP);
 addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='z')undo()});
 
+// ======================= TUTO =======================
+// Tuto, from itemnautsoft/Tuto (Tuto Maker). His body, poses and dribble below are copied from that game unchanged,
+// so he moves exactly as he does there. Only the outline shader, the ball and the behaviour at the end are new here.
+const TUTO = (() => {
+const COL = { head: 0xFDBA1C, face: 0xE4F400, torso: 0xF3C23C, pants: 0x2A2630, red: 0xE8502E, lav: 0xB0A2C4, lavDark: 0x7E6C9C, sticker: 0x5A4A78, ink: 0x161216 };
+const ramp = new THREE.DataTexture(new Uint8Array([120, 195, 255]), 3, 1, THREE.RedFormat);
+ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
+const matCache = {};
+function toon(color) { return matCache[color] || (matCache[color] = new THREE.MeshToonMaterial({ color, gradientMap: ramp })); }
+// ink outline (the game uses OutlineEffect on the whole scene; here only Tuto gets one, as an inverted hull)
+const OL = new THREE.ShaderMaterial({ side: THREE.BackSide, uniforms: { c: { value: new THREE.Color(COL.ink) } },
+  vertexShader: 'void main(){vec4 p=modelViewMatrix*vec4(position,1.);vec3 n=normalize(normalMatrix*normal);p.xyz+=n*(-p.z)*0.0032;gl_Position=projectionMatrix*p;}',
+  fragmentShader: 'uniform vec3 c;void main(){gl_FragColor=vec4(c,1.);}' });
+const mesh = (g, c, outline = true) => { const m = new THREE.Mesh(g, toon(c)); if (outline) { const o = new THREE.Mesh(g, OL); o.raycast = () => {}; m.add(o); } return m; };
+const noOl = m => m;
+const FLIP_DUR = 0.62, tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion();
+const ease = k => k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const wrapPi = a => Math.atan2(Math.sin(a), Math.cos(a));
+const lerp = (a, b, k) => a + (b - a) * k;
+// Tuto Maker's default ball colour (yellow), with ink seams
+const mkSeamMat = new THREE.MeshBasicMaterial({ color: 0x161216 });
+function mkMakeBall(r) {
+  const g = new THREE.Group(); g.add(mesh(new THREE.SphereGeometry(r, 22, 16), 0xFFE45E));
+  for (const [rx, ry] of [[0, 0], [Math.PI / 2, 0], [0, Math.PI / 2]]) { const t = new THREE.Mesh(new THREE.TorusGeometry(r * 1.004, r * 0.05, 6, 30), mkSeamMat); t.rotation.set(rx, ry, 0); g.add(t); }
+  return g;
+}
+const TU = { hero: null, db: null, gr: null, held: false, flipT: -1, gliding: false, charging: false, shot: false, shAmt: 0, dribble: true, grounded: true };
+
+// ---------- character (from Tuto) ----------
+// elbows and knees follow from the swing the pose already chose: arms bend as they swing forward, legs bend as they swing back or lift
+function limbBends(P, runAmt) {
+  for (const [hip, kn, sh, el] of [[P.hipL, P.knL, P.shL, P.elL], [P.hipR, P.knR, P.shR, P.elR]]) {
+    const hx = hip.rotation.x;
+    kn.rotation.x = Math.min(1.9, Math.max(0, hx) * 1.1 + Math.max(0, -hx - 0.4) * 0.55 + 0.04);
+    const over = Math.min(1, Math.max(0, (Math.abs(sh.rotation.z) - 1.6) / 1.0));
+    el.rotation.x = -(0.14 + Math.max(0, -sh.rotation.x) * 0.9 * (0.4 + 0.6 * runAmt)) * (1 - over);
+  }
+}
+function buildCharacter(pal = { head: COL.head, torso: COL.torso, red: COL.red }) {
+  const root = new THREE.Group();     // origin at feet, +Y up, +Z forward
+  // flip pivot sits at the middle of the character (stick-cap top is at ~3.2) so flips
+  // and upside-down stick-spins rotate around the right point
+  const FLIP_C = 1.6;
+  const flip = new THREE.Group(); flip.position.y = FLIP_C; flip.rotation.order = 'YXZ'; root.add(flip);
+  const offs = new THREE.Group(); offs.position.y = -FLIP_C; flip.add(offs);
+  const body = new THREE.Group(); offs.add(body);
+  const parts = { flip, FLIP_C };
+
+  // legs + boots (legs 50% longer than v1)
+  const LIFT = 0.25; // everything above the hips moves up by the extra leg length
+  const bootGeo = new RoundedBoxGeometry(0.3, 0.22, 0.4, 4, 0.09);
+  for (const s of [-1, 1]) {
+    const hip = new THREE.Group(); hip.position.set(0.16 * s, 0.62 + LIFT, 0); body.add(hip);
+    // two-segment leg: thigh, knee joint, shin + boot (total length unchanged)
+    const thigh = mesh(new THREE.CylinderGeometry(0.1, 0.099, 0.35, 14), COL.pants); thigh.position.y = -0.175; hip.add(thigh);
+    const kn = new THREE.Group(); kn.position.y = -0.35; hip.add(kn);
+    kn.add(mesh(new THREE.SphereGeometry(0.103, 14, 10), COL.pants));
+    const shin = mesh(new THREE.CylinderGeometry(0.099, 0.1, 0.34, 14), COL.pants); shin.position.y = -0.17; kn.add(shin);
+    const boot = mesh(bootGeo, pal.red); boot.position.set(0.01 * s, -0.4, 0.05); kn.add(boot);
+    // boot shaft: covers the ankle
+    const shaftB = mesh(new THREE.CylinderGeometry(0.122, 0.135, 0.2, 18), pal.red); shaftB.position.set(0.005 * s, -0.25, 0.0); kn.add(shaftB);
+    parts[s < 0 ? 'knL' : 'knR'] = kn;
+    parts[s < 0 ? 'hipL' : 'hipR'] = hip;
+  }
+  // pants (big round hips)
+  const pants = mesh(new THREE.SphereGeometry(1, 28, 18), COL.pants);
+  pants.scale.set(0.37, 0.29, 0.3); pants.position.y = 0.74 + LIFT; body.add(pants);
+  // torso
+  const torso = mesh(new THREE.CylinderGeometry(0.17, 0.3, 0.32, 24), pal.torso);
+  torso.position.y = 0.99 + LIFT; body.add(torso);
+  // match the torso's depth/width ratio to the pants (0.30/0.37) so the waistline sits level all the way round
+  const TORSO_Z = 0.3 / 0.37; torso.scale.z = TORSO_Z; parts.torsoZ = TORSO_Z;
+  const neck = mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.16, 16), pal.torso);
+  neck.position.y = 1.18 + LIFT; body.add(neck);
+  // arms + mittens (arms 50% longer than v1)
+  for (const s of [-1, 1]) {
+    const sh = new THREE.Group(); sh.position.set(0.24 * s, 1.08 + LIFT, 0); sh.rotation.z = 0.38 * s; body.add(sh);
+    // two-segment arm: upper arm, elbow joint, forearm + glove (reach unchanged)
+    const upper = mesh(new THREE.CapsuleGeometry(0.07, 0.15, 4, 10), pal.torso); upper.position.y = -0.135; sh.add(upper);
+    const el = new THREE.Group(); el.position.y = -0.27; sh.add(el);
+    el.add(mesh(new THREE.SphereGeometry(0.074, 12, 10), pal.torso));
+    const fore = mesh(new THREE.CapsuleGeometry(0.066, 0.14, 4, 10), pal.torso); fore.position.y = -0.13; el.add(fore);
+    const mitt = mesh(new THREE.SphereGeometry(0.13, 18, 14), pal.red); mitt.scale.set(1, 1.08, 0.9); mitt.position.y = -0.27; el.add(mitt);
+    const thumb = mesh(new THREE.SphereGeometry(0.055, 12, 10), pal.red); thumb.position.set(-0.09 * s, -0.22, 0.07); el.add(thumb);
+    // glove cuff: covers the wrist
+    const cuff = mesh(new THREE.CylinderGeometry(0.088, 0.105, 0.15, 16), pal.red); cuff.position.y = -0.15; el.add(cuff);
+    parts[s < 0 ? 'elL' : 'elR'] = el;
+    parts[s < 0 ? 'shL' : 'shR'] = sh;
+  }
+
+  // head
+  const head = new THREE.Group(); head.position.y = 1.8 + LIFT; body.add(head); parts.head = head;
+  const HR = 0.62;
+  head.add(mesh(new THREE.SphereGeometry(HR, 40, 28), pal.head));
+  // face: black rim + yellow-green disc (spherical caps facing +Z)
+  const rim = mesh(new THREE.SphereGeometry(HR + 0.006, 40, 16, 0, Math.PI * 2, 0, 0.98).rotateX(Math.PI / 2), COL.ink, false);
+  const face = mesh(new THREE.SphereGeometry(HR + 0.012, 40, 16, 0, Math.PI * 2, 0, 0.9).rotateX(Math.PI / 2), COL.face, false);
+  head.add(rim, face);
+  const Z = new THREE.Vector3(0, 0, 1);
+  const onFace = (m, x, y, z, off) => {
+    const d = new THREE.Vector3(x, y, z).normalize();
+    m.position.copy(d).multiplyScalar(HR + off);
+    m.quaternion.setFromUnitVectors(Z, d); head.add(m); return m;
+  };
+  parts.eyes = [];
+  for (const s of [-1, 1]) {
+    const eye = mesh(new THREE.SphereGeometry(1, 12, 10), COL.ink, false);
+    eye.scale.set(0.034, 0.048, 0.02); onFace(eye, 0.11 * s, 0.25, 1, 0.012);
+    parts.eyes.push(eye);
+  }
+  const nose = mesh(new THREE.SphereGeometry(1, 18, 14), COL.red);
+  nose.scale.set(0.085, 0.12, 0.09); onFace(nose, 0, 0.0, 1, 0.04);
+  const mouth = mesh(new THREE.TorusGeometry(0.115, 0.014, 6, 20, Math.PI).rotateZ(Math.PI), COL.ink, false);
+  onFace(mouth, 0, -0.27, 1, 0.022);
+
+  // collar + analog stick
+  const collar = mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.16, 24), pal.head);
+  collar.position.y = HR - 0.04; head.add(collar);
+  const collarLine = mesh(new THREE.TorusGeometry(0.205, 0.012, 6, 28), COL.ink, false);
+  collarLine.rotation.x = Math.PI / 2; collarLine.position.y = HR + 0.04; head.add(collarLine);
+  const stick = new THREE.Group(); stick.position.y = HR + 0.05; head.add(stick); parts.stick = stick;
+  const spinG = new THREE.Group(); stick.add(spinG); parts.spin = spinG;
+  const shaft = mesh(new THREE.CylinderGeometry(0.085, 0.09, 0.3, 16), COL.lav); shaft.position.y = 0.15; spinG.add(shaft);
+  const under = mesh(new THREE.CylinderGeometry(0.44, 0.42, 0.05, 36), COL.lavDark); under.position.y = 0.3; spinG.add(under);
+  const dome = mesh(new THREE.SphereGeometry(0.44, 36, 12, 0, Math.PI * 2, 0, Math.PI / 2), COL.lav);
+  dome.scale.y = 0.36; dome.position.y = 0.32; spinG.add(dome);
+  const topY = 0.32 + 0.44 * 0.36;
+  const stk = mesh(new THREE.SphereGeometry(1, 20, 10), COL.sticker, false);
+  stk.scale.set(0.12, 0.035, 0.12); stk.position.y = topY - 0.01; spinG.add(stk);
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2 + 0.4;
+    const nub = mesh(new THREE.SphereGeometry(1, 10, 8), COL.sticker, false);
+    nub.scale.set(0.035, 0.025, 0.035); nub.position.set(Math.cos(a) * 0.17, topY - 0.025, Math.sin(a) * 0.17); spinG.add(nub);
+  }
+  parts.torso = torso; parts.headY = head.position.y; parts.shY = 1.08 + LIFT;
+  return { root, body, parts };
+}
+
+// ---------- shared character posing (used for you and for other players) ----------
+function newAnim() { return { runPhase: 0, runAmt: 0, blinkAt: 1500 + Math.random() * 2500, blinkStart: -1e4, spinV: 0 }; }
+// ---- two-bone arm IK (used by the dribble): shoulder at (-0.24, 1.33, 0) for Tuto's right arm; the other arm is solved mirrored
+const IK_S = [-0.24, 1.33, 0], IK_L1 = 0.27, IK_L2 = 0.27, IK_Q0 = [-0.45, -0.5, -0.7];
+const IK_LO = [-2.9, -3.0, -2.6], IK_HI = [0.5, 1.3, 0];
+function ikFK(q, o) {
+  const st = Math.sin(q[0]), ct = Math.cos(q[0]), sp = Math.sin(q[1]), cp = Math.cos(q[1]), se = Math.sin(q[2]), ce = Math.cos(q[2]);
+  const ux = st, uy = -ct * cp, uz = -ct * sp;
+  o[0] = IK_S[0] + IK_L1 * ux + IK_L2 * ux * ce; o[1] = IK_S[1] + IK_L1 * uy + IK_L2 * (uy * ce + sp * se); o[2] = IK_S[2] + IK_L1 * uz + IK_L2 * (uz * ce - cp * se);
+}
+const _ikH = [0, 0, 0], _ikH2 = [0, 0, 0];
+function ikSolve(q, tx, ty, tz) {
+  for (let it = 0; it < 4; it++) {
+    ikFK(q, _ikH); const r = [tx - _ikH[0], ty - _ikH[1], tz - _ikH[2]], J = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    for (let j = 0; j < 3; j++) { const qq = q.slice(); qq[j] += 1e-3; ikFK(qq, _ikH2); for (let i = 0; i < 3; i++) J[i][j] = (_ikH2[i] - _ikH[i]) / 1e-3; }
+    const A = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], b = [0, 0, 0], lam = 0.03;
+    for (let i = 0; i < 3; i++) { for (let j = 0; j < 3; j++) { let s = 0; for (let k = 0; k < 3; k++) s += J[k][i] * J[k][j]; A[i][j] = s + (i === j ? lam : 0); } let s = 0; for (let k = 0; k < 3; k++) s += J[k][i] * r[k]; b[i] = s + 0.03 * (IK_Q0[i] - q[i]); }
+    const det = A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) - A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) + A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
+    if (Math.abs(det) < 1e-9) return;
+    const dq = [0, 0, 0];
+    for (let c = 0; c < 3; c++) { const M = A.map(row => row.slice()); for (let i = 0; i < 3; i++) M[i][c] = b[i]; dq[c] = (M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) - M[0][1] * (M[1][0] * M[2][2] - M[1][2] * M[2][0]) + M[0][2] * (M[1][0] * M[2][1] - M[1][1] * M[2][0])) / det; }
+    for (let j = 0; j < 3; j++) q[j] = Math.min(IK_HI[j], Math.max(IK_LO[j], q[j] + Math.max(-0.6, Math.min(0.6, dq[j]))));
+  }
+}
+const _dbM = new THREE.Matrix4(), _dbV = new THREE.Vector3();
+const legDrop = (hip, kn) => 0.69 - (0.35 * Math.cos(hip) + 0.34 * Math.cos(hip + kn));
+// the dribble's pose layer: runs after the base pose so it can lean, bend the legs and put each hand exactly on the ball
+function dbApplyPose(ch, D, dt) {
+  const P = ch.parts, body = ch.body, k = D.k, L = (a, b, w) => a + (b - a) * w;
+  body.position.y += D.bobY * k; body.position.x = D.shX * k; body.rotation.x += D.leanX * k; body.rotation.z += D.leanZ * k;
+  P.head.rotation.x += D.headX * k; P.head.rotation.z += D.headZ * k;
+  if (D.legW > 0.002) {
+    const w = D.legW * k, aL = L(P.hipL.rotation.x, D.hipL, w), aR = L(P.hipR.rotation.x, D.hipR, w), kL = L(P.knL.rotation.x, D.knL, w), kR = L(P.knR.rotation.x, D.knR, w);
+    P.hipL.rotation.x = aL; P.hipR.rotation.x = aR; P.knL.rotation.x = kL; P.knR.rotation.x = kR;
+    P.hipL.rotation.z = L(P.hipL.rotation.z, -D.spread, w); P.hipR.rotation.z = L(P.hipR.rotation.z, D.spread, w);
+    body.position.y -= Math.max(0, Math.min(legDrop(aL, kL), legDrop(aR, kR))) * w;
+  }
+  body.updateMatrix(); _dbM.copy(body.matrix).invert();
+  for (const h of ['R', 'L']) {
+    const T = D.T[h]; if (!T) continue;
+    const sh = h === 'R' ? P.shL : P.shR, el = h === 'R' ? P.elL : P.elR, q = D.q[h], sg = h === 'R' ? 1 : -1;
+    _dbV.copy(T).applyMatrix4(_dbM); ikSolve(q, _dbV.x * sg, _dbV.y, _dbV.z);
+    const w = D.w[h] * k;
+    sh.rotation.z = L(sh.rotation.z, q[0] * sg, w); sh.rotation.x = L(sh.rotation.x, q[1], w); el.rotation.x = L(el.rotation.x, q[2], w);
+  }
+}
+function poseCharacter(ch, s, dt) {
+  const P = ch.parts, F = P.flip, A = ch.anim;
+  const mag = s.mag, grounded = s.grounded, zr = s.zr ? 1 : 0;
+  A.runAmt += ((grounded && s.ride < 0.5 ? mag : 0) - A.runAmt) * Math.min(1, 10 * dt);
+  A.runPhase += dt * (6 + 9 * mag) * (grounded ? 1 : 0) * (zr ? 1.6 : 1);
+  const runAmt = A.runAmt, sw = Math.sin(A.runPhase), t = s.t;
+  const id = grounded && s.ride < 0.5 ? (1 - runAmt) * (1 - s.sit) : 0;
+  const sp = t * Math.PI * 2 / 1.4, sway = Math.sin(sp), bounce = Math.abs(Math.cos(sp));
+  const br = Math.sin(t * Math.PI * 2 / 3.2) * (0.6 + 0.4 * (grounded ? 1 - runAmt : 0));
+  P.torso.scale.set(1 + 0.07 * br, 1 + 0.05 * br, (1 + 0.08 * br) * P.torsoZ);
+  P.head.position.y = P.headY + 0.028 * br;
+  P.shL.position.y = P.shR.position.y = P.shY + 0.022 * br;
+  P.hipL.rotation.z = P.hipR.rotation.z = 0;
+  let flipX = null, flipY = null;
+  const body = ch.body;
+  if (s.dance >= 0) {
+    const ph = s.dance;
+    body.position.y = 0; body.rotation.set(0, 0, 0);
+    if (ph < 2.4) {
+      const w = ph * Math.PI * 2 / 0.8, s1 = Math.sin(w);
+      P.hipL.rotation.x = -0.7 * Math.max(0, s1); P.hipR.rotation.x = -0.7 * Math.max(0, -s1);
+      P.hipL.rotation.z = 0.25 * Math.max(0, s1); P.hipR.rotation.z = -0.25 * Math.max(0, -s1);
+      P.shL.rotation.x = -1.3 + 0.6 * s1; P.shR.rotation.x = -1.3 - 0.6 * s1;
+      P.shL.rotation.z = -0.6; P.shR.rotation.z = 0.6;
+      body.position.y = 0.06 * Math.abs(Math.cos(w));
+      flipX = 0; flipY = 0.45 * s1;
+    } else if (ph < 2.8) {
+      const k = ease((ph - 2.4) / 0.4);
+      flipX = Math.PI * k; flipY = 0;
+      P.hipL.rotation.z = -0.6 * k; P.hipR.rotation.z = 0.6 * k;
+      P.shL.rotation.z = -0.38 - 1.0 * k; P.shR.rotation.z = 0.38 + 1.0 * k; P.shL.rotation.x = P.shR.rotation.x = 0;
+      P.hipL.rotation.x = P.hipR.rotation.x = 0;
+    } else if (ph < 6.0) {
+      const spin = (ph - 2.8) * (14 * Math.PI / 3.2);
+      flipX = Math.PI; flipY = spin;
+      P.hipL.rotation.z = -0.75 - 0.25 * Math.sin(spin * 0.5); P.hipR.rotation.z = 0.75 + 0.25 * Math.sin(spin * 0.5);
+      P.hipL.rotation.x = 0.45 * Math.sin(spin * 0.5); P.hipR.rotation.x = -0.45 * Math.sin(spin * 0.5);
+      P.shL.rotation.z = -1.5; P.shR.rotation.z = 1.5; P.shL.rotation.x = P.shR.rotation.x = 0;
+    } else if (ph < 7.4) {
+      flipX = Math.PI - 0.3; flipY = 0;
+      P.hipL.rotation.x = -1.3; P.hipR.rotation.z = 0.95; P.hipR.rotation.x = 0.2;
+      P.shL.rotation.z = -2.2; P.shR.rotation.z = 0.9; P.shL.rotation.x = 0; P.shR.rotation.x = 0.6;
+    } else {
+      const k = ease((ph - 7.4) / 0.4);
+      flipX = Math.PI - 0.3 + (Math.PI + 0.3) * k; flipY = 0;
+      P.hipL.rotation.x = -1.3 * (1 - k); P.hipR.rotation.z = 0.95 * (1 - k);
+      P.shL.rotation.z = -0.38 - 1.8 * (1 - k); P.shR.rotation.z = 0.38 + 0.5 * (1 - k);
+      P.shL.rotation.x = 0; P.shR.rotation.x = 0;
+    }
+  } else if (grounded) {
+    const legAmp = (0.85 + 0.25 * zr) * runAmt;
+    P.hipL.rotation.x = sw * legAmp - 0.35 * id * Math.max(0, -sway);
+    P.hipR.rotation.x = -sw * legAmp - 0.35 * id * Math.max(0, sway);
+    if (zr) { P.shL.rotation.x = 1.0 + sw * 0.25; P.shR.rotation.x = 1.0 - sw * 0.25; }
+    else {
+      P.shL.rotation.x = -sw * 0.9 * runAmt + 0.4 * id * Math.sin(sp + 1);
+      P.shR.rotation.x = sw * 0.9 * runAmt - 0.4 * id * Math.sin(sp + 1);
+    }
+    const flap = 0.1 * runAmt + 0.18 * id * bounce;
+    P.shL.rotation.z = -0.38 - flap; P.shR.rotation.z = 0.38 + flap;
+    body.position.y = Math.abs(sw) * 0.09 * runAmt + 0.04 * id * bounce;
+    body.rotation.x = (0.12 + 0.2 * zr) * runAmt;
+    body.rotation.z = 0.09 * id * sway;
+    if (s.sit > 0.001) {          // sitting with his back against the collar
+      const k = s.sit;
+      P.hipL.rotation.x = lerp(P.hipL.rotation.x, -1.5, k); P.hipR.rotation.x = lerp(P.hipR.rotation.x, -1.42, k);
+      P.hipL.rotation.z = lerp(0, -0.12, k); P.hipR.rotation.z = lerp(0, 0.12, k);
+      P.shL.rotation.x = lerp(P.shL.rotation.x, 0.45, k); P.shR.rotation.x = lerp(P.shR.rotation.x, 0.45, k);
+      P.shL.rotation.z = lerp(P.shL.rotation.z, -0.62, k); P.shR.rotation.z = lerp(P.shR.rotation.z, 0.62, k);
+      body.position.y = lerp(body.position.y, -0.66, k);
+      body.rotation.x = lerp(body.rotation.x, -0.3, k);
+      body.rotation.z = lerp(body.rotation.z, 0, k);
+    }
+  } else if (s.flipT >= 0) {
+    const k = Math.min(1, s.flipT / FLIP_DUR), tuck = Math.sin(k * Math.PI);
+    flipX = k >= 1 ? 0 : Math.PI * 2 * ease(k); flipY = 0;
+    P.hipL.rotation.x = P.hipR.rotation.x = -1.5 * tuck;
+    P.shL.rotation.x = P.shR.rotation.x = -1.2 * tuck;
+    P.shL.rotation.z = -0.38 - 0.3 * tuck; P.shR.rotation.z = 0.38 + 0.3 * tuck;
+    body.position.y = 0; body.rotation.set(0, 0, 0);
+  } else {
+    const k = Math.min(1, s.airT * 8), g = s.glide;
+    P.hipL.rotation.x = lerp(-0.9 * k, 0.35, g); P.hipR.rotation.x = lerp(0.35 * k, 0.5, g);
+    P.shL.rotation.x = lerp(-0.4 * k, 0, g); P.shR.rotation.x = lerp(-0.4 * k, 0, g);
+    P.shL.rotation.z = lerp(-0.38 - 1.6 * k, -1.5, g); P.shR.rotation.z = lerp(0.38 + 1.6 * k, 1.5, g);
+    body.position.y = 0; body.rotation.x = lerp(0.05, 0.35, g); body.rotation.z = Math.sin(t * 3) * 0.08 * g;
+  }
+  if (s.ride > 0.01) {            // astride a dinosaur, holding on in front
+    const k = s.ride;
+    P.hipL.rotation.x = lerp(P.hipL.rotation.x, -1.2, k); P.hipR.rotation.x = lerp(P.hipR.rotation.x, -1.2, k);
+    P.hipL.rotation.z = lerp(P.hipL.rotation.z, -0.75, k); P.hipR.rotation.z = lerp(P.hipR.rotation.z, 0.75, k);
+    P.shL.rotation.x = lerp(P.shL.rotation.x, -0.9 + 0.1 * Math.sin(t * 9), k); P.shR.rotation.x = lerp(P.shR.rotation.x, -0.9 - 0.1 * Math.sin(t * 9), k);
+    P.shL.rotation.z = lerp(P.shL.rotation.z, -0.3, k); P.shR.rotation.z = lerp(P.shR.rotation.z, 0.3, k);
+    body.position.y = lerp(body.position.y, -0.62 + Math.abs(Math.sin(t * 9)) * 0.05 * mag, k);
+    body.rotation.x = lerp(body.rotation.x, 0.15, k); body.rotation.z = lerp(body.rotation.z, 0, k);
+  }
+  if (s.hold > 0.01) {            // arms straight up, holding something overhead
+    const k = s.hold;
+    P.shL.rotation.z = lerp(P.shL.rotation.z, -2.75, k); P.shR.rotation.z = lerp(P.shR.rotation.z, 2.75, k);
+    P.shL.rotation.x = lerp(P.shL.rotation.x, -0.15, k); P.shR.rotation.x = lerp(P.shR.rotation.x, -0.15, k);
+  }
+  if (s.held) {                   // being carried: kick and wave
+    P.hipL.rotation.x = Math.sin(t * 14) * 0.9; P.hipR.rotation.x = -Math.sin(t * 14) * 0.9;
+    P.shL.rotation.z = -1.2 - Math.sin(t * 11) * 0.6; P.shR.rotation.z = 1.2 + Math.sin(t * 11 + 1) * 0.6;
+    body.rotation.set(0.1, 0, 0); body.position.y = 0;
+  }
+  if (s.grab > 0.01) {            // gripping a point or line: crouch and reach, or hang by the arms
+    const k = s.grab, hg = s.grabUp, sq = s.grabLow * (1 - hg), t2 = s.t;
+    const L = (a, b, w) => a + (b - a) * w;
+    P.hipL.rotation.x = L(P.hipL.rotation.x, L(-1.25 * sq, 0.12 + 0.1 * Math.sin(t2 * 2.1), hg), k); P.hipR.rotation.x = L(P.hipR.rotation.x, L(-1.1 * sq, -0.1 - 0.1 * Math.sin(t2 * 2.1), hg), k);
+    P.hipL.rotation.z = L(P.hipL.rotation.z, -0.1 * hg, k); P.hipR.rotation.z = L(P.hipR.rotation.z, 0.1 * hg, k);
+    P.shL.rotation.x = L(P.shL.rotation.x, L(-1.25, -0.05, hg), k); P.shR.rotation.x = L(P.shR.rotation.x, L(-1.25, -0.05, hg), k);
+    P.shL.rotation.z = L(P.shL.rotation.z, L(-0.3, -2.85, hg), k); P.shR.rotation.z = L(P.shR.rotation.z, L(0.3, 2.85, hg), k);
+    body.position.y = L(body.position.y, -0.55 * sq, k); body.rotation.x = L(body.rotation.x, 0.3 * sq, k); body.rotation.z = L(body.rotation.z, 0.06 * Math.sin(t2 * 1.7) * hg, k);
+  }
+  if (s.atkK) {                   // a rival's moves: punch, kick, and the two-handed grab
+    const k = s.atkK, tt = Math.min(1, Math.max(0, s.atkT)), L = (x, y, w) => x + (y - x) * w;
+    const kf = (frames) => { for (let i = 1; i < frames.length; i++) if (tt <= frames[i][0]) { const [t0, a] = frames[i - 1], [t1, b] = frames[i]; const u = (tt - t0) / (t1 - t0 || 1); return a + (b - a) * u * u * (3 - 2 * u); } return frames[frames.length - 1][1]; };
+    if (k === 'p') {
+      P.shL.rotation.x = kf([[0, -0.2], [0.3, 0.8], [0.5, -1.57], [0.78, -1.4], [1, -0.2]]); P.shL.rotation.z = -0.15; P.elL.rotation.x = kf([[0, -0.2], [0.3, -1.1], [0.5, -0.05], [1, -0.2]]);
+      P.shR.rotation.x = -1.0; P.shR.rotation.z = 0.3; P.elR.rotation.x = -1.3; body.rotation.x = kf([[0, 0], [0.5, 0.25], [1, 0]]); P.hipL.rotation.x = 0.35; P.hipR.rotation.x = -0.35;
+    } else if (k === 'k') {
+      P.hipR.rotation.x = kf([[0, 0], [0.3, 0.7], [0.5, -1.65], [0.78, -1.5], [1, 0]]); P.hipL.rotation.x = 0.1; body.rotation.x = kf([[0, 0], [0.3, 0.1], [0.5, -0.3], [1, 0]]);
+      P.shL.rotation.z = -0.7; P.shR.rotation.z = 0.7; P.shL.rotation.x = -0.3; P.shR.rotation.x = -0.3;
+    } else if (k === 'g') {
+      const w = Math.min(1, tt * 2.2); P.shL.rotation.x = L(P.shL.rotation.x, -1.5, w); P.shR.rotation.x = L(P.shR.rotation.x, -1.5, w);
+      P.shL.rotation.z = L(P.shL.rotation.z, -0.2, w); P.shR.rotation.z = L(P.shR.rotation.z, 0.2, w); P.elL.rotation.x = L(P.elL.rotation.x, -0.2, w); P.elR.rotation.x = L(P.elR.rotation.x, -0.2, w);
+      body.rotation.x = L(body.rotation.x, 0.25, w);
+    }
+  }
+  if (s.shAmt > 0.01) {           // the jump-shot form: coil, set the ball high in an L, extend, flick, hold the follow-through
+    const a = s.shAmt, ld = s.shLoad, ex = s.shExt, L = (x, y, w) => x + (y - x) * w, ss = Math.min(1, Math.max(0, ex));
+    P.shL.rotation.x = L(P.shL.rotation.x, L(-1.5, -2.35, ss), a); P.shL.rotation.z = L(P.shL.rotation.z, L(-0.42, -0.6, ss), a);   // elbow flared so the arm clears Tuto's big head
+   
+    P.elL.rotation.x = L(P.elL.rotation.x, L(-1.0, -0.12 - 0.3 * Math.sin(Math.min(1, ss) * Math.PI), ss), a);        // L-shape, then the wrist flick
+    P.shR.rotation.x = L(P.shR.rotation.x, L(-1.5, -0.4, ss), a); P.shR.rotation.z = L(P.shR.rotation.z, L(-0.45, 0.35, ss), a);   // guide hand cups the ball, then falls away
+    P.elR.rotation.x = L(P.elR.rotation.x, L(-1.0, -0.2, ss), a);
+    P.hipL.rotation.x = L(P.hipL.rotation.x, L(-0.5 * ld, 0.3, ss), a * 0.85); P.hipR.rotation.x = L(P.hipR.rotation.x, L(-0.35 * ld, -1.15, ss), a * 0.9);   // coil, then the fadeaway: lean back and kick one leg out
+    body.position.y = L(body.position.y, -0.4 * ld * (1 - ss), a); body.rotation.x = L(body.rotation.x, 0.12 * ld * (1 - ss) - 0.42 * ss, a);
+    if (P.head) P.head.rotation.x = L(P.head.rotation.x, -0.22 * ss, a);
+  }
+  limbBends(P, runAmt);
+  if (s.db && s.db.k > 0.002) dbApplyPose(ch, s.db, dt);
+  if (flipX !== null) { F.rotation.x = flipX; F.rotation.y = flipY; }
+  else {
+    const kk = Math.min(1, 14 * dt);
+    F.rotation.x = wrapPi(F.rotation.x) * (1 - kk); F.rotation.y = wrapPi(F.rotation.y) * (1 - kk);
+  }
+  P.head.rotation.z = s.dance >= 0 ? 0 : Math.sin(A.runPhase * 0.5) * 0.05 * runAmt - 0.1 * id * Math.sin(sp - 0.5);
+  P.head.rotation.x = s.dance >= 0 ? 0 : -0.05 * id * bounce - 0.12 * s.sit;
+  // blinking
+  const now = s.tms;
+  if (now > A.blinkAt) { A.blinkStart = now; A.blinkAt = now + (Math.random() < 0.2 ? 240 : 1800 + Math.random() * 3600); }
+  const bk = now - A.blinkStart < 130 ? Math.sin(Math.PI * (now - A.blinkStart) / 130) : 0;
+  P.eyes.forEach(e => e.scale.set(0.034 * (1 + 0.3 * bk), 0.048 * (1 - 0.88 * bk), 0.02));
+  // the stick on his head tilts toward the input (sx, sz: input direction in his own frame)
+  const sm = Math.hypot(s.sx, s.sz);
+  const target = sm > 0.02 ? tmpQ.setFromAxisAngle(tmpV.set(s.sz, 0, -s.sx).normalize(), 0.5 * Math.min(1, sm)) : tmpQ.identity();
+  P.stick.quaternion.slerp(target, Math.min(1, 18 * dt));
+  A.spinV += ((s.gliding ? 28 : 0) - A.spinV) * Math.min(1, 3 * dt);
+  P.spin.rotation.y += A.spinV * dt;
+}
+
+
+// ---- Dribbling: Tuto always has a basketball in Maker. Idle he dances while handling it (crossovers, between the legs, behind the back,
+// finger spins, rolling it across his arms). Moving he dribbles on the run, and when he flips direction he spins or jukes.
+const DB = { R: 0.2, TOP: 0.7, HX: 0.4 };
+const dbHx = h => h === 'R' ? -DB.HX : DB.HX, dbOther = h => h === 'R' ? 'L' : 'R';
+const dbSm = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+function dbState() {
+  if (TU.db) return TU.db;
+  const g = mkMakeBall(DB.R);
+  const sh = new THREE.Mesh(new THREE.CircleGeometry(0.2, 18).rotateX(-Math.PI / 2), noOl(new THREE.MeshBasicMaterial({ color: 0x161216, transparent: true, opacity: 0.28, depthWrite: false })));
+  g.visible = sh.visible = false; TU.hero.root.add(g, sh);
+  const D = { k: 0, bobY: 0, shX: 0, leanX: 0, leanZ: 0, headX: 0, headZ: 0, legW: 0, hipL: 0, hipR: 0, knL: 0, knR: 0, spread: 0, yaw: 0, T: { R: new THREE.Vector3(), L: new THREE.Vector3() }, w: { R: 0, L: 0 }, q: { R: [-0.4, -0.5, -0.7], L: [-0.4, -0.5, -0.7] } };
+  return TU.db = { g, sh, D, k: 0, t: 0, hand: 'R', beat: null, queue: [], idx: 0, bp: new THREE.Vector3(-DB.HX, DB.TOP, 0.38), snapT: 0, rt: null, sp: null, idleT: 0, nextShow: 5 + Math.random() * 3, showN: 0,
+    run: false, runT: 0, stopT: 9, prevRun: 0, startGap: 9, hd: 0, hdLast: 0, cool: 0, legW: 0, spinA: 0, rollA: 0, last: '' };
+}
+function dbPick(S, moving) {
+  if (S.queue.length) { S.beat = S.queue.shift(); S.beat.u = 0; S.beat.s = S.bp.clone(); return; }
+  const W = [['dr', moving ? 0.38 : 0.4], ['cx', moving ? 0.27 : 0.25], ['bb', moving ? 0.15 : 0.13], ['bl', moving ? 0.2 : 0.22]];
+  let r = Math.random(), type = 'dr'; for (const [n, w] of W) { if (r < w) { type = n; break; } r -= w; }
+  if (type !== 'dr' && S.last !== 'dr' && Math.random() < 0.6) type = 'dr';
+  S.last = type; S.beat = { type, from: S.hand, to: type === 'dr' ? S.hand : dbOther(S.hand), u: 0, dur: moving ? 0.46 : 0.5, s: S.bp.clone() };
+}
+function dbBallAt(b, u, o) {   // where the ball is during a beat (root-local)
+  const fall = u < 0.5 ? Math.pow(2 * u, 1.7) : Math.pow(2 * (1 - u), 1.7), y = DB.TOP - (DB.TOP - DB.R) * fall, x0 = dbHx(b.from), x1 = dbHx(b.to), sm = u * u * (3 - 2 * u);
+  let x = x0, z = 0.38;
+  if (b.type === 'cx') { x = x0 + (x1 - x0) * sm; z = 0.4 + 0.1 * Math.sin(u * Math.PI); }
+  else if (b.type === 'bb') { x = x0 + (x1 - x0) * sm; z = 0.05 - 0.5 * Math.sin(u * Math.PI); }
+  else if (b.type === 'bl') { x = x0 * 0.55 * (1 - sm) + x1 * 0.8 * sm; z = 0.42 - 0.72 * sm; }
+  const bi = dbSm(0, 0.3, u); o.set(b.s.x + (x - b.s.x) * bi, y, b.s.z + (z - b.s.z) * bi); return o;
+}
+const _dbA = new THREE.Vector3(), _dbB = new THREE.Vector3();
+function mkDribbleStep(dt, mag, mx, mz) {
+  const B = TU, S = dbState(), D = S.D, moving = mag > 0.1 && !B.gr && !B.held;
+  const free = !B.gr && !B.held && B.flipT < 0 && !B.gliding && !B.charging && !B.shot && B.shAmt < 0.05 && B.dribble;
+  const carry = free && !B.grounded, normal = free && B.grounded;
+  S.k += ((free ? 1 : 0) - S.k) * Math.min(1, 9 * dt); D.k = S.k;
+  const vis = S.k > 0.03; S.g.visible = S.sh.visible = vis;
+  if (!vis) { D.yaw = 0; return null; }
+  S.t += dt; D.yaw = 0; D.bobY = D.shX = D.leanX = D.leanZ = D.headX = D.headZ = 0; D.spread = 0.1;
+  D.T.R.set(0, 0, 0); D.T.L.set(0, 0, 0); D.w.R = D.w.L = 1;
+  const want = _dbA, tR = D.T.R, tL = D.T.L;
+  const guard = (h, out, amp) => { const sg = h === 'R' ? -1 : 1; out.set(sg * 0.6, 1.02 + amp * Math.sin(S.t * 9 + (h === 'R' ? 0 : 2)), 0.25); };
+  if (carry) {   // in the air: the ball rides in his right hand
+    S.legW += (0 - S.legW) * Math.min(1, 10 * dt); D.legW = S.legW; S.snapT = 0.2;
+    want.set(-0.52, 0.82, 0.32); S.bp.lerp(want, Math.min(1, 14 * dt));
+    tR.set(S.bp.x, S.bp.y + DB.R + 0.07, S.bp.z); guard('L', tL, 0.05); D.w.L = 0; D.leanX = 0.05;
+  } else {
+    // ---- reading the stick: runs, stops, and changes of direction
+    if (moving) {
+      if (!S.run) { S.run = true; S.runT = 0; S.startGap = S.stopT; }
+      S.runT += dt; const ang = Math.atan2(mx, mz);
+      if (S.runT <= dt * 1.5 && S.startGap < 0.55 && S.prevRun > 0.45) { /* handled below */ S.restart = Math.abs(wrapPi(ang - S.hdLast)); } else S.restart = 0;
+      if (mag > 0.45 && S.cool <= 0 && !S.sp) {
+        const dev = S.runT > 0.3 ? Math.abs(wrapPi(ang - S.hd)) : S.restart;
+        if ((S.runT > 0.3 && dev > 1.9) || (S.restart > 1.1)) {
+          const d = wrapPi(ang - (S.restart > 1.1 ? S.hdLast : S.hd)); const kind = (Math.abs(d) > 2.2 || Math.random() < 0.45) ? 'spin' : 'juke';
+          S.sp = { kind, u: 0, dur: kind === 'spin' ? 0.66 : 0.44, dir: d >= 0 ? 1 : -1 }; S.cool = 1.1; S.rt = null; S.hd = ang; S.snapT = 0.25;
+          if (kind === 'juke') { const f = S.hand; S.beat = { type: 'cx', from: f, to: dbOther(f), u: 0, dur: 0.22, s: S.bp.clone() }; S.queue = [{ type: 'cx', from: dbOther(f), to: f, dur: 0.22 }]; }
+        }
+      }
+      S.hd += wrapPi(ang - S.hd) * Math.min(1, 6 * dt); S.hdLast = S.hd; S.idleT = 0;
+    } else { if (S.run) { S.run = false; S.prevRun = S.runT; S.stopT = 0; } S.stopT += dt; S.idleT += dt; }
+    S.cool -= dt;
+    if (!moving && !S.sp && !S.rt && S.idleT > S.nextShow) { S.rt = { kind: S.showN++ % 2 ? 'roll' : 'spin', t: 0, dur: 2.7 }; S.snapT = 0.35; }
+    if (moving && S.rt) { S.rt = null; S.snapT = 0.3; S.beat = null; }
+    S.legW += ((moving || S.sp ? 0 : 1) - S.legW) * Math.min(1, 8 * dt);
+    let mode = 'beat', u = 0;
+    if (S.sp && S.sp.kind === 'spin') mode = 'spin'; else if (S.rt) mode = 'rt';
+    if (S.sp) { S.sp.u += dt / S.sp.dur; if (S.sp.u >= 1) { S.sp = null; S.snapT = 0.25; if (mode === 'spin') { S.beat = null; S.hand = 'R'; mode = 'beat'; } } }
+    if (S.rt) { S.rt.t += dt; if (S.rt.t >= S.rt.dur) { S.rt = null; S.snapT = 0.35; S.idleT = 0; S.nextShow = 5 + Math.random() * 5; S.beat = null; S.hand = 'R'; mode = 'beat'; } }
+    const ph = S.t;
+    if (mode === 'spin') {            // a pirouette on one foot with the ball tucked in
+      const sp = S.sp, e = dbSm(0, 1, sp.u);
+      D.yaw = sp.dir * Math.PI * 2 * e; want.set(-0.36, 0.98 + 0.03 * Math.sin(sp.u * 12), 0.42);
+      tR.set(want.x + 0.02, want.y + DB.R + 0.05, want.z - 0.02); tL.set(0.85, 1.25, 0.05); D.leanX = 0.15; D.bobY = -0.04;
+      D.legW = 1; D.hipL = -0.15; D.hipR = -0.95 * Math.sin(Math.PI * sp.u) - 0.1; D.knL = 0.25; D.knR = 0.9 * Math.sin(Math.PI * sp.u) + 0.3; D.spread = 0.05; D.legW = 1 * Math.min(1, 1 - 0);
+      S.legWf = 1;
+    } else if (mode === 'rt') {
+      const r = S.rt, ease = Math.min(1, r.t / 0.4) * Math.min(1, (r.dur - r.t) / 0.4);
+      D.legW = 1; const st = Math.PI * r.t * 2.0;
+      D.hipL = -0.5 + 0.3 * Math.sin(st); D.hipR = -0.5 - 0.3 * Math.sin(st); D.knL = Math.min(1.6, 0.4 - D.hipL * 0.9); D.knR = Math.min(1.6, 0.4 - D.hipR * 0.9); D.spread = 0.14;
+      D.bobY = -0.03 * Math.abs(Math.sin(st));
+      if (r.kind === 'spin') {      // ball spinning on a fingertip, held out beside the head
+        D.shX = -0.42 * ease; D.leanX = 0.04; D.headZ = 0.08 * ease;
+        want.set(-1.24 + 0.03 * Math.sin(r.t * 7), 1.86 + 0.02 * Math.sin(r.t * 9), 0.2 + 0.02 * Math.cos(r.t * 6));
+        tR.set(want.x + 0.02, want.y - DB.R - 0.04, want.z); guard('L', tL, 0.12); tL.set(0.6, 1.25 + 0.15 * Math.sin(r.t * 5), 0.3);
+        S.g.rotation.y += dt * 26;
+      } else {                      // ball rolling from one arm across the chest to the other
+        const x = -0.46 * Math.cos(r.t * 2 * Math.PI / 1.15); want.set(x, 1.47 + 0.02 * Math.abs(Math.sin(r.t * 5)), 0.5);
+        tR.set(-0.42, 1.15, 0.48); tL.set(0.42, 1.15, 0.48); D.leanX = -0.08 * ease; D.headX = 0.08;
+        S.g.rotation.z -= (x - S.bp.x) / DB.R;
+      }
+    } else {
+      // ---- dribbling beats
+      if (!S.beat) dbPick(S, moving);
+      let b = S.beat; b.u += dt / b.dur; if (b.u >= 1) { S.hand = b.to; S.idx++; dbPick(S, moving); b = S.beat; }
+      u = b.u; dbBallAt(b, u, want);
+      const wf = b.from === b.to ? 1 : 1 - dbSm(0.45, 0.8, u), wt = b.from === b.to ? 0 : dbSm(0.5, 0.85, u);
+      const top = _dbB.set(want.x, Math.max(0.5, want.y + DB.R + 0.07), want.z), amp = moving ? 0.06 : 0.14;
+      for (const h of ['R', 'L']) {
+        const T = D.T[h], w = h === b.from ? wf : h === b.to ? wt : 0; guard(h, T, amp);
+        if (!moving && h !== b.from && h !== b.to) T.y += 0.16 * Math.sin(S.t * 6.28 / (DB.R * 5));
+        T.lerp(top, w);
+      }
+      // body: lean over the ball, bob with the bounce; idle he steps and sways to it
+      const bounce = 0.5 + 0.5 * Math.cos(u * Math.PI * 2);
+      D.leanX = moving ? 0.14 : 0.2; D.bobY = -0.05 * bounce; D.leanZ = moving ? 0 : 0.06 * Math.sin((S.idx + u) * Math.PI);
+      D.headZ = moving ? 0 : 0.07 * Math.sin((S.idx + u) * Math.PI); D.headX = 0.05 * bounce;
+      D.legW = S.legW; if (S.legW > 0.01) {
+        const ps = Math.PI * (S.idx + u), a = Math.sin(ps), spl = b.type === 'bl' ? 0.1 + 0.3 * Math.sin(Math.PI * u) : 0.12;
+        D.hipL = -0.5 + 0.38 * a; D.hipR = -0.5 - 0.38 * a; D.spread = spl;
+        if (b.type === 'bl') { const lead = b.from === 'R' ? 'hipR' : 'hipL'; D[lead] = -0.2 - 0.6 * Math.sin(Math.PI * u); }
+        D.knL = Math.min(1.7, 0.4 - D.hipL * 0.9); D.knR = Math.min(1.7, 0.4 - D.hipR * 0.9);
+      }
+      if (S.sp && S.sp.kind === 'juke') { const sw = Math.sin(S.sp.u * Math.PI * 2) * S.sp.dir; D.shX = 0.34 * sw; D.leanZ = -0.34 * sw; D.legW = 0; }
+    }
+    // the ball itself (it tweens for a moment after the mode changes so nothing pops)
+    if (S.snapT > 0) { S.snapT -= dt; S.bp.lerp(want, Math.min(1, 14 * dt)); } else S.bp.copy(want);
+    if (mode === 'beat') { S.g.rotation.x -= dt * 6 * (moving ? 1 : 0.5); }
+    if (mode !== 'rt') { S.g.rotation.y *= 0.9; }
+  }
+  S.g.position.copy(S.bp); S.sh.position.set(S.bp.x, 0.025, S.bp.z); const hs = 1 - 0.45 * Math.min(1, Math.max(0, (S.bp.y - DB.R) / 1.2)); S.sh.scale.setScalar(hs); S.sh.material.opacity = 0.28 * hs * S.k;
+  return D;
+}
+
+// ---- Tuto in Retopo Studio: he never edits anything. He laps the model dribbling, leaps up to hang and swing from
+// your points and edges (or stands on top ones), and reacts to pokes and drags. All of this reads V/F; nothing writes them.
+const TS = 0.11, HL = 1.95 * TS, Yv = new THREE.Vector3(0, 1, 0);
+const hero = buildCharacter(); hero.anim = newAnim(); hero.root.scale.setScalar(TS); scene.add(hero.root); TU.hero = hero;
+const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.42 * TS * 1.6, 24).rotateX(-Math.PI / 2),
+  new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }));
+scene.add(shadow);
+const box = new THREE.Box3(), _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+const ST = { mode: 'walk', pos: new THREE.Vector3(0, -1, 1.2), face: 0, s: 0, sT: 0, pause: 1, timer: 4, leap: null, grip: null,
+  theta: 0, omega: 0, vy: 0, airT: 0, held: null, t: 0, mag: 0, mx: 0, mz: 1, grab: 0, offPath: false, hangT: 0, floor: -1, boxT: 0,
+  ver: -1, pumpT: 0, on: true };
+const rnd = (a, b) => a + Math.random() * (b - a);
+function refreshBox() {
+  box.makeEmpty();
+  if (woodMode) { const b = woodHalf; box.min.set(-b[0], -b[1], -b[2]).multiplyScalar(1.3); box.max.set(b[0], b[1], b[2]).multiplyScalar(1.3); return; }
+  if (high) box.setFromObject(high);
+  for (const p of V) box.expandByPoint(_v.set(p[0], p[1], p[2]));
+  if (box.isEmpty()) box.set(_v.set(-0.4, -1, -0.4), _w.set(0.4, -0.3, 0.4));
+}
+const floorY = () => woodMode ? box.min.y : (grid.visible ? Math.min(grid.position.y, box.min.y) : box.min.y);
+// his path: a loop around the model, just outside its footprint
+function rect() { const m = 0.18 + TS; return [box.min.x - m, box.max.x + m, box.min.z - m, box.max.z + m]; }
+function perim() { const [x0, x1, z0, z1] = rect(); return 2 * ((x1 - x0) + (z1 - z0)); }
+function atS(s, out) {
+  const [x0, x1, z0, z1] = rect(), w = x1 - x0, d = z1 - z0, L = 2 * (w + d); s = ((s % L) + L) % L;
+  if (s < w) return out.set(x0 + s, 0, z1); s -= w;
+  if (s < d) return out.set(x1, 0, z1 - s); s -= d;
+  if (s < w) return out.set(x1 - s, 0, z0); s -= w;
+  return out.set(x0, 0, z0 + s);
+}
+function nearestS(x, z) { const L = perim(); let best = 0, bd = 1e9; for (let i = 0; i < 240; i++) { const s = L * i / 240; atS(s, _w); const d = (_w.x - x) ** 2 + (_w.z - z) ** 2; if (d < bd) { bd = d; best = s; } } return best; }
+const wrapS = (d, L) => ((d % L) + L * 1.5) % L - L / 2;
+// ---- grips: a point, or a spot along an edge, re-found if the mesh changes under him
+const tol = () => 0.06 * size;
+function gripPos(g) {
+  if (g.kind === 'v') {
+    let p = V[g.i]; const far = !p || Math.hypot(p[0] - g.P.x, p[1] - g.P.y, p[2] - g.P.z) > 0.25 * size;
+    if (far || ST.ver !== meshVer) { let bi = -1, bd = tol(); V.forEach((q, i) => { const d = Math.hypot(q[0] - g.P.x, q[1] - g.P.y, q[2] - g.P.z); if (d < bd) { bd = d; bi = i; } }); if (bi < 0) return null; g.i = bi; p = V[bi]; }
+    return g.P.set(p[0], p[1], p[2]);
+  }
+  let A = V[g.a], B = V[g.b];
+  if (!A || !B || ST.ver !== meshVer) {
+    let best = null, bd = tol();
+    for (const e of edges().values()) { const a = V[e.a], b = V[e.b], ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2 || 1;
+      const u = Math.max(0, Math.min(1, ((g.P.x - a[0]) * ab[0] + (g.P.y - a[1]) * ab[1] + (g.P.z - a[2]) * ab[2]) / L2));
+      const d = Math.hypot(a[0] + ab[0] * u - g.P.x, a[1] + ab[1] * u - g.P.y, a[2] + ab[2] * u - g.P.z); if (d < bd) { bd = d; best = { a: e.a, b: e.b, u }; } }
+    if (!best) return null; g.a = best.a; g.b = best.b; g.u = best.u; A = V[g.a]; B = V[g.b];
+  }
+  return g.P.set(A[0] + (B[0] - A[0]) * g.u, A[1] + (B[1] - A[1]) * g.u, A[2] + (B[2] - A[2]) * g.u);
+}
+function outDir(P) { const c = box.getCenter(_w); const o = new THREE.Vector3(P.x - c.x, 0, P.z - c.z); if (o.lengthSq() < 1e-6) o.set(Math.sin(ST.face), 0, Math.cos(ST.face)); return o.normalize(); }
+function restUp(g) { return Yv.clone().addScaledVector(g.oH, -0.35).normalize(); }
+function hangFeet(g, out) { const up = restUp(g); if (g.kind === 'v') up.applyAxisAngle(g.oH, ST.theta); else up.applyAxisAngle(g.ax, ST.theta); return out.copy(g.P).addScaledVector(up, -HL); }
+function tryGrip() {
+  if (!V.length) return false;
+  const es = [...edges().values()], useE = es.length && Math.random() < 0.5;
+  const g = useE ? (() => { const e = es[Math.floor(Math.random() * es.length)]; return { kind: 'e', a: e.a, b: e.b, u: rnd(0.25, 0.75), uT: 0.5, wait: 1 }; })()
+                 : { kind: 'v', i: Math.floor(Math.random() * V.length) };
+  g.P = new THREE.Vector3(); ST.ver = meshVer; if (!gripPos(g)) return false;
+  const h = box.max.y - box.min.y || 1; g.perch = g.P.y > box.max.y - 0.08 * h;
+  g.oH = outDir(g.P);
+  if (g.kind === 'e') { const a = V[g.a], b = V[g.b]; g.ax = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize(); if (Math.abs(g.ax.y) > 0.85) g.perch = false; }
+  ST.grip = g; ST.theta = 0; ST.omega = g.kind === 'v' ? rnd(1.6, 2.6) * (Math.random() < 0.5 ? -1 : 1) : 0;
+  startLeap(g.perch ? 'perch' : 'hang', false); return true;
+}
+function startLeap(then, flip, target) {
+  const A = ST.pos.clone(), tgt = target || leapTarget(then);
+  const d = A.distanceTo(tgt), T = Math.min(1.2, 0.5 + d * 0.28);
+  ST.leap = { A, then, flip, u: 0, T, h: 0.18 + Math.max(0, tgt.y - A.y) * 0.22 + d * 0.08, q0: hero.root.quaternion.clone(), fixed: target ? tgt.clone() : null };
+  ST.mode = 'leap'; ST.airT = 0; ST.held = null;
+}
+function leapTarget(then) {
+  if (then === 'hang') return hangFeet(ST.grip, new THREE.Vector3());
+  if (then === 'perch') return ST.grip.P.clone();
+  return atS(ST.s, new THREE.Vector3()).setY(ST.floor);
+}
+function jumpDown() {    // let go with a flip and land back on the loop
+  const g = ST.grip, P = g ? g.P : ST.pos, o = g ? g.oH : outDir(ST.pos);
+  ST.s = nearestS(P.x + o.x * 0.5, P.z + o.z * 0.5); ST.sT = ST.s; ST.pause = rnd(0.4, 1.2);
+  ST.grip = null; startLeap('walk', true); ST.timer = rnd(5, 10);
+}
+// ---- one frame
+function update(dt) {
+  if (!ST.on) return;
+  dt = Math.min(dt, 0.05); ST.t += dt;
+  if ((ST.boxT -= dt) <= 0) { refreshBox(); ST.boxT = 0.4; }
+  ST.floor += (floorY() - ST.floor) * Math.min(1, 4 * dt);
+  const P = ST.pos; let grounded = true, mag = 0, flipT = -1, held = false, grabT = 0, mx = ST.mx, mz = ST.mz;
+  if (ST.grip) {
+    if (!gripPos(ST.grip) || woodMode) { ST.grip = null; ST.mode = 'fall'; ST.vy = 0; }
+    ST.ver = meshVer;
+  }
+  if (ST.mode === 'walk') {
+    const L = perim();
+    if (ST.offPath) { atS(ST.s, _w); const dx = _w.x - P.x, dz = _w.z - P.z, d = Math.hypot(dx, dz);
+      if (d < 0.02) ST.offPath = false; else { const st = Math.min(d, 0.6 * dt); P.x += dx / d * st; P.z += dz / d * st; mx = dx / d; mz = dz / d; mag = 1; } }
+    else if (ST.pause > 0) { ST.pause -= dt; atS(ST.s, _w); P.x = _w.x; P.z = _w.z; }
+    else {
+      const ds = wrapS(ST.sT - ST.s, L);
+      if (Math.abs(ds) < 0.01) { if (Math.random() < 0.55) ST.pause = rnd(2.5, 9); ST.sT = ST.s + rnd(0.15, 0.5) * L * (Math.random() < 0.5 ? -1 : 1); }
+      else { const step = Math.sign(ds) * Math.min(Math.abs(ds), 0.6 * dt); atS(ST.s, _v); ST.s += step; atS(ST.s, _w);
+        const tx = _w.x - _v.x, tz = _w.z - _v.z, tl = Math.hypot(tx, tz); if (tl > 1e-6) { mx = tx / tl; mz = tz / tl; } mag = 1; P.x = _w.x; P.z = _w.z; }
+    }
+    P.y = ST.floor;
+    if (mag > 0) ST.face += wrapPi(Math.atan2(mx, mz) - ST.face) * Math.min(1, 14 * dt);
+    if ((ST.timer -= dt) <= 0 && !ST.offPath) { if (woodMode || !tryGrip()) ST.timer = rnd(3, 6); }
+  } else if (ST.mode === 'leap') {
+    const Lp = ST.leap; Lp.u = Math.min(1, Lp.u + dt / Lp.T); const u = Lp.u, k = u * u * (3 - 2 * u);
+    const B = Lp.fixed || leapTarget(Lp.then); if (Lp.then === 'walk') B.y = ST.floor;
+    P.lerpVectors(Lp.A, B, k); P.y += 4 * Lp.h * u * (1 - u);
+    grounded = false; ST.airT += dt; if (Lp.flip) flipT = Math.max(0, Math.min(FLIP_DUR - 0.001, u * Lp.T - 0.08));
+    const fx = B.x - Lp.A.x, fz = B.z - Lp.A.z;
+    const want = Lp.then === 'hang' || Lp.then === 'perch' ? Math.atan2(ST.grip.oH.x, ST.grip.oH.z) : (Math.hypot(fx, fz) > 0.02 ? Math.atan2(fx, fz) : ST.face);
+    ST.face += wrapPi(want - ST.face) * Math.min(1, 10 * dt);
+    if (Lp.then === 'hang') grabT = Math.max(0, (u - 0.7) / 0.3);
+    if (u >= 1) {
+      ST.leap = null; ST.airT = 0;
+      if (Lp.then === 'hang') { ST.mode = 'hang'; ST.hangT = rnd(4, 9); ST.pumpT = rnd(1.5, 3); }
+      else if (Lp.then === 'perch') { ST.mode = 'perch'; ST.hangT = rnd(3.5, 7); }
+      else { ST.mode = 'walk'; }
+    }
+  } else if (ST.mode === 'hang') {
+    const g = ST.grip; grabT = 1;
+    if (g.kind === 'v') {     // a free swing from one point, pumped now and then
+      ST.omega += (-16 * Math.sin(ST.theta) - 0.25 * ST.omega) * dt; ST.theta += ST.omega * dt;
+      if ((ST.pumpT -= dt) <= 0) { ST.omega += (ST.omega >= 0 ? 1 : -1) * rnd(0.8, 1.6); ST.pumpT = rnd(1.8, 3.2); }
+    } else {                  // hand over hand along the edge with a gentle sway
+      ST.theta = 0.12 * Math.sin(ST.t * 2.3);
+      if (g.wait > 0) g.wait -= dt; else { const d = g.uT - g.u, a = V[g.a], b = V[g.b], len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) || 1, st = 0.18 * dt / len;
+        if (Math.abs(d) < st) { g.u = g.uT; g.uT = rnd(0.12, 0.88); g.wait = rnd(0.6, 2); } else g.u += Math.sign(d) * st; }
+      gripPos(g);
+    }
+    hangFeet(g, P); ST.face = Math.atan2(g.oH.x, g.oH.z);
+    if ((ST.hangT -= dt) <= 0 && (g.kind === 'e' || Math.abs(ST.omega) > 1 || ST.hangT < -3)) jumpDown();
+  } else if (ST.mode === 'perch') {
+    P.copy(ST.grip.P); ST.face += wrapPi(Math.atan2(ST.grip.oH.x, ST.grip.oH.z) - ST.face) * Math.min(1, 6 * dt);
+    if ((ST.hangT -= dt) <= 0) jumpDown();
+  } else if (ST.mode === 'fall') {
+    grounded = false; ST.airT += dt; ST.vy -= 7 * dt; P.y += ST.vy * dt;
+    if (P.y <= ST.floor) { P.y = ST.floor; ST.vy = 0; ST.mode = 'walk'; ST.s = ST.sT = nearestS(P.x, P.z); ST.pause = rnd(0.6, 1.5); ST.timer = rnd(4, 8);
+      ST.offPath = Math.hypot(atS(ST.s, _w).x - P.x, _w.z - P.z) > 0.03; }
+  } else if (ST.mode === 'held') {
+    grounded = false; held = true; ST.airT = 1;
+  }
+  // the ball, the pose, and where he stands
+  ST.grab += (grabT - ST.grab) * Math.min(1, (grabT > ST.grab ? 18 : 8) * dt);
+  Object.assign(TU, { gr: ST.mode === 'hang' ? {} : null, held, flipT, grounded, gliding: false });
+  const D = mkDribbleStep(dt, mag, mx, mz);
+  const yaw = ST.face + (D ? D.yaw : 0);
+  hero.root.position.copy(P);
+  if (ST.mode === 'hang') {      // tilt with the swing so his hands stay on the grip
+    const g = ST.grip, up = restUp(g).applyAxisAngle(g.kind === 'v' ? g.oH : g.ax, ST.theta);
+    _q.setFromUnitVectors(Yv, up).multiply(_q2.setFromAxisAngle(Yv, yaw)); hero.root.quaternion.slerp(_q, Math.min(1, 20 * dt));
+  } else { _q.setFromAxisAngle(Yv, yaw); hero.root.quaternion.slerp(_q, Math.min(1, (ST.mode === 'leap' ? 8 : 20) * dt)); }
+  const lx = mx * Math.cos(ST.face) - mz * Math.sin(ST.face), lz = mx * Math.sin(ST.face) + mz * Math.cos(ST.face);
+  poseCharacter(hero, { mag, zr: 0, grounded: ST.mode === 'hang' ? true : grounded, sit: 0, dance: -1, flipT, airT: ST.airT, glide: 0, hold: 0, ride: 0,
+    sx: lx * mag, sz: lz * mag, held, gliding: false, grab: ST.grab, grabUp: 1, grabLow: 0, shAmt: 0, db: D, t: ST.t, tms: ST.t * 1000 }, dt);
+  const hgt = Math.max(0, P.y - ST.floor), ss = 1 / (1 + hgt * 2.5);
+  shadow.position.set(P.x, ST.floor + 0.004, P.z); shadow.scale.setScalar(ss); shadow.material.opacity = 0.22 * ss;
+}
+// ---- touch: hit test, poke, carry
+const centerOf = out => out.copy(Yv).applyQuaternion(hero.root.quaternion).multiplyScalar(1.6 * TS).add(hero.root.position);
+function hit(x, y) {
+  if (!ST.on || !hero.root.visible) return false;
+  const c = centerOf(_v).project(cam); if (c.z > 1) return false;
+  const top = _w.copy(Yv).applyQuaternion(hero.root.quaternion).multiplyScalar(3.4 * TS).add(hero.root.position).project(cam);
+  const sx = (c.x + 1) / 2 * innerWidth, sy = (1 - c.y) / 2 * innerHeight, ty = (1 - top.y) / 2 * innerHeight;
+  return Math.hypot(sx - x, sy - y) < Math.max(30, Math.abs(sy - ty) * 1.15);
+}
+function poke(x) {
+  if (ST.mode === 'hang' || ST.mode === 'perch') return jumpDown();
+  if (ST.mode !== 'walk') return;
+  const c = centerOf(_v).project(cam), side = ((c.x + 1) / 2 * innerWidth) < x ? -1 : 1;   // hop away from the finger
+  atS(ST.s, _v); atS(ST.s + 0.05, _w); const tx = _w.x - _v.x, tz = _w.z - _v.z;
+  const camR = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion); const dir = Math.sign(tx * camR.x + tz * camR.z || 1) * side;
+  ST.offPath = false; ST.s = ST.sT = ST.s + dir * perim() * rnd(0.12, 0.2); ST.pause = rnd(1, 2.5); startLeap('walk', true);
+}
+const dragPlane = new THREE.Plane(), dragOff = new THREE.Vector3(), _ray = new THREE.Raycaster();
+function grabAt(x, y) {
+  ST.grip = null; ST.leap = null; ST.mode = 'held';
+  dragPlane.setFromNormalAndCoplanarPoint(cam.getWorldDirection(_v).negate(), ST.pos);
+  _ray.setFromCamera({ x: x / innerWidth * 2 - 1, y: -y / innerHeight * 2 + 1 }, cam);
+  if (_ray.ray.intersectPlane(dragPlane, _w)) dragOff.copy(ST.pos).sub(_w); else dragOff.set(0, 0, 0);
+}
+function dragTo(x, y) {
+  if (ST.mode !== 'held') return;
+  _ray.setFromCamera({ x: x / innerWidth * 2 - 1, y: -y / innerHeight * 2 + 1 }, cam);
+  if (_ray.ray.intersectPlane(dragPlane, _w)) { ST.pos.copy(_w).add(dragOff); ST.pos.y = Math.max(ST.pos.y, ST.floor); }
+}
+function release() { if (ST.mode === 'held') { ST.mode = 'fall'; ST.vy = 0.6; } }
+function setOn(on) { ST.on = on; hero.root.visible = shadow.visible = on; if (on) { refreshBox(); ST.floor = floorY(); ST.mode = 'walk'; ST.grip = null; ST.s = ST.sT = nearestS(ST.pos.x, ST.pos.z); ST.offPath = true; } }
+refreshBox(); ST.floor = floorY(); ST.s = ST.sT = perim() * 0.1; atS(ST.s, ST.pos).setY(ST.floor);
+return { update, hit, poke, grabAt, dragTo, release, setOn, get on() { return ST.on; } };
+
+})();
+$('bTuto').onclick=()=>{TUTO.setOn(!TUTO.on);$('bTuto').classList.toggle('off',!TUTO.on);hint(TUTO.on?'Tuto is back':'Tuto is taking a break')};
+
 function resize(){renderer.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
-addEventListener('resize',resize);resize();demo();hint(HELP);
-renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,cam)});
+addEventListener('resize',resize);resize();demo();TUTO.setOn(true);hint(HELP);
+const clock=new THREE.Clock();
+renderer.setAnimationLoop(()=>{const dt=clock.getDelta();controls.update();TUTO.update(dt);renderer.render(scene,cam)});
 </script>
 </body>
 </html>
