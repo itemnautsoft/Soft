@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="description" content="Touch-friendly low-poly modelling and retopology over imported sculpts. A prototype by Claude (AI), made for itemnaut.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Retopo">
+<meta name="theme-color" content="#e9ecf1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14171c" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<style>*{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
+<title>Retopo Studio</title>
+<style>
+/* Layout: full-screen 3D canvas, one slim tool column on the right, contextual bars only when needed */
+:root{--bg:#e9ecf1;--scene:#e9ecf1;--panel:#ffffff;--fg:#1c2330;--muted:#5b6474;--accent:#2f7de1;--danger:#d63a3a;--shadow:rgba(20,32,56,.2);--scrim:rgba(10,14,22,.45)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#14171c;--scene:#1a1e25;--panel:#272c35;--fg:#e7eaf0;--muted:#9aa3b3;--accent:#5ba1ff;--danger:#ff6b6b;--shadow:rgba(0,0,0,.55);--scrim:rgba(0,0,0,.6);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14171c;--scene:#1a1e25;--panel:#272c35;--fg:#e7eaf0;--muted:#9aa3b3;--accent:#5ba1ff;--danger:#ff6b6b;--shadow:rgba(0,0,0,.55);--scrim:rgba(0,0,0,.6);color-scheme:dark}
+html,body{height:100%;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+canvas{display:block;position:fixed;inset:0}
+#bar{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(10px + env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:8px;align-items:flex-end;max-height:calc(100% - 20px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow-y:auto;padding:2px 4px 6px 8px}
+.b{width:44px;height:44px;flex:none;border-radius:50%;border:none;background:var(--panel);color:var(--fg);box-shadow:0 2px 6px var(--shadow);font-size:20px;cursor:pointer}
+.b:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.b.off{opacity:.4}
+#op{width:44px;height:120px;flex:none;writing-mode:vertical-lr;direction:rtl;accent-color:var(--accent)}
+#hint{position:fixed;left:0;right:0;bottom:calc(12px + env(safe-area-inset-bottom,0px));padding:0 max(16px,env(safe-area-inset-left,0px)) 0 max(16px,env(safe-area-inset-right,0px));text-align:center;color:var(--fg);font-size:14px;pointer-events:none;transition:opacity .6s;text-shadow:0 0 6px var(--bg),0 0 2px var(--bg)}
+#stats{position:fixed;left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));font-size:12px;color:var(--muted);pointer-events:none;font-variant-numeric:tabular-nums}
+#woodBar input{accent-color:var(--accent)}
+#ask{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:0 max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));touch-action:auto;z-index:20}
+#askF{background:var(--panel);color:var(--fg);border-radius:16px;padding:18px;width:min(340px,100%);display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 30px var(--shadow)}
+#askT{margin:0;font-size:15px;line-height:1.4}
+#askI{font-size:16px;padding:8px 10px;border-radius:8px;border:1px solid var(--muted);background:var(--bg);color:var(--fg)}
+#askF .row{display:flex;gap:8px;justify-content:flex-end}
+#askF button{font-size:15px;padding:8px 16px;border-radius:20px;border:none;background:var(--bg);color:var(--fg);cursor:pointer}
+#askF #askYes{background:var(--accent);color:#fff;font-weight:600}
+@media (prefers-reduced-motion:reduce){#hint{transition:none}}
+</style>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<div id="stats"></div>
+<div id="bar">
+<button class="b" id="bWood" title="Wood carving mode">🪵</button>
+<button class="b" id="bRef" title="Reference box from drawings">📐</button>
+<button class="b" id="bImp" title="Import sculpt">📂</button>
+<button class="b" id="bHi" title="Show/hide sculpt">👁</button>
+<input type="range" id="op" min="0.1" max="1" step="0.05" value="0.85" title="Low-poly opacity">
+<button class="b" id="bSnap" title="Snap to sculpt on/off">🧲</button>
+<button class="b off" id="bMir" title="Mirror edits across the centre">🪞</button>
+<button class="b" id="bTex" title="Use sculpt texture on low-poly">🎨</button>
+<button class="b" id="bAuto" title="Auto retopo">✨</button>
+<button class="b" id="bUndo" title="Undo">↶</button>
+<button class="b" id="bExp" title="Export OBJ">⬇</button>
+<button class="b" id="bHelp" title="Help">?</button>
+</div>
+<div id="expMenu" style="position:fixed;right:62px;display:none;flex-direction:column;gap:6px">
+<button class="b" style="border-radius:22px;width:auto;padding:0 14px;font-size:14px" data-f="obj">OBJ (quads)</button>
+<button class="b" style="border-radius:22px;width:auto;padding:0 14px;font-size:14px" data-f="glb">GLB</button>
+<button class="b" style="border-radius:22px;width:auto;padding:0 14px;font-size:14px" data-f="stl">STL</button>
+<button class="b" style="border-radius:22px;width:auto;padding:0 14px;font-size:14px" data-f="ply">PLY</button>
+</div>
+<input type="file" id="file" hidden>
+<button class="b" id="bX" title="Cancel unfinished face" style="position:fixed;left:calc(10px + env(safe-area-inset-left,0px));top:50%;transform:translateY(-50%);display:none;color:var(--danger);font-size:22px">✕</button>
+<input type="file" id="refFile" accept="image/*" hidden>
+<div id="woodBar" style="position:fixed;left:50%;bottom:calc(42px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:none;gap:6px;flex-wrap:wrap;justify-content:center;width:min(96vw,520px)">
+<button class="b wt" style="border-radius:22px;width:auto;padding:0 12px;font-size:13px" data-t="gouge">Gouge</button><button class="b wt off" style="border-radius:22px;width:auto;padding:0 12px;font-size:13px" data-t="chisel">Chisel</button>
+<button class="b wt off" style="border-radius:22px;width:auto;padding:0 12px;font-size:13px" data-t="vtool">V-tool</button><button class="b wt off" style="border-radius:22px;width:auto;padding:0 12px;font-size:13px" data-t="knife">Knife</button>
+<button class="b wt off" style="border-radius:22px;width:auto;padding:0 12px;font-size:13px" data-t="sand">Sand</button>
+<input type="range" id="wSize" min="0.03" max="0.2" step="0.005" value="0.08" style="width:110px" title="Tool size">
+<button class="b" style="border-radius:22px;width:auto;padding:0 12px;font-size:13px" id="wNew">New block</button></div>
+<div id="ask" hidden><form id="askF"><p id="askT"></p><input id="askI" type="number" inputmode="numeric" min="10"><div class="row"><button type="button" id="askNo">Cancel</button><button type="submit" id="askYes">OK</button></div></form></div>
+<div id="hint"></div>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {STLLoader} from 'three/addons/loaders/STLLoader.js';
+import {PLYLoader} from 'three/addons/loaders/PLYLoader.js';
+import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
+import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
+import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
+import {STLExporter} from 'three/addons/exporters/STLExporter.js';
+import {PLYExporter} from 'three/addons/exporters/PLYExporter.js';
+import {MarchingCubes} from 'three/addons/objects/MarchingCubes.js';
+import {SimplifyModifier} from 'three/addons/modifiers/SimplifyModifier.js';
+import {mergeVertices,mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+
+const $=id=>document.getElementById(id);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+document.body.prepend(renderer.domElement);
+const scene=new THREE.Scene();
+function sceneBg(){const c=getComputedStyle(document.documentElement).getPropertyValue('--scene').trim();scene.background=new THREE.Color(c||'#e9ecf1')}
+sceneBg();try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',sceneBg)}catch(e){}
+new MutationObserver(sceneBg).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+const cam=new THREE.PerspectiveCamera(45,1,0.01,100);cam.position.set(0,0.6,4);
+scene.add(new THREE.HemisphereLight(0xffffff,0x888899,2.2));
+const dl=new THREE.DirectionalLight(0xffffff,1.5);dl.position.set(2,3,4);scene.add(dl);
+const el=renderer.domElement;
+
+// ---------- state ----------
+let V=[],F=[],pend=[],hist=[],VU=[],texOn=false,texMat=null;
+let high=null, size=2, snapOn=true;
+const free=()=>!high||!snapOn;
+const grid=new THREE.GridHelper(4,20,0x999999,0xdddddd);grid.position.y=-1.3;grid.visible=false;scene.add(grid);
+const hint=(t,ms=3500)=>{const h=$('hint');h.textContent=t;h.style.opacity=1;clearTimeout(hint.t);hint.t=setTimeout(()=>h.style.opacity=0,ms)};
+function ask(text,{value,ok='OK'}={}){return new Promise(res=>{const A=$('ask'),I=$('askI');$('askT').textContent=text;
+  I.hidden=value===undefined;if(value!==undefined)I.value=value;$('askYes').textContent=ok;A.hidden=false;
+  const done=v=>{A.hidden=true;$('askF').onsubmit=null;$('askNo').onclick=null;res(v)};
+  $('askF').onsubmit=e=>{e.preventDefault();done(value===undefined?true:I.value)};
+  $('askNo').onclick=()=>done(value===undefined?false:null);
+  setTimeout(()=>(value===undefined?$('askYes'):I).focus(),0)})}
+const save=()=>{hist.push(JSON.stringify([V,F]));if(hist.length>80)hist.shift()};
+const undo=()=>{if(woodMode){if(!woodUndo.length)return hint('No more undo: wood remembers');wood.field.set(woodUndo.pop());return woodRefresh()}
+  if(!hist.length)return;[V,F]=JSON.parse(hist.pop());pend=[];rebuild()};
+
+// ---------- high-res sculpt ----------
+const hiMat=new THREE.MeshStandardMaterial({color:0xb9b2a8,roughness:.8,flatShading:false});
+function geoMesh(g){g.computeVertexNormals();
+  return new THREE.Mesh(g,g.attributes.color?new THREE.MeshStandardMaterial({vertexColors:true,roughness:.8}):hiMat)}
+let highGeo=null;
+function setHigh(root){
+  refMode=false;
+  if(high)scene.remove(high);
+  root.traverse(o=>{if(o.isMesh&&!o.geometry.attributes.normal)o.geometry.computeVertexNormals()});
+  root.updateMatrixWorld(true);const bb=new THREE.Box3().setFromObject(root),c=new THREE.Vector3(),sz=new THREE.Vector3();
+  bb.getCenter(c);bb.getSize(sz);const k=2/Math.max(sz.x,sz.y,sz.z);
+  const w=new THREE.Group();w.add(root);w.scale.setScalar(k);w.position.copy(c).multiplyScalar(-k);
+  scene.add(w);w.updateMatrixWorld(true);high=w;highGeo=null;size=2;
+  V=[];F=[];VU=[];pend=[];hist=[];rebuild();
+}
+function getHighGeo(){if(highGeo)return highGeo;const gs=[];high.updateMatrixWorld(true);
+  high.traverse(o=>{if(o.isMesh){let g=o.geometry.clone().applyMatrix4(o.matrixWorld);g=g.index?g.toNonIndexed():g;
+    const ng=new THREE.BufferGeometry();ng.setAttribute('position',g.attributes.position);gs.push(ng)}});
+  return highGeo=mergeVertices(mergeGeometries(gs))}
+function demo(){
+  const g=new THREE.IcosahedronGeometry(1,6),p=g.attributes.position,v=new THREE.Vector3();
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);
+    const n=1+.12*Math.sin(v.x*5)*Math.cos(v.y*4)+.06*Math.sin(v.z*9+v.x*3);
+    v.multiplyScalar(n);v.y*=1.25;p.setXYZ(i,v.x,v.y,v.z)}
+  g.deleteAttribute('normal');g.deleteAttribute('uv');setHigh(geoMesh(mergeVertices(g)));
+}
+function loadFile(f){
+  const name=f.name.toLowerCase(),r=new FileReader();
+  if(!/\.(obj|glb|gltf|stl|ply|fbx|dae|blend)$/.test(name))return hint('That file type is not supported. Use BLEND, OBJ, GLB, STL, PLY, FBX or DAE.',5000);
+  if(name.endsWith('.blend')){hint('Reading Blender file…',60000);
+    f.arrayBuffer().then(blendBytes).then(u=>{const r=parseBlend(u);const g=new THREE.BufferGeometry();
+      g.setAttribute('position',new THREE.BufferAttribute(r.pos,3));g.setIndex(new THREE.BufferAttribute(r.idx,1));
+      setHigh(geoMesh(g));const n=r.count+' object'+(r.count>1?'s':'');
+      if(r.warn.has('multires'))hint('Loaded '+n+'. This sculpt uses Multires, so only the base mesh came through. In Blender, apply the Multires modifier and save, then import again.',9000);
+      else if(r.warn.has('mods'))hint('Loaded '+n+'. Modifiers are not applied: apply them in Blender first if the shape looks different.',7000);
+      else hint('Loaded '+f.name+' ('+n+')')})
+    .catch(e=>{console.error(e);hint(({zstd:'This .blend is compressed and the decompressor could not load. In Blender, turn off Compress when saving, or export a .glb.',
+      notblend:'That file is not a Blender file.',nomesh:'No mesh found in that .blend file.'})[e&&e.message]||'Could not read that .blend file. In Blender, export a .glb instead.',8000)});
+    return}
+  const fromObj=root=>{let has=false;root.traverse(o=>{if(o.isMesh)has=true});
+    if(!has)return hint('No mesh found in that file');setHigh(root);hint('Loaded '+f.name)};
+  r.onload=e=>{const d=e.target.result;try{
+    if(name.endsWith('.obj'))fromObj(new OBJLoader().parse(d));
+    else if(name.endsWith('.stl')){setHigh(geoMesh(new STLLoader().parse(d)))}
+    else if(name.endsWith('.ply')){setHigh(geoMesh(new PLYLoader().parse(d)))}
+    else if(name.endsWith('.fbx'))fromObj(new FBXLoader().parse(d,''));
+    else if(name.endsWith('.dae'))fromObj(new ColladaLoader().parse(d,'').scene);
+    else new GLTFLoader().parse(d,'',gl=>fromObj(gl.scene),er=>hint('Could not read file'));
+  }catch(err){console.error(err);hint('Could not read file')}};
+  (name.endsWith('.obj')||name.endsWith('.dae'))?r.readAsText(f):r.readAsArrayBuffer(f);
+}
+
+// ---------- .blend reader (meshes only, Blender 2.6 to 5.x layouts) ----------
+async function blendBytes(buf){
+  const u=new Uint8Array(buf);
+  if(u[0]===0x1f&&u[1]===0x8b){
+    return new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer())}
+  if(u[0]===0x28&&u[1]===0xb5&&u[2]===0x2f&&u[3]===0xfd){
+    let z=null;
+    for(const url of ['https://cdn.jsdelivr.net/npm/fzstd@0.1.1/+esm','https://unpkg.com/fzstd@0.1.1/esm/index.mjs']){
+      try{z=await import(url);if(z&&z.decompress)break;z=null}catch(e){}}
+    if(!z)throw new Error('zstd');
+    const dv=new DataView(u.buffer,u.byteOffset,u.byteLength),n=u.length;
+    if(n>9&&dv.getUint32(n-4,true)===0x8F92EAB1){ // Blender writes a seek table of independent frames
+      const cnt=dv.getUint32(n-9,true),es=(u[n-5]&0x80)?12:8,t0=n-9-cnt*es,parts=[];let p=0,tot=0;
+      for(let i=0;i<cnt;i++){const cs=dv.getUint32(t0+i*es,true),d=z.decompress(u.subarray(p,p+cs));parts.push(d);tot+=d.length;p+=cs}
+      const out=new Uint8Array(tot);let o=0;for(const d of parts){out.set(d,o);o+=d.length}return out}
+    return z.decompress(u)}
+  return u}
+
+function parseBlend(u){
+  const td=new TextDecoder('latin1'),str=(o,l)=>td.decode(u.subarray(o,o+l));
+  if(str(0,7)!=='BLENDER')throw new Error('notblend');
+  let ps=8,le=true,pos=12,large=false;
+  if(u[7]===0x5f||u[7]===0x2d){ps=u[7]===0x5f?4:8;le=u[8]===0x76}
+  else{const hs=parseInt(str(7,2),10);le=str(12,1)!=='V';large=true;pos=hs||17;
+    if(!/^[A-Z0-9\0]{4}$/.test(str(pos,4)))pos=(pos+7)&~7}
+  const dv=new DataView(u.buffer,u.byteOffset,u.byteLength);
+  const i32=o=>dv.getInt32(o,le),u32=o=>dv.getUint32(o,le),u16=o=>dv.getUint16(o,le),i16=o=>dv.getInt16(o,le),f32=o=>dv.getFloat32(o,le);
+  const ptr=o=>ps===4?'0:'+u32(o):(le?u32(o+4)+':'+u32(o):u32(o)+':'+u32(o+4));
+  const NULL='0:0',hl=large?32:16+ps,blocks=[],byAddr=new Map();let dna=null;
+  while(pos+hl<=u.length){
+    const code=str(pos,4).replace(/\0/g,'');let len,old,sdna,nr;
+    if(large){sdna=i32(pos+4);old=ptr(pos+8);len=Number(dv.getBigInt64(pos+16,le));nr=Number(dv.getBigInt64(pos+24,le))}
+    else{len=i32(pos+4);old=ptr(pos+8);sdna=i32(pos+8+ps);nr=i32(pos+12+ps)}
+    if(code==='ENDB'||len<0)break;
+    const b={code,len,old,sdna,nr,off:pos+hl};pos+=hl+len;
+    if(code==='DNA1')dna=b;else{blocks.push(b);if(old!==NULL)byAddr.set(old,b)}}
+  if(!dna)throw new Error('nodna');
+  // --- SDNA: struct layouts for this file ---
+  let p=dna.off;const d0=dna.off,al=()=>{p=d0+((p-d0+3)&~3)},tag=()=>{const s=str(p,4);p+=4;return s};
+  const strs=()=>{const n=i32(p);p+=4;const a=[];for(let i=0;i<n;i++){let e=p;while(u[e])e++;a.push(str(p,e-p));p=e+1}al();return a};
+  if(tag()!=='SDNA'||tag()!=='NAME')throw new Error('nodna');
+  const names=strs();tag();const types=strs();tag();
+  const tlen=types.map((_,i)=>u16(p+i*2));p+=types.length*2;al();tag();
+  const ns=i32(p);p+=4;const structs=[],S={};
+  for(let i=0;i<ns;i++){const t=u16(p),nf=u16(p+2);p+=4;const fields={};let off=0;
+    for(let k=0;k<nf;k++){const ft=u16(p),fn=names[u16(p+2)];p+=4;
+      const isP=fn[0]==='*'||fn.startsWith('(*');let arr=1;fn.replace(/\[(\d+)\]/g,(m,d)=>{arr*=+d;return m});
+      const base=fn.replace(/^[*(]+/,'').replace(/[[)].*$/,''),size=(isP?ps:tlen[ft])*arr;
+      if(!fields[base])fields[base]={off,size,isP};off+=size}
+    const st={name:types[t],fields,size:tlen[t]};structs.push(st);S[types[t]]=st}
+  const sOf=b=>structs[b.sdna]||{},pick=(st,...k)=>k.find(n=>st&&st.fields[n])||null;
+  const Mesh=S.Mesh,CD=S.CustomData,CDL=S.CustomDataLayer;
+  if(!Mesh)throw new Error('nomesh');
+  const get=(mo,...k)=>{const n=pick(Mesh,...k);return n?i32(mo+Mesh.fields[n].off):0};
+  const blk=(mo,...k)=>{const n=pick(Mesh,...k);return n?byAddr.get(ptr(mo+Mesh.fields[n].off)):undefined};
+  function layers(mo,...k){const n=pick(Mesh,...k);if(!n||!CD||!CDL)return [];const co=mo+Mesh.fields[n].off;
+    const lb=byAddr.get(ptr(co+CD.fields.layers.off)),tl=i32(co+CD.fields.totlayer.off);if(!lb)return [];
+    const out=[],nf=CDL.fields.name;
+    for(let i=0;i<tl&&(i+1)*CDL.size<=lb.len;i++){const lo=lb.off+i*CDL.size;let nm='';
+      if(nf){const a=lo+nf.off;let q=a;while(q<a+nf.size&&u[q])q++;nm=str(a,q-a)}
+      out.push({type:i32(lo+CDL.fields.type.off),name:nm,data:byAddr.get(ptr(lo+CDL.fields.data.off))})}
+    return out}
+  const warn=new Set();
+  function readMesh(mo){
+    let nv=get(mo,'totvert','verts_num');const np=get(mo,'totpoly','faces_num'),nl=get(mo,'totloop','corners_num'),nfc=get(mo,'totface','totface_legacy');
+    const vL=layers(mo,'vdata','vert_data'),pL=layers(mo,'pdata','face_data'),lL=layers(mo,'ldata','corner_data'),fL=layers(mo,'fdata','fdata_legacy');
+    if(lL.some(l=>l.type===19))warn.add('multires');
+    let P=null;const pl=vL.find(l=>l.name==='position'&&l.data);
+    if(pl){nv=Math.min(nv,Math.floor(pl.data.len/12));P=new Float32Array(nv*3);for(let i=0;i<nv*3;i++)P[i]=f32(pl.data.off+i*4)}
+    else{const MV=S.MVert,b=blk(mo,'mvert')||(vL.find(l=>l.type===0&&l.data)||{}).data;
+      if(b&&MV&&MV.fields.co){nv=Math.min(nv,Math.floor(b.len/MV.size));P=new Float32Array(nv*3);
+        for(let i=0;i<nv;i++)for(let k=0;k<3;k++)P[i*3+k]=f32(b.off+i*MV.size+MV.fields.co.off+k*4)}}
+    if(!P||!nv)return null;
+    let st=null,ct=null,cv=null,nP=np;
+    const ob=blk(mo,'poly_offset_indices','face_offset_indices');
+    if(ob&&np>0&&ob.len>=(np+1)*4){st=new Int32Array(np);ct=new Int32Array(np);
+      for(let i=0;i<np;i++){st[i]=i32(ob.off+i*4);ct[i]=i32(ob.off+i*4+4)-st[i]}}
+    if(!st){const MP=S.MPoly,b=blk(mo,'mpoly')||(pL.find(l=>l.type===25&&l.data)||{}).data;
+      if(b&&MP&&MP.fields.loopstart){nP=Math.min(np,Math.floor(b.len/MP.size));st=new Int32Array(nP);ct=new Int32Array(nP);
+        for(let i=0;i<nP;i++){const o=b.off+i*MP.size;st[i]=i32(o+MP.fields.loopstart.off);ct[i]=i32(o+MP.fields.totloop.off)}}}
+    const cl=lL.find(l=>l.name==='.corner_vert'&&l.data);
+    if(cl){const n=Math.min(nl,Math.floor(cl.data.len/4));cv=new Int32Array(n);for(let i=0;i<n;i++)cv[i]=i32(cl.data.off+i*4)}
+    else{const ML=S.MLoop,b=blk(mo,'mloop')||(lL.find(l=>l.type===26&&l.data)||{}).data;
+      if(b&&ML&&ML.fields.v){const n=Math.min(nl,Math.floor(b.len/ML.size));cv=new Int32Array(n);for(let i=0;i<n;i++)cv[i]=i32(b.off+i*ML.size+ML.fields.v.off)}}
+    const tris=[];const ok=(a,b,c)=>a>=0&&b>=0&&c>=0&&a<nv&&b<nv&&c<nv;
+    if(st&&cv){for(let i=0;i<nP;i++){const s=st[i],c=ct[i];if(s<0||s+c>cv.length)continue;
+        for(let k=1;k<c-1;k++){const a=cv[s],b2=cv[s+k],c2=cv[s+k+1];if(ok(a,b2,c2))tris.push(a,b2,c2)}}}
+    else{const MF=S.MFace,b=blk(mo,'mface')||(fL.find(l=>l.type===4&&l.data)||{}).data;
+      if(b&&MF&&MF.fields.v1){const n=Math.min(nfc,Math.floor(b.len/MF.size));
+        for(let i=0;i<n;i++){const o=b.off+i*MF.size,v=['v1','v2','v3','v4'].map(k=>u32(o+MF.fields[k].off));
+          if(ok(v[0],v[1],v[2]))tris.push(v[0],v[1],v[2]);if(v[3]&&ok(v[0],v[2],v[3]))tris.push(v[0],v[2],v[3])}}}
+    if(!tris.length)return null;
+    return {P,tris}}
+  // --- objects that use meshes, with their world transforms ---
+  const OB=S.Object,items=[];
+  if(OB&&OB.fields.data&&OB.fields.type){const mn=pick(OB,'obmat','object_to_world');
+    for(const b of blocks){if(sOf(b).name!=='Object'||b.code!=='OB')continue;const o=b.off;
+      if(i16(o+OB.fields.type.off)!==1)continue;
+      const mb=byAddr.get(ptr(o+OB.fields.data.off));if(!mb||sOf(mb).name!=='Mesh')continue;
+      if(OB.fields.modifiers&&ptr(o+OB.fields.modifiers.off)!==NULL)warn.add('mods');
+      let m=null;if(mn){m=[];for(let k=0;k<16;k++)m.push(f32(o+OB.fields[mn].off+k*4))}
+      items.push({mb,m})}}
+  if(!items.length)for(const b of blocks)if(b.code==='ME'&&sOf(b).name==='Mesh')items.push({mb:b,m:null});
+  const cache=new Map(),parts=[];let nv=0,nt=0;
+  for(const it of items){if(!cache.has(it.mb))cache.set(it.mb,readMesh(it.mb.off));const r=cache.get(it.mb);if(!r)continue;
+    const n=r.P.length/3,Q=new Float32Array(n*3),m=it.m;
+    for(let i=0;i<n;i++){let x=r.P[i*3],y=r.P[i*3+1],z=r.P[i*3+2];
+      if(m){const X=m[0]*x+m[4]*y+m[8]*z+m[12],Y=m[1]*x+m[5]*y+m[9]*z+m[13],Z=m[2]*x+m[6]*y+m[10]*z+m[14];x=X;y=Y;z=Z}
+      Q[i*3]=x;Q[i*3+1]=z;Q[i*3+2]=-y} // Blender is Z-up, this app is Y-up
+    parts.push({Q,tris:r.tris,base:nv});nv+=n;nt+=r.tris.length}
+  if(!parts.length)throw new Error('nomesh');
+  const outP=new Float32Array(nv*3),idx=new Uint32Array(nt);let ti=0;
+  for(const pr of parts){outP.set(pr.Q,pr.base*3);for(const t of pr.tris)idx[ti++]=t+pr.base}
+  return {pos:outP,idx,count:parts.length,warn}}
+
+// ---------- surface snapping ----------
+const rc=new THREE.Raycaster();
+function hitScreen(x,y,anchor){
+  rc.setFromCamera(new THREE.Vector2(x/innerWidth*2-1,-y/innerHeight*2+1),cam);
+  if(free()){const a=anchor?new THREE.Vector3(...anchor):controls.target.clone();
+    const n=cam.getWorldDirection(new THREE.Vector3());const pl=new THREE.Plane().setFromNormalAndCoplanarPoint(n,a);
+    const pt=rc.ray.intersectPlane(pl,new THREE.Vector3());return pt?{point:pt}:null}
+  const h=rc.intersectObject(high,true);return h[0]||null}
+function snapHit(p,n){if(!high)return null;const P=new THREE.Vector3(...p),N=new THREE.Vector3(...n).normalize();
+  let best=null;for(const sg of [1,-1]){rc.set(P.clone().addScaledVector(N,sg*size*.15),N.clone().multiplyScalar(-sg));
+    rc.far=size*.6;const h=rc.intersectObject(high,true)[0];
+    if(h&&(!best||h.point.distanceTo(P)<best.point.distanceTo(P)))best=h}
+  rc.far=Infinity;return best}
+function snap(p,n){if(free())return p;const h=snapHit(p,n);return h?h.point.toArray():p}
+
+// ---------- reference box mode ----------
+let refMode=false;const refTex={},refImg={};
+const refMat=new THREE.ShaderMaterial({transparent:true,side:THREE.DoubleSide,depthWrite:false,
+  polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,
+  uniforms:{tF:{value:null},hF:{value:0},tB:{value:null},tS:{value:null},tT:{value:null},hB:{value:0},hS:{value:0},hT:{value:0},
+    bmin:{value:new THREE.Vector3(-1,-1,-1)},bmax:{value:new THREE.Vector3(1,1,1)},op:{value:.85}},
+  vertexShader:`varying vec3 vW;void main(){vW=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(vW,1.);}`,
+  fragmentShader:`uniform sampler2D tF,tB,tS,tT;uniform float hF,hB,hS,hT,op;uniform vec3 bmin,bmax;varying vec3 vW;
+  void main(){vec3 n=normalize(cross(dFdx(vW),dFdy(vW)));vec3 a=abs(n);vec3 r=clamp((vW-bmin)/(bmax-bmin),0.,1.);
+   vec4 c=vec4(.8,.8,.8,1.);
+   if(a.z>=a.x&&a.z>=a.y){ if(n.z>0.){if(hF>.5)c=texture2D(tF,vec2(r.x,r.y));} else if(hB>.5)c=texture2D(tB,vec2(1.-r.x,r.y)); else if(hF>.5)c=texture2D(tF,vec2(r.x,r.y)); }
+   else if(a.x>=a.y){ if(hS>.5)c=texture2D(tS,vec2(n.x>0.?1.-r.z:r.z,r.y)); }
+   else { if(hT>.5)c=texture2D(tT,vec2(r.x,n.y>0.?1.-r.z:r.z)); }
+   float sh=.8+.2*a.y;gl_FragColor=vec4(c.rgb*sh,op);}`});
+let curSlot=null,boxDim=[2,2,2];
+const blank=new THREE.DataTexture(new Uint8Array([204,204,204,255]),1,1);blank.needsUpdate=true;
+function refUniforms(){const u=refMat.uniforms,[W,H,D]=boxDim;
+  for(const[k,t,h]of[['front','tF','hF'],['back','tB','hB'],['side','tS','hS'],['top','tT','hT']]){u[t].value=refTex[k]||blank;u[h].value=refTex[k]?1:0}
+  u.bmin.value.set(-W/2,-H/2,-D/2);u.bmax.value.set(W/2,H/2,D/2);u.op.value=lowMat.opacity}
+async function newRefBox(){if(V.length&&!(await ask('Start a new reference box? This replaces the current mesh.',{ok:'Start'})))return;
+  if(high){scene.remove(high);high=null;highGeo=null}
+  for(const k in refTex)delete refTex[k];boxDim=[2,2,2];save();setBox();refMode=true;texOn=false;$('bTex').classList.add('off');
+  grid.visible=true;controls.target.set(0,0,0);refUniforms();rebuild();
+  hint('Hold a face of the cube to add your drawing to that side')}
+function setBox(){const[W,H,D]=boxDim,x=W/2,y=H/2,z=D/2;
+  V=[[-x,-y,z],[x,-y,z],[x,y,z],[-x,y,z],[-x,-y,-z],[x,-y,-z],[x,y,-z],[-x,y,-z]];
+  F=[[0,1,2,3],[5,4,7,6],[1,5,6,2],[4,0,3,7],[3,2,6,7],[4,5,1,0]];pend=[];grid.position.y=-y}
+function faceSlot(n){const a=[Math.abs(n.x),Math.abs(n.y),Math.abs(n.z)];
+  if(a[2]>=a[0]&&a[2]>=a[1])return n.z>0?'front':'back';if(a[0]>=a[1])return 'side';return 'top'}
+function holdFace(x,y){if(!refMode)return false;
+  rc.setFromCamera(new THREE.Vector2(x/innerWidth*2-1,-y/innerHeight*2+1),cam);const h=rc.intersectObject(lowMesh,false)[0];
+  if(!h)return false;const n=h.face.normal.clone();if(n.dot(rc.ray.direction)>0)n.negate();
+  curSlot=faceSlot(n);hint('Choose the '+curSlot+' image');$('refFile').click();return true}
+$('refFile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const img=new Image();
+  img.onload=()=>{refImg[curSlot]=img;const t=new THREE.Texture(img);t.colorSpace=THREE.SRGBColorSpace;t.needsUpdate=true;refTex[curSlot]=t;
+    const ar=img.width/img.height,fresh=V.length===8&&F.length===6;
+    if(fresh){if(curSlot==='front'||curSlot==='back')boxDim[0]=boxDim[1]*ar;
+      else if(curSlot==='side')boxDim[2]=boxDim[1]*ar;else if(curSlot==='top')boxDim[2]=boxDim[0]/ar;save();setBox()}
+    refUniforms();rebuild();hint(curSlot[0].toUpperCase()+curSlot.slice(1)+' added'+(fresh?'':' (box already shaped, size kept)'))};
+  img.src=URL.createObjectURL(f)};
+$('bRef').onclick=newRefBox;
+
+
+// ---------- WOOD CARVING MODE ----------
+let woodMode=false,woodTool='gouge',woodSize=.08,woodUndo=[];
+const RES=/Mobi|Android|iPhone|iPad/.test(navigator.userAgent)?52:68;
+const woodMat=new THREE.ShaderMaterial({
+  uniforms:{tF:{value:null},tB:{value:null},tS:{value:null},tT:{value:null},hF:{value:0},hB:{value:0},hS:{value:0},hT:{value:0},
+    bmin:{value:new THREE.Vector3(-1,-1,-1)},bmax:{value:new THREE.Vector3(1,1,1)},refOp:{value:.35}},
+  vertexShader:`varying vec3 vP;varying vec3 vN;void main(){vP=position;vN=normalize(normalMatrix*normal);
+    gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader:`uniform sampler2D tF,tB,tS,tT;uniform float hF,hB,hS,hT,refOp;uniform vec3 bmin,bmax;varying vec3 vP;varying vec3 vN;
+  float h3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+  float vn(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+    return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),
+               mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z);}
+  void main(){
+    vec3 p=vP;float wob=vn(p*vec3(3.,.6,3.))*.6+vn(p*vec3(9.,1.5,9.))*.15;
+    float r=length(p.xz-vec2(.35,-.25))*16.+wob*2.5;float ring=fract(r);
+    float late=smoothstep(.0,.12,ring)*(1.-smoothstep(.55,1.,ring));
+    vec3 light=vec3(.86,.69,.48),dark=vec3(.58,.38,.22);
+    vec3 col=mix(dark,light,late);
+    col*=.92+.08*vn(vec3(p.x*120.,p.y*6.,p.z*120.));
+    vec3 a=abs(normalize(vN));vec3 rr=clamp((p-bmin)/(bmax-bmin),0.,1.);vec4 rf=vec4(0.);
+    vec3 n=normalize(cross(dFdx(vP),dFdy(vP)));vec3 an=abs(n);
+    if(an.z>=an.x&&an.z>=an.y){ if(n.z>0.){if(hF>.5)rf=texture2D(tF,rr.xy);} else if(hB>.5)rf=texture2D(tB,vec2(1.-rr.x,rr.y)); else if(hF>.5)rf=texture2D(tF,rr.xy);}
+    else if(an.x>=an.y){ if(hS>.5)rf=texture2D(tS,vec2(n.x>0.?1.-rr.z:rr.z,rr.y)); }
+    else { if(hT>.5)rf=texture2D(tT,vec2(rr.x,n.y>0.?1.-rr.z:rr.z)); }
+    col=mix(col,rf.rgb,rf.a*refOp*step(.001,hF+hB+hS+hT));
+    vec3 N=normalize(vN);float d=max(dot(N,normalize(vec3(.4,.7,.6))),0.);
+    gl_FragColor=vec4(col*(.38+.72*d),1.);}`});
+const wood=new MarchingCubes(RES,woodMat,false,false,90000);
+wood.isolation=50;wood.scale.setScalar(1.3);wood.visible=false;scene.add(wood);
+const WH=RES/2,K=25*WH;
+const wl=i=>(i-WH)/WH, wi=x=>x*WH+WH;
+function newBlock(){const b=refMode&&boxDim?boxDim.map(v=>v/Math.max(...boxDim)*.8):[.55,.8,.55];
+  const f=wood.field,N=RES;
+  for(let z=0;z<N;z++)for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const qx=Math.abs(wl(x))-b[0],qy=Math.abs(wl(y))-b[1],qz=Math.abs(wl(z))-b[2];
+    const o=Math.hypot(Math.max(qx,0),Math.max(qy,0),Math.max(qz,0))+Math.min(Math.max(qx,qy,qz),0);
+    const edge=x<2||y<2||z<2||x>N-3||y>N-3||z>N-3;
+    f[x+y*N+z*N*N]=edge?0:Math.max(0,Math.min(100,50-o*K))}
+  const u=woodMat.uniforms;for(const[k,t,h]of[['front','tF','hF'],['back','tB','hB'],['side','tS','hS'],['top','tT','hT']]){u[t].value=refTex[k]||null;u[h].value=refTex[k]?1:0}
+  u.bmin.value.set(-b[0],-b[1],-b[2]);u.bmax.value.set(b[0],b[1],b[2]);
+  woodUndo=[];wood.update();}
+// tool shapes: signed distance in local units (negative = wood removed)
+const v3=()=>new THREE.Vector3();
+function toolSDF(tool,q,n,t,sz){ // q = p - contact point
+  const h=q.dot(n);
+  if(tool==='gouge'){return q.clone().addScaledVector(n,-sz*.35).length()-sz}
+  if(tool==='chisel'){const rad=q.clone().addScaledVector(n,-h).length();return Math.max(rad-sz*1.2,-(h+sz*.3))}
+  const side=n.clone().cross(t).normalize(),along=Math.abs(q.dot(t)),sd=Math.abs(q.dot(side));
+  if(tool==='vtool')return Math.max(-sz*.6+sd-h,along-sz*.45);
+  if(tool==='knife')return Math.max(-sz*.55+sd*3-h,along-sz*.4);
+  return 1}
+function carve(c,n,t,tool,sz){const f=wood.field,N=RES,R=Math.ceil(sz*2*WH)+2;
+  const cx=Math.round(wi(c.x)),cy=Math.round(wi(c.y)),cz=Math.round(wi(c.z)),q=v3();
+  for(let z=Math.max(2,cz-R);z<=Math.min(N-3,cz+R);z++)for(let y=Math.max(2,cy-R);y<=Math.min(N-3,cy+R);y++)for(let x=Math.max(2,cx-R);x<=Math.min(N-3,cx+R);x++){
+    const i=x+y*N+z*N*N;if(f[i]<=0)continue;q.set(wl(x)-c.x,wl(y)-c.y,wl(z)-c.z);
+    if(tool==='sand'){if(q.length()>sz*1.3||f[i]>=99)continue;
+      const av=(f[i-1]+f[i+1]+f[i-N]+f[i+N]+f[i-N*N]+f[i+N*N])/6;f[i]=Math.min(f[i],f[i]*.55+av*.45);continue}
+    const d=toolSDF(tool,q,n,t,sz);if(d*K<50)f[i]=Math.max(0,Math.min(f[i],50+d*K))}}
+function stamp(c,n,t){const M=v=>new THREE.Vector3(-v.x,v.y,v.z);
+  carve(c,n,t,woodTool,woodSize);if(mirOn)carve(M(c),M(n),M(t),woodTool,woodSize);
+  if(woodTool==='sand')return;
+  // grain: Y is along the grain; cutting across it tears out chips
+  const across=1-Math.abs(t.y);
+  if(across>.4&&Math.random()<across*.45){const side=n.clone().cross(t).normalize();
+    const cc=c.clone().addScaledVector(side,(Math.random()-.5)*woodSize*1.6).addScaledVector(t,(Math.random()-.2)*woodSize).addScaledVector(n,woodSize*.15);
+    const cs=woodSize*(.25+Math.random()*.35);carve(cc,n,t,'gouge',cs);if(mirOn)carve(M(cc),M(n),M(t),'gouge',cs)}}
+
+// ---------- low-poly mesh display ----------
+const lowMat=new THREE.MeshStandardMaterial({color:0x4aa3ff,transparent:true,opacity:.85,side:THREE.DoubleSide,
+  polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,flatShading:true,depthWrite:false});
+const lowMesh=new THREE.Mesh(new THREE.BufferGeometry(),lowMat);
+const lines=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0x10305a,depthTest:false,transparent:true}));
+const pts=new THREE.Points(new THREE.BufferGeometry(),new THREE.PointsMaterial({color:0x10305a,size:9,sizeAttenuation:false,depthTest:false}));
+const pendL=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xff6a00,depthTest:false}));
+lines.renderOrder=pts.renderOrder=pendL.renderOrder=5;
+scene.add(lowMesh,lines,pts,pendL);
+const ek=(a,b)=>a<b?a+'_'+b:b+'_'+a;
+function edges(){const m=new Map();F.forEach((f,fi)=>f.forEach((a,i)=>{const b=f[(i+1)%f.length],k=ek(a,b);
+  if(!m.has(k))m.set(k,{a,b,faces:[]});m.get(k).faces.push(fi)}));return m}
+// ---------- mirror (symmetry across the x = 0 centre plane) ----------
+let mirOn=false;
+const mirPlane=new THREE.Mesh(new THREE.PlaneGeometry(2.8,2.8),new THREE.MeshBasicMaterial({color:0xff4d6d,transparent:true,opacity:.1,side:THREE.DoubleSide,depthWrite:false}));
+mirPlane.rotation.y=Math.PI/2;mirPlane.add(new THREE.LineSegments(new THREE.EdgesGeometry(mirPlane.geometry),new THREE.LineBasicMaterial({color:0xff4d6d,transparent:true,opacity:.6})));
+mirPlane.visible=false;scene.add(mirPlane);
+const MT=()=>1e-4*size,CT=()=>.015*size,mp=p=>[-p[0],p[1],p[2]];
+function mir(i){const p=V[i],t=MT();if(Math.abs(p[0])<t)return i;
+  for(let j=0;j<V.length;j++){const q=V[j];if(Math.abs(q[0]+p[0])<t&&Math.abs(q[1]-p[1])<t&&Math.abs(q[2]-p[2])<t)return j}return -1}
+function addVert(p){if(mirOn&&Math.abs(p[0])<CT())p=[0,p[1],p[2]];const i=V.push(p)-1;if(mirOn&&p[0]!==0)V.push(mp(p));return i}
+function addMirFace(f){if(!mirOn)return;const m=f.map(mir);if(m.some(j=>j<0))return;const fs=new Set(f);if(m.every(j=>fs.has(j)))return;
+  const key=a=>[...a].sort((x,y)=>x-y).join(','),mk=key(m);if(F.some(g=>key(g)===mk))return;F.push(m.slice().reverse())}
+function weld(keep,drop){F=F.map(f=>f.map(j=>j===drop?keep:j>drop?j-1:j)).filter(f=>new Set(f).size>=3);V.splice(drop,1);pend=[]}
+function symmetrize(from){ // make new verts on the -x side exact mirrors of their new partners on +x
+  for(let j=from;j<V.length;j++){if(V[j][0]>=-MT())continue;const t=mp(V[j]);let bk=-1,bd=.05*size;
+    for(let k=from;k<V.length;k++){if(V[k][0]<=MT())continue;const d=Math.hypot(V[k][0]-t[0],V[k][1]-t[1],V[k][2]-t[2]);if(d<bd){bd=d;bk=k}}
+    if(bk>=0)V[j]=mp(V[bk])}}
+function fnorm(f){const a=new THREE.Vector3(...V[f[0]]),b=new THREE.Vector3(...V[f[1]]),c=new THREE.Vector3(...V[f[2]]);
+  return b.sub(a).cross(c.sub(a)).normalize().toArray()}
+function vnorm(i){const n=new THREE.Vector3();F.forEach(f=>{if(f.includes(i))n.add(new THREE.Vector3(...fnorm(f)))});
+  if(n.lengthSq()<1e-9)n.copy(cam.position).sub(new THREE.Vector3(...V[i]));return n.normalize().toArray()}
+function sampleAll(){const cnt=new Map();
+  VU=V.map((p,i)=>{const h=snapHit(p,vnorm(i));if(!h)return [0,0];let m=h.object.material;
+    if(Array.isArray(m))m=m[h.face.materialIndex]||m[0];cnt.set(m,(cnt.get(m)||0)+1);return h.uv?[h.uv.x,h.uv.y]:[0,0]});
+  let best=null,bc=0;cnt.forEach((c,m)=>{if(c>bc){bc=c;best=m}});
+  if(best&&(!texMat||texMat.userData.src!==best)){texMat=best.clone();texMat.userData.src=best;
+    Object.assign(texMat,{transparent:true,opacity:lowMat.opacity,side:THREE.DoubleSide,polygonOffset:true,
+      polygonOffsetFactor:-2,polygonOffsetUnits:-2,depthWrite:false});texMat.needsUpdate=true}}
+function meshGeo(){const useU=texOn&&texMat&&VU.length===V.length,tp=[],tu=[];
+  F.forEach(f=>{for(let i=1;i<f.length-1;i++)for(const j of [f[0],f[i],f[i+1]]){tp.push(...V[j]);if(useU)tu.push(...VU[j])}});
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(tp,3));
+  if(useU)g.setAttribute('uv',new THREE.Float32BufferAttribute(tu,2));g.computeVertexNormals();
+  lowMesh.geometry.dispose();lowMesh.geometry=g;lowMesh.material=refMode?refMat:useU?texMat:lowMat}
+function rebuild(){meshGeo();
+  if(texOn&&high){clearTimeout(rebuild.t);rebuild.t=setTimeout(()=>{sampleAll();meshGeo()},250)}
+  const lp=[];for(const e of edges().values())lp.push(...V[e.a],...V[e.b]);
+  lines.geometry.dispose();lines.geometry=new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute(lp,3));
+  pts.geometry.dispose();pts.geometry=new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute(V.flat(),3));
+  pendL.geometry.dispose();pendL.geometry=new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute(pend.flatMap(i=>V[i]),3));
+  $('bX').style.display=pend.length?'block':'none';
+  $('stats').textContent=V.length+' verts · '+F.length+' faces';
+}
+
+// ---------- screen picking ----------
+const scr=p=>{const v=new THREE.Vector3(...p).project(cam);return [(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight,v.z]};
+function front(p){if(free())return true;const P=new THREE.Vector3(...p),d=P.clone().sub(cam.position);
+  rc.set(cam.position,d.clone().normalize());const h=rc.intersectObject(high,true)[0];return !h||h.distance>d.length()-size*.03}
+function pickV(x,y,r=22){let bi=-1,bd=r;V.forEach((p,i)=>{const s=scr(p);const d=Math.hypot(s[0]-x,s[1]-y);
+  if(d<bd&&s[2]<1&&front(p)){bd=d;bi=i}});return bi}
+function pickE(x,y,r=16){let best=null,bd=r;for(const e of edges().values()){const A=scr(V[e.a]),B=scr(V[e.b]);
+  const dx=B[0]-A[0],dy=B[1]-A[1],L=dx*dx+dy*dy||1,t=Math.max(0,Math.min(1,((x-A[0])*dx+(y-A[1])*dy)/L));
+  const d=Math.hypot(A[0]+t*dx-x,A[1]+t*dy-y);
+  if(d<bd&&front(V[e.a].map((v,k)=>(v+V[e.b][k])/2))){bd=d;best=e}}return best}
+
+// ---------- operations ----------
+function addPend(i){
+  if(pend.length>=3&&i===pend[0]){save();F.push([...pend]);addMirFace(pend);pend=[];hint('Triangle made');return rebuild()}
+  if(pend.includes(i))return;pend.push(i);
+  if(pend.length===4){save();F.push([...pend]);addMirFace(pend);pend=[];hint('Quad made')}
+  rebuild()}
+function extrude(e){const ma=mirOn?mir(e.a):-1,mb=mirOn?mir(e.b):-1,n0=V.length;save();const r=extrude1(e);
+  if(mirOn&&ma>=0&&mb>=0&&!(new Set([e.a,e.b,ma,mb]).size===2)){const me=edges().get(ek(ma,mb));
+    if(me&&me.faces.length){const r2=extrude1(me),mOf=new Map([[r.src[0],r.nw[0]],[r.src[1],r.nw[1]]]);const drops=[];
+      r2.src.forEach((sv,k)=>{const twin=mOf.get(mir(sv));if(twin==null)return;
+        if(mir(sv)===sv){V[twin][0]=0;drops.push([twin,r2.nw[k]])}else V[r2.nw[k]]=mp(V[twin])});
+      drops.sort((a,b)=>b[1]-a[1]).forEach(([k,d])=>weld(k,d))}}
+  else if(mirOn){r.src.forEach((sv,k)=>{if(mir(sv)===sv)V[r.nw[k]][0]=0});if(mir(r.src[0])===r.src[1])V[r.nw[1]]=mp(V[r.nw[0]])}
+  rebuild();hint('Extruded – drag the new edge');return r}
+function extrude1(e){
+  const f=F[e.faces[0]],i=f.indexOf(e.a),fwd=f[(i+1)%f.length]===e.b;const a=fwd?e.a:e.b,b=fwd?e.b:e.a;
+  const c=new THREE.Vector3();f.forEach(j=>c.add(new THREE.Vector3(...V[j])));c.divideScalar(f.length);
+  const A=new THREE.Vector3(...V[a]),B=new THREE.Vector3(...V[b]);
+  const dir=A.clone().add(B).multiplyScalar(.5).sub(c).normalize().multiplyScalar(A.distanceTo(B));
+  const n=fnorm(f);const na=V.push(snap(A.clone().add(dir).toArray(),n))-1,nb=V.push(snap(B.clone().add(dir).toArray(),n))-1;
+  F.push([b,a,na,nb]);return {src:[a,b],nw:[na,nb]}}
+function loopCut(e0){if(!e0.faces.every(fi=>F[fi].length===4))return hint('Loop cuts need quads');
+  const ma=mirOn?mir(e0.a):-1,mb=mirOn?mir(e0.b):-1,pa=mp(V[e0.a]),pb=mp(V[e0.b]),n0=V.length;save();loop1(e0);
+  if(mirOn&&ma>=0&&mb>=0&&new Set([e0.a,e0.b,ma,mb]).size>2){const find=p=>V.findIndex(q=>Math.hypot(q[0]-p[0],q[1]-p[1],q[2]-p[2])<MT());
+    const me=edges().get(ek(find(pa),find(pb)));if(me&&me.faces.every(fi=>F[fi].length===4))loop1(me)}
+  if(mirOn)symmetrize(n0);rebuild();hint('Edge loop added')}
+function loop1(e0){const em=edges();const mid=new Map(),done=new Set(),newF=[];
+  const midOf=(a,b)=>{const k=ek(a,b);if(!mid.has(k)){const p=V[a].map((v,j)=>(v+V[b][j])/2);
+    const q=snap(p,vnorm(a));if(mirOn){const A=mir(a),B=mir(b);if(A===b||(A===a&&B===b))q[0]=0}mid.set(k,V.push(q)-1)}return mid.get(k)};
+  const walk=(a,b,fi)=>{while(fi!=null&&!done.has(fi)&&F[fi].length===4){done.add(fi);const f=F[fi];
+    let i=f.indexOf(a);if(f[(i+1)%4]!==b){i=f.indexOf(b);[a,b]=[b,a]}
+    const v0=f[i],v1=f[(i+1)%4],v2=f[(i+2)%4],v3=f[(i+3)%4],m1=midOf(v0,v1),m2=midOf(v2,v3);
+    newF.push([fi,[v0,m1,m2,v3],[m1,v1,v2,m2]]);
+    const nx=em.get(ek(v2,v3));a=v2;b=v3;fi=nx?nx.faces.find(x=>!done.has(x)):null}};
+  e0.faces.forEach(fi=>walk(e0.a,e0.b,fi));
+  const rm=new Set(newF.map(x=>x[0]));F=F.filter((f,i)=>!rm.has(i));newF.forEach(x=>F.push(x[1],x[2]))}
+function delV(i){const m=mirOn?mir(i):-1,ds=[...new Set([i,m].filter(x=>x>=0))].sort((a,b)=>b-a);save();
+  for(const d of ds){F=F.filter(f=>!f.includes(d)).map(f=>f.map(j=>j>d?j-1:j));V.splice(d,1)}pend=[];rebuild();hint(ds.length>1?'Points deleted':'Point deleted')}
+async function auto(){if(!high)return hint('Load a sculpt first');const t=await ask('Target face count. Auto makes triangles, then you clean up by hand.',{value:'800',ok:'Run'});if(!t||!(+t>0))return;
+  hint('Working…');setTimeout(()=>{const g=getHighGeo().clone();const tri=(g.index?g.index.count:g.attributes.position.count)/3;
+    const s=new SimplifyModifier().modify(g,Math.max(0,Math.floor(g.attributes.position.count*(1-(+t)/tri))));
+    const p=s.attributes.position,ix=s.index;save();V=[];for(let i=0;i<p.count;i++)V.push([p.getX(i),p.getY(i),p.getZ(i)]);
+    F=[];for(let i=0;i<ix.count;i+=3)F.push([ix.getX(i),ix.getX(i+1),ix.getX(i+2)]);pend=[];rebuild();hint('Auto retopo done')},50)}
+function exportOBJ(){let s='# retopo export\n';const uv=texOn&&VU.length===V.length;V.forEach(p=>s+='v '+p.map(v=>v.toFixed(5)).join(' ')+'\n');
+  if(uv)VU.forEach(u=>s+='vt '+u[0].toFixed(5)+' '+u[1].toFixed(5)+'\n');
+  F.forEach(f=>s+='f '+f.map(i=>uv?(i+1)+'/'+(i+1):i+1).join(' ')+'\n');const a=document.createElement('a');
+  dl_(new Blob([s],{type:'text/plain'}),'retopo.obj')}
+const dlP=(window.claude&&window.claude.use)?Promise.resolve(window.claude.use('downloads')).catch(()=>null):null;
+function crc32(u){let c=~0;for(let i=0;i<u.length;i++){c^=u[i];for(let k=0;k<8;k++)c=(c>>>1)^(0xEDB88320&-(c&1))}return (~c)>>>0}
+function zip1(name,d){const n=new TextEncoder().encode(name),crc=crc32(d),dt=((2026-1980)<<9)|(1<<5)|1;
+  const L=new DataView(new ArrayBuffer(30));L.setUint32(0,0x04034b50,true);L.setUint16(4,20,true);L.setUint16(12,dt,true);
+  L.setUint32(14,crc,true);L.setUint32(18,d.length,true);L.setUint32(22,d.length,true);L.setUint16(26,n.length,true);
+  const C=new DataView(new ArrayBuffer(46));C.setUint32(0,0x02014b50,true);C.setUint16(4,20,true);C.setUint16(6,20,true);C.setUint16(14,dt,true);
+  C.setUint32(16,crc,true);C.setUint32(20,d.length,true);C.setUint32(24,d.length,true);C.setUint16(28,n.length,true);
+  const E=new DataView(new ArrayBuffer(22));E.setUint32(0,0x06054b50,true);E.setUint16(8,1,true);E.setUint16(10,1,true);
+  E.setUint32(12,46+n.length,true);E.setUint32(16,30+n.length+d.length,true);
+  return new Blob([L,n,d,C,n,E],{type:'application/zip'})}
+async function dl_(blob,n){
+  if(!dlP){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=n;a.click();return hint('Exported '+n)}
+  const d=await dlP;if(!d)return hint('Saving files is not available in this view');
+  const z=zip1(n,new Uint8Array(await blob.arrayBuffer()));
+  try{await d.save({filename:n+'.zip',data:z});hint('Saved '+n+'.zip. Unzip it to get your '+n.split('.').pop().toUpperCase()+' file')}
+  catch(e){hint(e&&e.code==='declined'?'Save cancelled':'Could not save the file'+(e&&e.code?' ('+e.code+')':''))}}
+function exportWood(fmt){const g=woodGeo(),m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xc49a6c}));
+  if(fmt==='obj'){const a=g.attributes.position.array;let o='# wood carving\n';
+    for(let i=0;i<a.length;i+=3)o+='v '+a[i].toFixed(5)+' '+a[i+1].toFixed(5)+' '+a[i+2].toFixed(5)+'\n';
+    for(let i=0;i<a.length/3;i+=3)o+='f '+(i+1)+' '+(i+2)+' '+(i+3)+'\n';return dl_(new Blob([o]),'carving.obj')}
+  if(fmt==='stl')return dl_(new Blob([new STLExporter().parse(m,{binary:true})]),'carving.stl');
+  if(fmt==='ply')return new PLYExporter().parse(m,r=>dl_(new Blob([r]),'carving.ply'),{binary:true});
+  new GLTFExporter().parse(m,r=>dl_(new Blob([r]),'carving.glb'),()=>hint('Export failed'),{binary:true})}
+function lowObj(){let mt=new THREE.MeshStandardMaterial({color:0x4aa3ff});if(lowMesh.material===texMat){mt=texMat.clone();Object.assign(mt,{transparent:false,opacity:1,depthWrite:true,polygonOffset:false})}
+  const m=new THREE.Mesh(lowMesh.geometry.clone(),mt);m.name='retopo';return m}
+function exportAs(fmt){if(woodMode)return exportWood(fmt);if(!F.length)return hint('Nothing to export yet');
+  if(fmt==='obj')return exportOBJ();
+  if(fmt==='stl')return dl_(new Blob([new STLExporter().parse(lowObj(),{binary:true})]),'retopo.stl');
+  if(fmt==='ply')return new PLYExporter().parse(lowObj(),r=>dl_(new Blob([r]),'retopo.ply'),{binary:true});
+  if(fmt==='glb')new GLTFExporter().parse(lowObj(),r=>dl_(new Blob([r]),'retopo.glb'),e=>hint('Export failed'),{binary:true})}
+
+
+// ---------- wood touch ----------
+let W=null,woodDirty=false;
+function woodHit(x,y){rc.setFromCamera(new THREE.Vector2(x/innerWidth*2-1,-y/innerHeight*2+1),cam);
+  const h=rc.intersectObject(wood,false)[0];if(!h)return null;const n=h.face.normal.clone().normalize();
+  if(n.dot(rc.ray.direction)>0)n.negate();return {p:wood.worldToLocal(h.point.clone()),n}}
+function woodRefresh(){if(woodDirty)return;woodDirty=true;requestAnimationFrame(()=>{wood.update();
+  wood.geometry.boundingSphere=new THREE.Sphere(new THREE.Vector3(),2);woodDirty=false})}
+wood.frustumCulled=false;
+function woodDown(e){const h=woodHit(e.clientX,e.clientY);if(!h)return false;
+  woodUndo.push(new Float32Array(wood.field));if(woodUndo.length>5)woodUndo.shift();
+  controls.enabled=false;const camR=new THREE.Vector3(1,0,0).applyQuaternion(cam.quaternion);
+  W={last:h.p,n:h.n};if(['gouge','chisel','sand'].includes(woodTool)){stamp(h.p,h.n,camR);woodRefresh()}return true}
+function woodMove(e){if(!W)return;const h=woodHit(e.clientX,e.clientY);if(!h)return;
+  const d=h.p.clone().sub(W.last);if(d.length()<woodSize*.4)return;
+  const t=d.normalize(),n=h.n.clone().lerp(W.n,.5).normalize();stamp(h.p,n,t);W.last=h.p;W.n=h.n;woodRefresh()}
+function setWood(on){woodMode=on;wood.visible=on;[lowMesh,lines,pts,pendL].forEach(o=>o.visible=!on);
+  if(high)high.visible=!on&&!$('bHi').classList.contains('off');
+  $('woodBar').style.display=on?'flex':'none';$('bWood').classList.toggle('off',false);
+  if(on){$('bX').style.display='none';if(!setWood.made){newBlock();setWood.made=true}
+    controls.target.set(0,0,0);hint('Drag on the wood to carve. The grain runs up and down: cutting across it can chip.')}
+  else rebuild()}
+$('bWood').onclick=()=>setWood(!woodMode);
+document.querySelectorAll('.wt').forEach(b=>b.onclick=()=>{woodTool=b.dataset.t;
+  document.querySelectorAll('.wt').forEach(x=>x.classList.toggle('off',x!==b))});
+$('wSize').oninput=e=>woodSize=+e.target.value;
+$('wNew').onclick=async()=>{if(await ask('Start a fresh block of wood?',{ok:'New block'}))newBlock()};
+function woodGeo(){const n=wood.count*3,g=new THREE.BufferGeometry();
+  const pa=wood.geometry.attributes.position.array.slice(0,n).map(v=>v*1.3);
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pa,3));g.computeVertexNormals();return g}
+
+// ---------- touch gestures (registered before OrbitControls so we can claim a touch) ----------
+let G=null,touches=0,lastTap={t:0,k:null};
+el.addEventListener('pointerdown',e=>{touches++;
+  if(touches>1){if(G){clearTimeout(G.lp);G=null}W=null;controls.enabled=true;return}
+  if(woodMode){woodDown(e);return}
+  const x=e.clientX,y=e.clientY,vi=pickV(x,y),ed=vi<0?pickE(x,y):null;
+  G={x,y,t:performance.now(),vi,ed,moved:false,saved:false,hitStart:hitScreen(x,y,ed?V[ed.a].map((v,k)=>(v+V[ed.b][k])/2):undefined)};
+  controls.enabled=!(vi>=0||ed);
+  G.lp=setTimeout(()=>{if(!G||G.moved)return;
+    if(G.vi>=0)delV(G.vi);else if(G.ed)loopCut(G.ed);else holdFace(G.x,G.y);G=null;controls.enabled=true},550)});
+el.addEventListener('pointermove',e=>{if(woodMode)return woodMove(e);if(!G)return;const dx=e.clientX-G.x,dy=e.clientY-G.y;
+  if(!G.moved&&Math.hypot(dx,dy)>7){G.moved=true;clearTimeout(G.lp)}
+  if(!G.moved||controls.enabled)return;
+  if(!G.saved){save();G.saved=true;if(mirOn){if(G.vi>=0)G.mv=mir(G.vi);else if(G.ed)G.me=[mir(G.ed.a),mir(G.ed.b)]}}
+  const h=hitScreen(e.clientX,e.clientY,G.vi>=0?V[G.vi]:G.hitStart&&G.hitStart.point.toArray());
+  if(G.vi>=0){if(h){V[G.vi]=h.point.toArray();if(mirOn&&G.mv===G.vi)V[G.vi][0]=0;else if(mirOn&&G.mv>=0)V[G.mv]=mp(V[G.vi])}}
+  else if(G.ed&&h&&G.hitStart){const d=h.point.clone().sub(G.hitStart.point);G.hitStart=h;
+    const cn=cam.position.clone().normalize().toArray();
+    for(const i of [G.ed.a,G.ed.b])V[i]=snap(new THREE.Vector3(...V[i]).add(d).toArray(),vnorm(i)||cn);
+    if(mirOn&&G.me){const ab=[G.ed.a,G.ed.b];ab.forEach((i,k)=>{const m=G.me[k];if(m===i)V[i][0]=0;else if(m>=0&&!ab.includes(m))V[m]=mp(V[i])});
+      if(G.me[0]===G.ed.b)V[G.ed.b]=mp(V[G.ed.a])}}
+  rebuild()});
+const up=e=>{touches=Math.max(0,touches-1);if(woodMode){W=null;setTimeout(()=>controls.enabled=true,0);return}if(!G)return;clearTimeout(G.lp);const g=G;G=null;
+  setTimeout(()=>controls.enabled=true,0);
+  if(g.moved||performance.now()-g.t>400)return;
+  // it's a tap
+  const now=performance.now(),key=g.vi>=0?'v'+g.vi:g.ed?'e'+ek(g.ed.a,g.ed.b):'s';
+  const dbl=now-lastTap.t<320&&lastTap.k===key;lastTap={t:now,k:key};
+  if(g.vi>=0)return addPend(g.vi);
+  if(g.ed){if(dbl)extrude(g.ed);return}
+  if(g.hitStart){save();addPend(addVert(g.hitStart.point.toArray()))}
+  else if(pend.length){pend=[];rebuild();hint('Cleared')}};
+el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+
+const controls=new OrbitControls(cam,el);controls.enableDamping=true;
+controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
+
+// ---------- buttons ----------
+$('bImp').onclick=()=>$('file').click();
+$('file').onchange=e=>{if(e.target.files[0])loadFile(e.target.files[0]);e.target.value=''};
+$('bHi').onclick=()=>{if(!high)return;high.visible=!high.visible;$('bHi').classList.toggle('off',!high.visible)};
+$('bMir').onclick=()=>{mirOn=!mirOn;$('bMir').classList.toggle('off',!mirOn);mirPlane.visible=mirOn;
+  hint(mirOn?'Mirror on: edits copy across the centre line':'Mirror off')};
+$('bSnap').onclick=()=>{snapOn=!snapOn;$('bSnap').classList.toggle('off',!snapOn);grid.visible=free();
+  hint(snapOn?'Snapping to sculpt':'Free modelling: points go on a plane facing you, drags move freely')};
+$('bX').onclick=()=>{pend=[];rebuild();hint('Cancelled')};
+$('op').oninput=e=>{woodMat.uniforms.refOp.value=+e.target.value*.5;lowMat.opacity=+e.target.value;refMat.uniforms.op.value=+e.target.value;if(texMat)texMat.opacity=+e.target.value};
+$('bTex').classList.add('off');
+$('bTex').onclick=()=>{texOn=!texOn;$('bTex').classList.toggle('off',!texOn);
+  if(texOn){sampleAll();if(!texMat)hint('No material found on the sculpt');else hint('Low-poly uses the sculpt texture')}else hint('Plain blue view');meshGeo()};
+$('bAuto').onclick=auto;$('bUndo').onclick=undo;$('bExp').onclick=()=>{const m=$('expMenu'),r=$('bExp').getBoundingClientRect();m.style.top=r.top+'px';m.style.display=m.style.display==='flex'?'none':'flex'};
+document.querySelectorAll('#expMenu button').forEach(b=>b.onclick=()=>{$('expMenu').style.display='none';exportAs(b.dataset.f)});
+const HELP='Mirror button: copy edits across the centre · Tap sculpt: drop point (4 make a quad, tap the first to close a triangle) · Drag point or edge: move it on the surface · Double-tap edge: extrude · Hold edge: edge loop · Hold point: delete · One finger on empty space: orbit · Two fingers: zoom and pan';
+$('bHelp').onclick=()=>hint(HELP);
+addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='z')undo()});
+
+function resize(){renderer.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+addEventListener('resize',resize);resize();demo();hint(HELP);
+renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,cam)});
+</script>
+</body>
+</html>
