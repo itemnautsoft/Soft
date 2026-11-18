@@ -51,3 +51,6 @@ For home-screen installs, give an app `manifest.webmanifest` plus `icon-180/192/
   `itemnautsoft/Tuto` and `itemnautsoft/TiTaTo-`, and Pages live at
   `https://itemnautsoft.github.io/...`. The repo is still named ISLANAUT, so keep that word in URLs
   and repo paths until the repo is renamed.
+- **Photos:** strip all metadata (EXIF, GPS location, camera, XMP) from any image before committing
+  it. Phone photos of sketches carry the location where they were taken. In Pillow, re-save
+  without `exif=` and check `getexif()` comes back empty.
