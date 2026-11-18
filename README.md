@@ -1,4 +1,4 @@
-# ISLANAUT
+# Itemnaut
 
 Game and app prototypes by **itemnaut × Claude**. Every game lives in `games/<name>/` and every
 app in `apps/<name>/`, and all of them run in the browser:

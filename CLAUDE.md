@@ -45,7 +45,9 @@ For home-screen installs, give an app `manifest.webmanifest` plus `icon-180/192/
 - Games that already have their own repo (e.g. `itemnautsoft/Tuto`, `itemnautsoft/TiTaTo-`) can
   still get a folder here, either as a copy or as a small redirect page to their own
   Pages site.
-- **GitHub rename (2026-11-17):** itemnaut's account is now `itemnautsoft` (formerly `itemnaut`).
-  Repos: `itemnautsoft/ISLANAUT`, `itemnautsoft/Tuto`, `itemnautsoft/TiTaTo-`. Pages live at
-  `https://itemnautsoft.github.io/...`. The old `itemnautsoft.github.io` URLs no longer work, so never
-  link them. "itemnaut" stays as itemnaut's credit name in games.
+- **Names (2026-11-17):** the creator goes by **itemnaut** everywhere: credits, comments, docs and
+  commit messages. Never use the creator's real name or old handle. The collection is called
+  **Itemnaut**. The GitHub account is `itemnautsoft`, with repos `itemnautsoft/ISLANAUT`,
+  `itemnautsoft/Tuto` and `itemnautsoft/TiTaTo-`, and Pages live at
+  `https://itemnautsoft.github.io/...`. The repo is still named ISLANAUT, so keep that word in URLs
+  and repo paths until the repo is renamed.

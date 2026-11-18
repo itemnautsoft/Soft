@@ -57,7 +57,7 @@ const html = `<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ISLANAUT — itemnaut × Claude games and apps</title>
+<title>Itemnaut — itemnaut × Claude games and apps</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
 <style>
@@ -92,7 +92,7 @@ const html = `<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>ISLANAUT</h1>
+  <h1>Itemnaut</h1>
   <p>${games.length + apps.length} prototype${games.length + apps.length === 1 ? "" : "s"} by itemnaut × Claude. Tap one to try it.</p>
 </header>
 ${apps.length ? `<h2 class="section">Games</h2>` : ""}
