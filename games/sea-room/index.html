@@ -9,7 +9,6 @@
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#0b3550;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;font-family:'Fredoka',system-ui,sans-serif}
   #stage{position:absolute;left:50%;top:50%;transform-origin:50% 50%;overflow:hidden}
-  #stage canvas{position:absolute;left:0;top:0;display:block}
   #hud{position:absolute;inset:0;pointer-events:none;color:#fff}
   #hud button,#hud .clickable{pointer-events:auto}
   button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -33,7 +32,9 @@
   #toast{position:absolute;left:50%;top:92px;transform:translateX(-50%);background:rgba(20,26,70,.78);padding:7px 14px;border-radius:14px;font-size:15px;text-align:center;max-width:82%;opacity:0;transition:opacity .3s}
   #toast.on{opacity:1}
   #viewTag{position:absolute;right:12px;bottom:96px;font-size:12px;opacity:.85;text-shadow:0 1px 2px #000}
-  #fade{position:absolute;inset:0;background:#dff4ff;opacity:0;pointer-events:none;transition:opacity .25s}
+  #view{position:absolute;left:50%;top:50%;transform-origin:50% 50%;will-change:transform}
+  #view canvas{display:block}
+  #stage{transition:opacity .18s}
   #intro{position:absolute;inset:0;background:radial-gradient(circle at 50% 35%,#2f8fb5,#0b3550);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;padding:24px;box-sizing:border-box;gap:10px}
   #intro h1{font-family:'Bangers',sans-serif;font-size:46px;letter-spacing:2px;margin:0;text-shadow:0 4px 0 #23255f}
   #intro p{margin:0;max-width:340px;font-size:15px;line-height:1.35}
@@ -73,7 +74,6 @@
       <button class="rot" id="rotR" title="Turn view right">⟳</button>
     </div>
   </div>
-  <div id="fade"></div>
   <div id="renameBox"><div><b>Name your pup</b><input id="nameIn" maxlength="14"><button id="nameOk">That's the one!</button></div></div>
   <div id="intro">
     <h1>SEA ROOM</h1>
@@ -136,7 +136,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 1.05;
-stage.prepend(renderer.domElement);
+const viewEl = document.createElement('div'); viewEl.id = 'view'; viewEl.appendChild(renderer.domElement); document.body.prepend(viewEl);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(70, 1, .05, 900);
 
@@ -527,15 +527,18 @@ let bowlFill = 0;
   for (const x of [-2.4, 2.4]) { const st = new THREE.Mesh(new THREE.CylinderGeometry(.15, .15, 6), woodMat); st.position.set(x, SEA_Y - 1, -HZ - 3); scene.add(st); }
 }
 
-/* ---------- the dog ---------- */
-const GREEN = 0x33b44a, NAVY = 0x2b2d70, PINK = 0xf27aa8;
-const mGreen = new THREE.MeshPhysicalMaterial({ color: GREEN, roughness: .42, clearcoat: .55, clearcoatRoughness: .35 });
-const mNavy = new THREE.MeshPhysicalMaterial({ color: NAVY, roughness: .35, clearcoat: .7, clearcoatRoughness: .3 });
-const mWhite = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: .25, clearcoat: 1 });
-const mPink = new THREE.MeshPhysicalMaterial({ color: PINK, roughness: .35, clearcoat: .4 });
-function sph(r, mat, sx = 1, sy = 1, sz = 1, seg = 32) {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(r, seg, Math.round(seg * .75)), mat);
-  m.scale.set(sx, sy, sz); m.castShadow = true; m.receiveShadow = true; return m;
+/* ---------- the dog (v7 model sheet) ---------- */
+// The green body is one smooth "skin": a signed-distance shape (ellipsoids, capsules and a cone
+// melted together) turned into a mesh with surface nets, then skinned to bones so the head,
+// legs and tail still move. Eyes, ears, nose and tongue are separate soft pieces.
+const GREEN = 0x3cbf55, NAVY = 0x2b2d70, PINK = 0xf27aa8;
+const mGreen = new THREE.MeshStandardMaterial({ color: GREEN, roughness: .9, metalness: 0 });
+const mNavy = new THREE.MeshStandardMaterial({ color: NAVY, roughness: .82, metalness: 0 });
+const mWhite = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .6, metalness: 0 });
+const mPink = new THREE.MeshStandardMaterial({ color: PINK, roughness: .75, metalness: 0 });
+function ellM(rx, ry, rz, mat, seg = 28) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(1, seg, Math.round(seg * .75)), mat);
+  m.scale.set(rx, ry, rz); m.castShadow = true; m.receiveShadow = true; return m;
 }
 const ROLL_R = .5;
 const dogRoot = new THREE.Group(); scene.add(dogRoot);
@@ -544,35 +547,154 @@ const poseG = new THREE.Group(); yawG.add(poseG);
 const rollP = new THREE.Group(); rollP.position.y = ROLL_R; poseG.add(rollP);
 const content = new THREE.Group(); content.position.y = -ROLL_R; rollP.add(content);
 
-const bodyM = sph(.5, mGreen, .78, .6, .98); bodyM.position.set(0, .47, -.08); content.add(bodyM);
-const chest = sph(.36, mGreen, 1, .9, .85); chest.position.set(0, .57, .24); content.add(chest);
-const neck = sph(.26, mGreen, 1, 1, 1); neck.position.set(0, .74, .17); content.add(neck);
-const headG = new THREE.Group(); headG.position.set(0, .8, .18); content.add(headG);
-const head = sph(.27, mGreen, .9, 1, .86); head.position.set(0, .08, 0); headG.add(head);
-const eyesG = new THREE.Group(); eyesG.position.set(0, .14, 0); headG.add(eyesG);
+// bones: 0 body, 1 head, 2-5 legs, 6 tail
+const HEAD_PIV = [0, .8, .07], TAIL_PIV = [0, .6, -.38];
+const LEG_DEF = [[-.12, .16, 1], [.12, .16, 1], [-.12, -.17, 0], [.12, -.17, 0]];
+const rootBone = new THREE.Bone(); content.add(rootBone);
+const headG = new THREE.Bone(); headG.position.set(...HEAD_PIV); rootBone.add(headG);
+const legs = [];
+for (const [lx, lz, front] of LEG_DEF) {
+  const b = new THREE.Bone(); b.position.set(lx, .3, lz); rootBone.add(b);
+  legs.push({ piv: b, lx, lz, front, side: Math.sign(lx) });
+}
+const tailG = new THREE.Bone(); tailG.position.set(...TAIL_PIV); rootBone.add(tailG);
+const bones = [rootBone, headG, ...legs.map(l => l.piv), tailG];
+
+function buildDogSkin() {
+  const parts = []; // {f, k, bone}  bone: index, or -1 = neck (half body, half head)
+  const ell = (cx, cy, cz, rx, ry, rz, k, bone) => {
+    const mn = Math.min(rx, ry, rz);
+    parts.push({ k, bone, f: (x, y, z) => { const a = (x - cx) / rx, b = (y - cy) / ry, c = (z - cz) / rz; return (Math.sqrt(a * a + b * b + c * c) - 1) * mn; } });
+  };
+  const cap = (cx, cy, cz, r, l, k, bone) => parts.push({ k, bone, f: (x, y, z) => {
+    const yy = Math.max(-l / 2, Math.min(l / 2, y - cy)), dx = x - cx, dy = y - cy - yy, dz = z - cz;
+    return Math.sqrt(dx * dx + dy * dy + dz * dz) - r; } });
+  const K = .1, DY = -.06, HY = .04;
+  ell(0, .55 + DY, -.03, .34, .31, .39, K, 0);                  // body
+  ell(0, .58 + DY, .13, .285, .26, .27, K, 0);                  // chest / face
+  for (const s of [-1, 1]) ell(s * .065, .47 + DY, .29, .105, .085, .09, .04, 0);  // jowls
+  LEG_DEF.forEach(([lx, lz], i) => {
+    cap(lx, .17, lz, .075, .2, .05, 2 + i);                     // leg
+    ell(lx, .055, lz + .025, .088, .055, .1, .04, 2 + i);        // paw
+  });
+  { // tail: capped cone, base at (0,.6,-.38) tipped back .5 rad
+    const ca = Math.cos(.5), sa = Math.sin(.5), h = .09, r1 = .065, r2 = .022;
+    const k2x = r2 - r1, k2y = 2 * h, k2d = k2x * k2x + k2y * k2y;
+    parts.push({ k: .05, bone: 6, f: (x, y, z) => {
+      const py = y - .6, pz = z + .38;
+      const ly = py * ca - pz * sa - .06, lz = py * sa + pz * ca;
+      const qx = Math.sqrt(x * x + lz * lz), qy = ly;
+      const cax = qx - Math.min(qx, qy < 0 ? r1 : r2), cay = Math.abs(qy) - h;
+      const t = Math.max(0, Math.min(1, ((r2 - qx) * k2x + (h - qy) * k2y) / k2d));
+      const cbx = qx - r2 + k2x * t, cby = qy - h + k2y * t;
+      const sg = (cbx < 0 && cay < 0) ? -1 : 1;
+      return sg * Math.sqrt(Math.min(cax * cax + cay * cay, cbx * cbx + cby * cby));
+    } });
+  }
+  ell(0, .79, .06, .14, .11, .13, .06, -1);                     // slim neck
+  ell(0, .9 + HY, .05, .215, .215, .2, .045, 1);                // head
+  const sdf = (x, y, z) => {
+    let d = parts[0].f(x, y, z);
+    for (let i = 1; i < parts.length; i++) {
+      const di = parts[i].f(x, y, z), k = parts[i].k;
+      const hh = Math.max(0, Math.min(1, .5 + .5 * (di - d) / k));
+      d = di * (1 - hh) + d * hh - k * hh * (1 - hh);
+    }
+    return d;
+  };
+  // ---- surface nets ----
+  const H = .0125, x0 = -.4, y0 = -.03, z0 = -.53;
+  const nx = Math.ceil(.8 / H) + 1, ny = Math.ceil(1.25 / H) + 1, nz = Math.ceil(1.1 / H) + 1;
+  const G = new Float32Array(nx * ny * nz);
+  const id = (i, j, k) => i + nx * (j + ny * k);
+  for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++)
+    G[id(i, j, k)] = sdf(x0 + i * H, y0 + j * H, z0 + k * H);
+  const cv = new Int32Array(nx * ny * nz).fill(-1);
+  const pos = [];
+  const E = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
+  const co = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]];
+  const v = new Float32Array(8);
+  const grad = (x, y, z) => { const e = .002; return [sdf(x + e, y, z) - sdf(x - e, y, z), sdf(x, y + e, z) - sdf(x, y - e, z), sdf(x, y, z + e) - sdf(x, y, z - e)]; };
+  for (let k = 0; k < nz - 1; k++) for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    let mask = 0;
+    for (let c = 0; c < 8; c++) { v[c] = G[id(i + co[c][0], j + co[c][1], k + co[c][2])]; if (v[c] < 0) mask |= 1 << c; }
+    if (mask === 0 || mask === 255) continue;
+    let sx = 0, sy = 0, sz = 0, n = 0;
+    for (const [a, b] of E) {
+      if ((v[a] < 0) === (v[b] < 0)) continue;
+      const t = v[a] / (v[a] - v[b]);
+      sx += co[a][0] + (co[b][0] - co[a][0]) * t; sy += co[a][1] + (co[b][1] - co[a][1]) * t; sz += co[a][2] + (co[b][2] - co[a][2]) * t; n++;
+    }
+    let px = x0 + (i + sx / n) * H, py = y0 + (j + sy / n) * H, pz = z0 + (k + sz / n) * H;
+    for (let it = 0; it < 3; it++) { // snap onto the true surface
+      const d = sdf(px, py, pz), g = grad(px, py, pz), gl = g[0] * g[0] + g[1] * g[1] + g[2] * g[2] || 1;
+      const s = d * .004 / gl; px -= g[0] * s; py -= g[1] * s; pz -= g[2] * s;
+    }
+    cv[id(i, j, k)] = pos.length / 3; pos.push(px, py, pz);
+  }
+  const idx = [];
+  const quad = (a, b, c, d, flip) => { if (a < 0 || b < 0 || c < 0 || d < 0) return; if (flip) idx.push(a, c, b, a, d, c); else idx.push(a, b, c, a, c, d); };
+  for (let k = 1; k < nz - 1; k++) for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
+    const g0 = G[id(i, j, k)] < 0;
+    if (g0 !== (G[id(i + 1, j, k)] < 0)) quad(cv[id(i, j - 1, k - 1)], cv[id(i, j, k - 1)], cv[id(i, j, k)], cv[id(i, j - 1, k)], !g0);
+    if (g0 !== (G[id(i, j + 1, k)] < 0)) quad(cv[id(i - 1, j, k - 1)], cv[id(i - 1, j, k)], cv[id(i, j, k)], cv[id(i, j, k - 1)], !g0);
+    if (g0 !== (G[id(i, j, k + 1)] < 0)) quad(cv[id(i - 1, j - 1, k)], cv[id(i, j - 1, k)], cv[id(i, j, k)], cv[id(i - 1, j, k)], !g0);
+  }
+  const nv = pos.length / 3;
+  const nrm = new Float32Array(nv * 3), si = new Uint16Array(nv * 4), sw = new Float32Array(nv * 4);
+  for (let q = 0; q < nv; q++) {
+    const x = pos[q * 3], y = pos[q * 3 + 1], z = pos[q * 3 + 2];
+    const g = grad(x, y, z), gl = Math.hypot(g[0], g[1], g[2]) || 1;
+    nrm[q * 3] = g[0] / gl; nrm[q * 3 + 1] = g[1] / gl; nrm[q * 3 + 2] = g[2] / gl;
+    const w = new Float32Array(7);
+    for (const p of parts) {
+      const wt = Math.exp(-Math.max(0, p.f(x, y, z)) / .03);
+      if (p.bone === -1) { w[0] += wt * .5; w[1] += wt * .5; } else w[p.bone] += wt;
+    }
+    const order = [0, 1, 2, 3, 4, 5, 6].sort((a, b) => w[b] - w[a]).slice(0, 4);
+    const tot = order.reduce((s2, b) => s2 + w[b], 0) || 1;
+    order.forEach((b, m) => { si[q * 4 + m] = b; sw[q * 4 + m] = w[b] / tot; });
+  }
+  // make sure triangles face outward (compare with the distance gradient)
+  let agree = 0;
+  for (let t = 0; t < Math.min(idx.length, 3000); t += 3) {
+    const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
+    const ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2];
+    const wx = pos[c] - pos[a], wy = pos[c + 1] - pos[a + 1], wz = pos[c + 2] - pos[a + 2];
+    const fx = uy * wz - uz * wy, fy = uz * wx - ux * wz, fz = ux * wy - uy * wx;
+    agree += (fx * nrm[a] + fy * nrm[a + 1] + fz * nrm[a + 2]) > 0 ? 1 : -1;
+  }
+  if (agree < 0) for (let t = 0; t < idx.length; t += 3) { const tmp = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = tmp; }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
+  geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  geo.setIndex(idx);
+  return geo;
+}
+const skin = new THREE.SkinnedMesh(buildDogSkin(), mGreen);
+skin.castShadow = true; skin.receiveShadow = true; skin.frustumCulled = false;
+content.add(skin);
+content.updateMatrixWorld(true);
+skin.bind(new THREE.Skeleton(bones));
+
+// separate pieces (positions are relative to the bone they ride on)
+const eyesG = new THREE.Group(); eyesG.position.set(0, 1.0 - HEAD_PIV[1], 0); headG.add(eyesG);
 for (const s of [-1, 1]) {
-  const e = sph(.068, mWhite, 1, 1.18, .55, 20); e.position.set(s * .1, 0, .2); eyesG.add(e);
-  const p = sph(.04, mNavy, 1, 1.15, .5, 16); p.position.set(s * .1, -.01, .232); eyesG.add(p);
+  const e = ellM(.052, .069, .03, mWhite, 20); e.position.set(s * .064, 0, .23 - HEAD_PIV[2]); eyesG.add(e);
+  const p = ellM(.024, .033, .013, mNavy, 16); p.position.set(s * .064, -.008, .256 - HEAD_PIV[2]); eyesG.add(p);
 }
 const ears = [];
 for (const s of [-1, 1]) {
-  const piv = new THREE.Group(); piv.position.set(s * .2, .14, -.02); headG.add(piv);
-  const ear = sph(.17, mNavy, .34, 1, .62); ear.position.set(s * .05, -.17, 0); ear.rotation.z = s * .12; piv.add(ear);
+  const piv = new THREE.Group(); piv.position.set(s * .2, 1.0 - HEAD_PIV[1], .05 - HEAD_PIV[2]); headG.add(piv);
+  const ear = ellM(.06, .18, .09, mNavy); ear.position.set(s * .055, -.16, 0); ear.rotation.z = s * .3; piv.add(ear);
   ears.push({ piv, s });
 }
-const nose = sph(.12, mNavy, 1.28, .85, .95); nose.position.set(0, .67, .56); content.add(nose);
-const tongueG = new THREE.Group(); tongueG.position.set(0, .45, .5); content.add(tongueG);
-const tongue = new THREE.Mesh(new THREE.CapsuleGeometry(.055, .07, 6, 12), mPink); tongue.scale.set(1, 1, .45); tongue.position.y = -.05; tongue.rotation.x = .35; tongueG.add(tongue);
-const mouthMarker = new THREE.Object3D(); mouthMarker.position.set(0, .42, .66); content.add(mouthMarker);
-const legs = [];
-for (const [lx, lz, front] of [[-.21, .22, 1], [.21, .22, 1], [-.21, -.32, 0], [.21, -.32, 0]]) {
-  const piv = new THREE.Group(); piv.position.set(lx, .31, lz); content.add(piv);
-  const leg = new THREE.Mesh(new THREE.CylinderGeometry(.1, .1, .24, 18), mGreen); leg.position.y = -.12; leg.castShadow = true; piv.add(leg);
-  const paw = sph(.115, mGreen, 1, .62, 1.25, 20); paw.position.set(0, -.25, .03); piv.add(paw);
-  legs.push({ piv, lx, lz, front, side: Math.sign(lx) });
-}
-const tailG = new THREE.Group(); tailG.position.set(0, .6, -.52); content.add(tailG);
-const tail = new THREE.Mesh(new THREE.ConeGeometry(.065, .26, 16), mGreen); tail.geometry.translate(0, .13, 0); tail.rotation.x = -.75; tail.castShadow = true; tailG.add(tail);
+const nose = ellM(.15, .095, .1, mNavy); nose.position.set(0, .57, .42); rootBone.add(nose);
+const tongueG = new THREE.Group(); tongueG.position.set(0, .37, .4); rootBone.add(tongueG);
+const tongue = ellM(.055, .07, .028, mPink, 16); tongue.position.y = -.04; tongue.rotation.x = .35; tongueG.add(tongue);
+const mouthMarker = new THREE.Object3D(); mouthMarker.position.set(0, .36, .48); rootBone.add(mouthMarker);
 const dogMeshes = []; content.traverse(o => { if (o.isMesh) dogMeshes.push(o); });
 
 /* dog runtime state */
@@ -603,14 +725,19 @@ ballMesh.castShadow = true; scene.add(ballMesh);
 const ball = { x: -.8, y: BR, z: .5, vx: 0, vy: 0, vz: 0, state: 'rest', q: new THREE.Quaternion() };
 
 /* ---------- view / orientation ---------- */
-let view = 0;            // 0 entrance->sea, 90 west side, 180 sea->door, 270 east side
-let manualOff = 0;
-let cssRot = 0;
-let sensorOn = false, lastSensor = 0;
-let gx = 0, gy = -1, gz = 0, snappedD = 0, gzBase = -.5;
+// The camera orbits the room on a smooth path. "theta" is where it stands (0 entrance -> sea,
+// 90 west side, 180 sea -> door, 270 east side). With motion sensors the room view turns
+// continuously with the phone and the picture counter-rotates so the room stays level.
+let view = 0;                    // nearest quarter of theta (drives logic + the roll)
+let manualOff = 0, manualAnim = 0;
+let thetaCur = 0;
+let rho = 0, hudRot = 0;         // canvas rotation (deg) and HUD rotation (multiple of 90)
+let sensorOn = false, lastSensor = 0, devS = 0;
+let gx = 0, gy = -1, gz = 0, gzBase = -.5;
 let camZ = 0;
-let sw = 1, sh = 1;
+let sw = 1, sh = 1, cw = 1, ch = 1, squareMode = false;
 const VIEW_NAMES = { 0: 'Entrance → sea', 90: 'West side', 180: 'Sea → door', 270: 'East side' };
+const angD = (a, b) => angDiff(a * DEG, b * DEG) / DEG;   // signed shortest difference, degrees
 
 function screenAngle() {
   if (screen.orientation && typeof screen.orientation.angle === 'number') return norm360(screen.orientation.angle);
@@ -622,58 +749,61 @@ function onDeviceOri(e) {
   const b = e.beta * DEG, g = e.gamma * DEG;
   gx = Math.cos(b) * Math.sin(g); gy = -Math.sin(b); gz = -Math.cos(b) * Math.cos(g);
   lastSensor = performance.now();
-  if (!sensorOn) { sensorOn = true; snappedD = deviceAngleCont() ?? 0; refreshOrientation(); }
+  if (!sensorOn) {
+    const dc = deviceAngleCont();
+    sensorOn = true; devS = dc ?? 0; layout();
+  }
 }
 function deviceAngleCont() {
-  const m = Math.hypot(gx, gy); if (m < .45) return null;
+  const m = Math.hypot(gx, gy); if (m < .4) return null;
   return norm360(Math.atan2(gx, -gy) / DEG);
 }
-function refreshOrientation(force) {
-  const A = screenAngle();
-  let Ddev;
-  if (sensorOn) {
-    const dc = deviceAngleCont();
-    if (dc != null) {
-      const diff = Math.abs(angDiff(snappedD * DEG, dc * DEG)) / DEG;
-      if (diff > 52) snappedD = norm360(Math.round(dc / 90) * 90);
-    }
-    Ddev = snappedD;
-    let r = -(Ddev + A); r = norm360(r); if (r > 180) r -= 360;
-    setCss(r);
-  } else {
-    Ddev = norm360(-A);
-    setCss(0);
-  }
-  const newView = norm360(Ddev + manualOff);
-  if (newView !== view || force) changeView(newView, force);
-}
-function setCss(r) { if (r !== cssRot) { cssRot = r; layout(); } }
 function layout() {
   const W = innerWidth, H = innerHeight;
-  const swap = Math.abs(cssRot % 180) === 90;
+  squareMode = sensorOn;
+  if (squareMode) { const Dg = Math.ceil(Math.hypot(W, H)) + 2; cw = ch = Dg; }
+  else { cw = W; ch = H; }
+  const budget = 2.6e6, dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(budget / (cw * ch)));
+  renderer.setPixelRatio(dpr);
+  renderer.setSize(cw, ch);
+  viewEl.style.width = cw + 'px'; viewEl.style.height = ch + 'px';
+  camera.aspect = cw / ch;
+  layoutHud();
+}
+function layoutHud() {
+  const W = innerWidth, H = innerHeight;
+  const swap = Math.abs(hudRot % 180) === 90;
   sw = swap ? H : W; sh = swap ? W : H;
   stage.style.width = sw + 'px'; stage.style.height = sh + 'px';
-  stage.style.transform = `translate(-50%,-50%) rotate(${cssRot}deg)`;
-  renderer.setSize(sw, sh);
-  camera.aspect = sw / sh; updateFov();
+  stage.style.transform = `translate(-50%,-50%) rotate(${hudRot}deg)`;
+}
+let hudPending = null;
+function setHudRot(r) {
+  if (r === hudRot || hudPending === r) return;
+  hudPending = r; stage.style.opacity = 0;
+  setTimeout(() => { hudRot = hudPending; hudPending = null; layoutHud(); stage.style.opacity = 1; }, 180);
 }
 function updateFov() {
-  const side = view === 90 || view === 270;
-  const hf = side ? 100 : 56;
-  const vf = 2 * Math.atan(Math.tan(hf / 2 * DEG) / camera.aspect) / DEG;
-  camera.fov = side ? clamp(vf, 48, 72) : clamp(vf, 52, 90);
+  const th = thetaCur * DEG, s2 = Math.sin(th) ** 2;
+  const hfov = lerp(56, 100, s2);
+  const W = innerWidth, H = innerHeight;
+  const sr = Math.abs(Math.sin(rho * DEG));
+  const spanH = lerp(W, H, sr), spanV = lerp(H, W, sr);   // screen size measured level with the room
+  // vertical half-angle of the canvas so the visible screen shows the wanted horizontal field
+  let tv = Math.tan(hfov / 2 * DEG) * ch / spanH;
+  tv = Math.min(tv, Math.tan(44 * DEG) * ch / spanV);
+  tv = Math.max(tv, Math.tan(24 * DEG) * ch / spanV);
+  camera.fov = 2 * Math.atan(tv) / DEG;
   camera.updateProjectionMatrix();
 }
-function camPose(v) {
-  if (v === 0) return [new V3(0, 2.55, HZ - .25), new V3(0, .55, -2.5)];
-  if (v === 180) return [new V3(0, 2.55, -HZ + .75), new V3(0, .6, 2.5)];
-  if (v === 90) return [new V3(-HX + .2, 2.7, camZ), new V3(HX, .7, camZ)];
-  return [new V3(HX - .2, 2.7, camZ), new V3(-HX, .7, camZ)];
-}
 const camLook = new V3();
-function snapCamera() {
-  if (view === 90 || view === 270) camZ = clamp(D.z, -2.2, 2.2);
-  const [p, l] = camPose(view); camera.position.copy(p); camLook.copy(l); camera.lookAt(camLook);
+function updateCamera() {
+  const th = thetaCur * DEG, s = Math.sin(th), c = Math.cos(th), s2 = s * s;
+  camera.position.set(-s * (HX - .2), 2.55 + .15 * s2, 6.5 * c + .25 * c * c + camZ * s2);
+  const dist = lerp(9.25, 4.8, s2);
+  camLook.set(camera.position.x + s * dist, lerp(.55, .7, s2), camera.position.z - c * dist);
+  camera.lookAt(camLook);
+  updateFov();
 }
 function camSpot() {
   if (view === 0) return { x: rnd(-.35, .35), z: 3.9 };
@@ -682,21 +812,41 @@ function camSpot() {
   return { x: -.35, z: clamp(camZ + rnd(-.6, .6), -4.8, 4.8) };
 }
 let started = false;
-function changeView(v, silent) {
-  const prev = view; view = v;
-  updateFov(); snapCamera();
-  $('#viewTag').textContent = VIEW_NAMES[v] + (sensorOn ? '  · 📱 tilt' : '');
+function updateOrientation(dt, instant) {
+  const A = screenAngle();
+  const k = instant ? 1 : 1 - Math.exp(-4.2 * dt);
+  manualAnim += angD(manualAnim, manualOff) * k;
+  if (sensorOn && performance.now() - lastSensor < 1500) {
+    const dc = deviceAngleCont();
+    if (dc != null) devS += angD(devS, dc) * (instant ? 1 : 1 - Math.exp(-14 * dt));
+    thetaCur = devS + manualAnim;
+    rho = -(devS + A);
+    rho = norm360(rho); if (rho > 180) rho -= 360;
+    const near = Math.round(rho / 90) * 90;
+    if (Math.abs(angD(hudRot, rho)) > 55 || instant) { if (instant) { hudRot = near; layoutHud(); } else setHudRot(norm360(near) > 180 ? norm360(near) - 360 : norm360(near)); }
+  } else {
+    thetaCur += angD(thetaCur, -A + manualOff) * k;
+    rho = 0; if (hudRot !== 0) setHudRot(0);
+  }
+  thetaCur = norm360(thetaCur);
+  viewEl.style.transform = `translate(-50%,-50%) rotate(${rho}deg)`;
+  // quarter view with hysteresis
+  if (Math.abs(angD(view, thetaCur)) > 50 || instant) {
+    const nv = norm360(Math.round(thetaCur / 90) * 90);
+    if (nv !== view) { view = nv; onViewChange(instant); }
+  }
+}
+function onViewChange(silent) {
+  $('#viewTag').textContent = VIEW_NAMES[view] + (sensorOn ? '  · 📱 tilt' : '');
   if (silent || !started) return;
-  const f = $('#fade'); f.style.transition = 'none'; f.style.opacity = .7;
-  requestAnimationFrame(() => { f.style.transition = 'opacity .35s'; f.style.opacity = 0; });
-  if (prev !== v) rollTowardCamera();
+  rollTowardCamera();
   gzBase = gz;
 }
-window.addEventListener('resize', () => { layout(); refreshOrientation(); });
-if (screen.orientation) screen.orientation.addEventListener?.('change', () => setTimeout(() => { layout(); refreshOrientation(); }, 60));
-window.addEventListener('orientationchange', () => setTimeout(() => { layout(); refreshOrientation(); }, 60));
+window.addEventListener('resize', () => layout());
+if (screen.orientation) screen.orientation.addEventListener?.('change', () => setTimeout(layout, 60));
+window.addEventListener('orientationchange', () => setTimeout(layout, 60));
 window.addEventListener('deviceorientation', onDeviceOri);
-function turn(dir) { manualOff = norm360(manualOff + dir * 90); refreshOrientation(); }
+function turn(dir) { manualOff = norm360(manualOff + dir * 90); }
 $('#rotL').onclick = () => turn(-1);
 $('#rotR').onclick = () => turn(1);
 
@@ -764,8 +914,11 @@ function floatEmoji(e, n = 1) {
 }
 const _v = new V3();
 function headScreen() {
-  _v.set(D.x, D.y + 1.35 - P.lower, D.z).project(camera);
-  return { x: (_v.x + 1) / 2 * sw, y: (1 - _v.y) / 2 * sh, behind: _v.z > 1 };
+  _v.set(D.x, D.y + 1.3 - P.lower, D.z).project(camera);
+  const px = (_v.x + 1) / 2 * cw - cw / 2, py = (1 - _v.y) / 2 * ch - ch / 2;   // canvas, centred
+  let a = rho * DEG; const sx = px * Math.cos(a) - py * Math.sin(a), sy = px * Math.sin(a) + py * Math.cos(a); // on screen
+  a = -hudRot * DEG; const hx = sx * Math.cos(a) - sy * Math.sin(a), hy = sx * Math.sin(a) + sy * Math.cos(a);
+  return { x: hx + sw / 2, y: hy + sh / 2, behind: _v.z > 1 };
 }
 function updateBars() {
   for (const [k, id] of [['hunger', 'bHunger'], ['energy', 'bEnergy'], ['fun', 'bFun'], ['love', 'bLove']]) {
@@ -908,15 +1061,10 @@ function throwBall(tx, tz) {
 /* ---------- input ---------- */
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 const floorPlane = new THREE.Plane(new V3(0, 1, 0), 0);
-function toLocal(cx, cy) {
-  const r = stage.getBoundingClientRect();
-  const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
-  const a = -cssRot * DEG;
-  return [dx * Math.cos(a) - dy * Math.sin(a) + sw / 2, dx * Math.sin(a) + dy * Math.cos(a) + sh / 2];
-}
-function castAt(cx, cy) {
-  const [lx, ly] = toLocal(cx, cy);
-  ndc.set(lx / sw * 2 - 1, -(ly / sh * 2 - 1)); ray.setFromCamera(ndc, camera);
+function castAt(cx, cy) { // screen point -> canvas pixel (undo the canvas rotation)
+  const dx = cx - innerWidth / 2, dy = cy - innerHeight / 2, a = -rho * DEG;
+  const lx = dx * Math.cos(a) - dy * Math.sin(a) + cw / 2, ly = dx * Math.sin(a) + dy * Math.cos(a) + ch / 2;
+  ndc.set(lx / cw * 2 - 1, -(ly / ch * 2 - 1)); ray.setFromCamera(ndc, camera);
 }
 let pDown = false, pOnDog = false, pMoved = 0, pStart = [0, 0];
 const canvas = renderer.domElement;
@@ -961,16 +1109,13 @@ let tiltF = new V3();
 function computeTilt() {
   tiltF.set(0, 0, 0);
   if (!sensorOn || performance.now() - lastSensor > 1000) return;
-  const dc = deviceAngleCont(); if (dc == null) return;
-  const r = angDiff(snappedD * DEG, dc * DEG);
-  const mag = Math.hypot(gx, gy);
-  const lat = Math.sin(r) * mag;              // rotated past the snap -> roll sideways on screen
+  const lat = 0;
   gzBase = lerp(gzBase, gz, .004);
   const dep = gz - gzBase;                    // leaning back/forward
   const right = new V3(), fwd = new V3();
   camera.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
   right.set(-fwd.z, 0, fwd.x);
-  let fl = Math.abs(lat) > .2 ? lat : 0, fd = Math.abs(dep) > .28 ? dep : 0;
+  let fl = 0, fd = Math.abs(dep) > .34 ? dep : 0;
   tiltF.addScaledVector(right, fl * 9).addScaledVector(fwd, fd * 7);
 }
 
@@ -1112,7 +1257,7 @@ function stepDog(dt, t) {
         break;
       }
       case 'sleep':
-        PT.lower = .2; PT.frontFold = 1; PT.backFold = -1; PT.eyes = .05; PT.tongue = 0; PT.headNod = .25; wagT = .05;
+        PT.lower = .14; PT.frontFold = 1; PT.backFold = -1; PT.eyes = .05; PT.tongue = 0; PT.headNod = .25; wagT = .05;
         PT.side = .0;
         S.energy = Math.min(100, S.energy + dt * .9);
         D.zzT -= dt; if (D.zzT <= 0) { floatEmoji('💤'); D.zzT = 2.4; }
@@ -1120,7 +1265,7 @@ function stepDog(dt, t) {
         if (S.hunger < 20 && bowlFill > 0) wake();
         break;
       case 'flop':
-        PT.lower = .2; PT.frontFold = 1; PT.backFold = -1; lookCam(.6); wagT = .4; PT.headNod = .15;
+        PT.lower = .14; PT.frontFold = 1; PT.backFold = -1; lookCam(.6); wagT = .4; PT.headNod = .15;
         if (D.st > D.dur) setState('idle', 1);
         break;
       case 'belly':
@@ -1195,10 +1340,10 @@ function applyPose(dt, t) {
     if (P.side > .3) a += Math.sin(t * 7 + L.lx * 10 + L.lz * 7) * (.25 + P.legKick * .6) * P.side;
     L.piv.rotation.x = a * (1 - curl);
     L.piv.rotation.z = curl * L.side * .3;
-    L.piv.position.set(L.lx * (1 - .35 * curl), .31 + curl * .12, L.lz * (1 - .4 * curl));
+    L.piv.position.set(L.lx * (1 - .3 * curl), .3 + curl * .08, L.lz * (1 - .3 * curl));
     L.piv.scale.y = 1 - .55 * curl;
   }
-  headG.position.y = .8 - curl * .1; headG.position.z = .18 - curl * .02;
+  headG.position.y = HEAD_PIV[1] - curl * .1; headG.position.z = HEAD_PIV[2] - curl * .02;
   headG.rotation.set(P.headNod + curl * .3, P.headY, P.headTilt);
   for (const E of ears) {
     E.piv.rotation.z = E.s * (P.earUp * .9 + curl * .6 + (moving ? Math.sin(D.gait * 2) * .1 * D.speed : 0));
@@ -1215,7 +1360,6 @@ function applyPose(dt, t) {
   const pant = 1 + Math.sin(t * (D.speed > 1 ? 18 : 9)) * .15;
   tongueG.scale.set(1, Math.max(.001, P.tongue * pant), 1);
   tongueG.visible = P.tongue > .05;
-  bodyM.scale.z = .98 - .12 * curl; bodyM.scale.y = .6 + .08 * curl;
 }
 
 /* ---------- loop ---------- */
@@ -1224,7 +1368,7 @@ let saveT = 0;
 function tick() {
   const dt = Math.min(.05, clock.getDelta()), t = clock.elapsedTime;
   oceanMat.uniforms.uTime.value = t;
-  if (sensorOn) refreshOrientation();
+  updateOrientation(dt);
   computeTilt();
   if (started && sensorOn && !D.ballMode && tiltF.lengthSq() > 4) enterBall(0, 0);
 
@@ -1241,11 +1385,9 @@ function tick() {
     ballMesh.position.set(ball.x, ball.y, ball.z);
   }
 
-  // camera follow on side views
-  if (view === 90 || view === 270) {
-    camZ = damp(camZ, clamp(D.z, -2.2, 2.2), 2.5, dt);
-    const [p, l] = camPose(view); camera.position.lerp(p, 1 - Math.exp(-6 * dt)); camLook.lerp(l, 1 - Math.exp(-6 * dt)); camera.lookAt(camLook);
-  }
+  // camera glides along its path; on the long walls it drifts to follow the pup
+  camZ = damp(camZ, clamp(D.z, -2.2, 2.2), 2.5, dt);
+  updateCamera();
   // scenery motion
   for (const b of boats) { b.g.position.x += b.sp * dt; if (Math.abs(b.g.position.x) > 160) b.g.position.x = -Math.sign(b.g.position.x) * 159; b.g.position.y = SEA_Y + Math.sin(t * .8 + b.z) * .2; b.g.rotation.y = b.sp > 0 ? 0 : Math.PI; }
   for (const c of clouds) { c.a += c.w * dt; c.sp.position.x = Math.cos(c.a) * c.r; c.sp.position.z = Math.sin(c.a) * c.r; }
@@ -1268,7 +1410,7 @@ function tick() {
 }
 
 /* ---------- start ---------- */
-layout(); refreshOrientation(true); snapCamera(); updateBars();
+layout(); updateOrientation(0, true); camZ = clamp(D.z, -2.2, 2.2); updateCamera(); updateBars();
 dogRoot.position.set(D.x, 0, D.z);
 requestAnimationFrame(tick);
 $('#go').onclick = async () => {
@@ -1285,10 +1427,9 @@ $('#go').onclick = async () => {
   setTimeout(() => { sBark(); say('WOOF! HI!', 1.6); }, 900);
   setTimeout(() => {
     if (!sensorOn) toast('Tilt sensors aren’t available here, so the ⟲ ⟳ buttons turn the room. Sideways with auto-rotate on works too.', 4.5);
-    refreshOrientation();
   }, 1600);
 };
-window.__seaRoom = { D, S, ball, turn, feed, nap, throwBall, setView: v => { manualOff = norm360(v - (view - manualOff)); refreshOrientation(); } };
+window.__seaRoom = { D, S, ball, turn, feed, nap, throwBall, dbg: () => ({ view, thetaCur, rho, hudRot, sensorOn, fov: camera.fov }), setView: v => { manualOff = norm360(v - (view - manualOff)); } };
 </script>
 <script>
   setTimeout(function () { if (!window.__seaRoom) { var e = document.getElementById('err'); e.style.display = 'flex'; e.textContent = 'Could not load the 3D engine. Check your connection and reload.'; } }, 8000);
