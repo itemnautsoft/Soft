@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { renderer, scene, camera, toon, inkify, SKY, sun } from './core.js';
 import { CelPost } from './post.js';
-import { buildHero, poseHero } from './character.js';
+import { buildHeroSkinned as buildHero, poseHeroSkinned as poseHero } from './hero-skinned.js';
 import { buildImp, poseImp } from './imp.js';
 import { buildGrump, cheerUp, KIND } from './enemies.js';
 import * as Toy from './toyworld.js';

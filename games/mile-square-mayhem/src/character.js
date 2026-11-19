@@ -118,7 +118,7 @@ export function buildHero() {
 
 // ---------- posing ----------
 const lerp = (a, b, k) => a + (b - a) * k;
-export function poseHero(P, s, dt) {
+export function heroAngles(s) {
   const t = performance.now() / 1000;
   const run = s.runAmt, id = 1 - run, g = s.glide, air = s.air * (1 - g);
   const sw = Math.sin(s.runPh), bob = Math.abs(Math.cos(s.runPh));
@@ -153,7 +153,11 @@ export function poseHero(P, s, dt) {
     if (s.attKind === 4) { shRx = lerp(shRx, -2.9, e); elR = lerp(elR, -0.2, e); hipL = lerp(hipL, -1.2, e); knL = lerp(knL, 1.2, e); }
   }
   if (s.hurt > 0) { const h = Math.min(1, s.hurt * 3); bodyRx -= 0.45 * h; headRx -= 0.3 * h; shLz += 0.7 * h; shRz -= 0.7 * h; }
-  // landing squash
+  return { shLx, shLz, shRx, shRz, elL, elR, hipL, hipR, knL, knR, bodyY, bodyRx, headRx, headRy, armStretch, sq: s.land };
+}
+export function poseHero(P, s, dt) {
+  let { shLx, shLz, shRx, shRz, elL, elR, hipL, hipR, knL, knR, bodyY, bodyRx, headRx, headRy, armStretch } = heroAngles(s);
+  const t = performance.now() / 1000;
   const sq = s.land;
   const k = Math.min(1, dt * 18);
   const R = (o, x, y, z) => { o.rotation.x = lerp(o.rotation.x, x, k); if (y != null) o.rotation.y = lerp(o.rotation.y, y, k); if (z != null) o.rotation.z = lerp(o.rotation.z, z, k); };
