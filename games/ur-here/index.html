@@ -247,7 +247,7 @@ footer button:last-child{border-right:0}
   </div>
   <div class="sfoot">
     <button class="btn" id="sBack">◂ BACK TO TRAIN</button>
-    <button class="btn" id="sHint">ASK THE ROOSTER</button>
+    <button class="btn" id="sHint">ASK GALLUS</button>
   </div>
 </div>
 
@@ -262,11 +262,11 @@ footer button:last-child{border-right:0}
   <div class="closeBar"><span>ABOUT</span><button data-close="about">CLOSE ✕</button></div>
   <div class="sheet">
     <h2>UR HERE · PROTOTYPE 1</h2>
-    <p>A living infographic about where we are in time. Ride the train from Earth's formation to the red giant sun. Get off at each station and find Sunni, the guide whose head is a sundial. His rooster, nature's clock, will help if you ask.</p>
+    <p>A living infographic about where we are in time. Ride the train from Earth's formation to the red giant sun. Get off at each station and find Sunni, the guide whose head is a sundial. His rooster Gallus, nature's clock, will help if you ask.</p>
     <p>The track is the timeline. The past is drawn in ink. The future, from "UR HERE" on, is drawn in pencil, because it's a prediction rather than a record.</p>
     <p>Switch scales with the tabs: all of Earth's story, the last million years, or one human life.</p>
     <h2>CREDITS</h2>
-    <p>Concept, poster, Sunni and his rooster: itemnaut.<br>Built with Claude (Anthropic, an AI).<br>Music: an original march, played live in your browser.</p>
+    <p>Concept, poster, Sunni and Gallus: itemnaut.<br>Built with Claude (Anthropic, an AI).<br>Music: an original march, played live in your browser.</p>
     <h2>DATES</h2>
     <div class="src">Earth forms ~4.54 billion yrs ago · first life at least 3.5, maybe 3.8–4.1 billion · dinosaurs ~230 million · extinction 66 million · Homo sapiens ~300,000 (Jebel Irhoud, Morocco) · Earth too hot for most life in ~1.3 billion yrs · sun swells into a red giant in ~5–6 billion yrs, largest at ~7.6 billion · US life expectancy 79.0 yrs (CDC, 2024). Checked November 2026.</div>
   </div>
@@ -293,7 +293,7 @@ const ST=[
  {id:3,t:-2.3e8,name:"Dinosaurs",when:"about 230 million years ago",
   fact:"Dinosaurs appear in the Triassic. They will rule the land for about 165 million years, around 550 times longer than our species has existed so far."},
  {id:4,t:-6.6e7,name:"The extinction",when:"66 million years ago",era:"impact",
-  fact:"An asteroid about 10 km wide hits near Chicxulub, Mexico. Around three in four species die out, including every dinosaur except the ones that became birds. The rooster is, technically, a dinosaur."},
+  fact:"An asteroid about 10 km wide hits near Chicxulub, Mexico. Around three in four species die out, including every dinosaur except the ones that became birds. Gallus is, technically, a dinosaur."},
  {id:5,t:-3e5,name:"First humans",when:"about 300,000 years ago",
   fact:"The oldest known Homo sapiens fossils, from Jebel Irhoud in Morocco. On Earth's clock, our species has been here for less than a hundredth of one percent of the time."},
  {id:6,t:0,name:"Today",when:"now",
@@ -689,7 +689,7 @@ scv.addEventListener("pointermove",e=>{if(!drag||!SC)return;const dx=e.clientX-d
 scv.addEventListener("pointerup",e=>{if(!drag||!SC)return;const d=drag;drag=null;if(d.moved>9)return;const r=scv.getBoundingClientRect();sceneTap(e.clientX-r.left+SC.pan,e.clientY-r.top)});
 function sceneTap(x,y){if(SC.found)return;const g=SC.guide,w=g.h*GIMG.width/GIMG.height;
  if(x>g.x-w/2-10&&x<g.x+w/2+10&&y>g.y-g.h-10&&y<g.y+8)return foundHim();
- const ro=SC.roo;if(Math.abs(x-ro.x)<ro.h*.5&&y>ro.y-ro.h-6&&y<ro.y+6){ro.hop=performance.now();AU.crow();toast("THE ROOSTER IS NEAR SUNNI…");return}
+ const ro=SC.roo;if(Math.abs(x-ro.x)<ro.h*.5&&y>ro.y-ro.h-6&&y<ro.y+6){ro.hop=performance.now();AU.crow();toast("GALLUS IS NEAR SUNNI…");return}
  for(let i=SC.items.length-1;i>=0;i--){const it=SC.items[i];if(it.k==="sundial"&&Math.abs(x-it.x)<16*it.s&&y>it.y-42*it.s&&y<it.y+4){AU.tick();toast("JUST A SUNDIAL. KEEP LOOKING");return}
   if(it.k==="human"&&Math.abs(x-it.x)<9*it.s&&y>it.y-30*it.s&&y<it.y+4){AU.tick();toast("NOT SUNNI. HIS HEAD IS A SUNDIAL");return}}}
 function foundHim(){SC.found=true;$("#scHelp").style.opacity=0;SC.ft=performance.now();const st=SC.st,first=!S.found.has(st.id);S.found.add(st.id);store.set("found",[...S.found]);
