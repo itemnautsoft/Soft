@@ -1,0 +1,14 @@
+{
+  "title": "Cowaltz",
+  "blurb": "A knight with an egg shield, a fairy princess with a bow and the trooper with his huge ball gun defend a blue moon. Bees aim, then launch themselves stinger-first; bounce them into each other for ricochet chains. Every sting costs an EpiPen.",
+  "date": "2026-11-15",
+  "updated": "2026-11-15",
+  "tags": [
+    "mobile",
+    "3d",
+    "bullet-hell",
+    "arcade"
+  ],
+  "controls": "Stick to move; Knight: BASH (shield bounces bees back); Fairy: hold SHOOT; Trooper: hold FIRE; tap a hero or their portrait to switch, the others are AI",
+  "artifact": "https://claude.ai/artifact/H4YBKj3D8zdhi26akuu9fW"
+}

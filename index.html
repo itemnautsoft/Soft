@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Itemnaut — itemnaut × Claude games and apps</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#141218; --paper:#fff7e6; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:Nunito,system-ui,sans-serif;
+         background-image: radial-gradient(#14121814 1.5px, transparent 1.5px); background-size: 18px 18px; }
+  header { padding: 36px 20px 8px; text-align:center; }
+  h1 { font-family:Bangers,Impact,sans-serif; font-size: clamp(48px, 12vw, 120px); letter-spacing:3px; margin:0; line-height:.9;
+       color:#ffd400; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; text-shadow: 6px 6px 0 #ff2e88, 10px 10px 0 var(--ink); transform: rotate(-3deg); }
+  header p { font-weight:800; margin:18px 0 0; }
+  main { max-width: 1100px; margin: 24px auto 60px; padding: 0 16px; display:grid; gap:22px;
+         grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .card { display:flex; flex-direction:column; text-decoration:none; color:inherit; background:#fff; border:4px solid var(--ink);
+          border-radius:14px; box-shadow: 7px 7px 0 var(--ink); overflow:hidden; transition: transform .12s, box-shadow .12s; }
+  .card:hover, .card:focus-visible { transform: translate(-3px,-3px) rotate(-.6deg); box-shadow: 10px 10px 0 var(--ink); outline:none; }
+  .card:active { transform: translate(4px,4px); box-shadow: 3px 3px 0 var(--ink); }
+  .thumb { aspect-ratio: 16/10; background: var(--c); border-bottom:4px solid var(--ink); display:grid; place-items:center; overflow:hidden; }
+  .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb span { font-family:Bangers,Impact,sans-serif; font-size:96px; color:#fff; -webkit-text-stroke:4px var(--ink); paint-order:stroke fill; text-shadow:5px 5px 0 var(--ink); }
+  .body { padding: 12px 14px 14px; }
+  h2 { font-family:Bangers,Impact,sans-serif; letter-spacing:1px; font-size: 30px; margin:0 0 4px; }
+  .body p { margin:0 0 10px; font-weight:600; line-height:1.35; }
+  .meta { display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:13px; font-weight:800; }
+  .tag { background: var(--ink); color:#fff; border-radius: 999px; padding: 2px 9px; }
+  .date { margin-left:auto; opacity:.6; }
+  .section { font-family:Bangers,Impact,sans-serif; letter-spacing:2px; font-size:40px; max-width:1100px; margin:36px auto -6px; padding:0 16px; }
+  .empty { grid-column: 1/-1; text-align:center; font-weight:800; font-size:20px; padding:40px; }
+  footer { text-align:center; padding: 0 0 40px; font-weight:800; opacity:.7; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Itemnaut</h1>
+  <p>9 prototypes by itemnaut × Claude. Tap one to try it.</p>
+</header>
+<h2 class="section">Games</h2>
+<main>
+
+  <a class="card" href="games/ur-here/" style="--c:#ff2e88">
+    <div class="thumb"><img src="games/ur-here/thumb.jpg" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>UR HERE</h2>
+      <p>A living infographic of where we are in time. Ride the UR·HERE Express from Earth&#39;s formation to the red giant sun, get off at each station and find Sunni, the man whose head is a sundial, with his rooster Gallus, nature&#39;s clock.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">infographic</span><span class="tag">time</span><span class="tag">explore</span>
+        <span class="date">2026-11-21</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/candle-kid/" style="--c:#ffd400">
+    <div class="thumb"><img src="games/candle-kid/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Candle Kid</h2>
+      <p>Strike a match, light the little candle kid, and explore the dark: your light is only as big as his flame.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">ar</span><span class="tag">3d</span>
+        <span class="date">2026-11-18</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/mile-square-mayhem/" style="--c:#ff5a1f">
+    <div class="thumb"><img src="games/mile-square-mayhem/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Mile Square Mayhem</h2>
+      <p>Cel-shaded action RPG in Hoboken: punch grumps into cheering up, and hold JUMP to fly hanging from a little pink imp. Toy Hoboken, or the real city from Google&#39;s 3D tiles.</p>
+      <div class="meta">
+        <span class="tag">3d</span><span class="tag">rpg</span><span class="tag">action</span><span class="tag">mobile</span><span class="tag">hoboken</span>
+        <span class="date">2026-11-18</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/sea-room/" style="--c:#9be22d">
+    <div class="thumb"><img src="games/sea-room/thumb.jpg" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Sea Room</h2>
+      <p>A virtual pet in a long room by the ocean. Turn your phone and the room turns with you, gliding around to each side, while Sprout, a soft green pup with a chocolate Lab&#39;s heart, rolls across the floor to say hi.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">3d</span><span class="tag">virtual-pet</span><span class="tag">tilt</span>
+        <span class="date">2026-11-18</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/crowd-crossing/" style="--c:#b79cff">
+    <div class="thumb"><img src="games/crowd-crossing/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Crowd Crossing</h2>
+      <p>Frogger inside out: cars only stop for crowds. Gather strays, hold hands, cross together.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">arcade</span><span class="tag">puzzle</span>
+        <span class="date">2026-11-17</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/dear-tomorrow/" style="--c:#29c5ff">
+    <div class="thumb"><img src="games/dear-tomorrow/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Dear Tomorrow (test island)</h2>
+      <p>One day on an island, then you forget everything except the notes you pin to the Board. Early test build.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">puzzle</span><span class="tag">prototype</span>
+        <span class="date">2026-11-17</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/cowaltz/" style="--c:#ff2e88">
+    <div class="thumb"><img src="games/cowaltz/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Cowaltz</h2>
+      <p>A knight with an egg shield, a fairy princess with a bow and the trooper with his huge ball gun defend a blue moon. Bees aim, then launch themselves stinger-first; bounce them into each other for ricochet chains. Every sting costs an EpiPen.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">3d</span><span class="tag">bullet-hell</span><span class="tag">arcade</span>
+        <span class="date">2026-11-15</span>
+      </div>
+    </div>
+  </a>
+</main>
+<h2 class="section">Apps</h2>
+<main>
+
+  <a class="card" href="apps/retopo-studio/" style="--c:#ffd400">
+    <div class="thumb"><img src="apps/retopo-studio/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Retopo Studio</h2>
+      <p>Lay clean low-poly faces over your sculpts by touch, model freely, shape a block around your reference drawings, or carve one out of wood. Tuto hangs around, swinging from your edges.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">3d</span><span class="tag">modelling</span><span class="tag">tool</span>
+        <span class="date">2026-11-18</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="apps/rooster/" style="--c:#ff5a1f">
+    <div class="thumb"><img src="apps/rooster/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>ROOSTER</h2>
+      <p>Time management as a coil of gooey tubes: log or time what you do, autofill your usual lengths, and share your day with friends who can ask for a spot in your schedule.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">productivity</span><span class="tag">time</span><span class="tag">social</span>
+        <span class="date">2026-11-18</span>
+      </div>
+    </div>
+  </a>
+</main>
+<footer><a href="https://github.com/itemnautsoft/Soft">source on GitHub</a></footer>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "title": "Retopo Studio",
+  "blurb": "Lay clean low-poly faces over your sculpts by touch, model freely, shape a block around your reference drawings, or carve one out of wood. Tuto hangs around, swinging from your edges.",
+  "date": "2026-11-17",
+  "updated": "2026-11-18",
+  "tags": [
+    "mobile",
+    "3d",
+    "modelling",
+    "tool"
+  ],
+  "controls": "Tap to drop points (4 make a quad). Drag points or edges, double-tap an edge to extrude, hold an edge for a loop. One finger orbits, two zoom. Poke Tuto to shoo him",
+  "artifact": "https://claude.ai/artifact/9r6kfueP1DJ5TWi8ZPS6yf"
+}
