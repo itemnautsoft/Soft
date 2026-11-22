@@ -712,7 +712,7 @@ const SPECIES = {
       CAT_LEGS.forEach(([lx, lz], i) => p.push(P_.cap(lx, .11, lz, .064, .12, .04, 2 + i), P_.ell(lx, .03, lz + .022, .07, .032, .08, .03, 2 + i)));
       for (let i = 0; i < CAT_TAIL.length - 1; i++) p.push(P_.seg(CAT_TAIL[i], CAT_TAIL[i + 1], .034, i === 0 ? .035 : 0, 6));
       p.push(P_.ell(0, .835, .03, .185, .16, .16, .055, 1));
-      for (const s of [-1, 1]) p.push(P_.cone([s * .098, .975, .015], 0, -s * .22, 0, .066, .066, .013, .03, 1));
+      for (const s of [-1, 1]) p.push(P_.cone([s * .068, .995, .015], 0, -s * .12, 0, .066, .066, .013, .03, 1));
       return p;
     },
     extras(r, sdf) {
