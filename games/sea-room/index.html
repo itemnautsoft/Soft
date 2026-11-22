@@ -675,7 +675,7 @@ const CAT_LEGS = [[-.11, .13, 1], [.11, .13, 1], [-.11, -.14, 0], [.11, -.14, 0]
 const CAT_TAIL = catmull([[0, .5, -.25], [0, .55, -.36], [0, .64, -.415], [0, .72, -.4], [0, .75, -.345], [0, .72, -.305]]);
 const SPECIES = {
   dog: { // approved v7 model sheet
-    color: 0x3cbf55, scale: 2, rollR: .5, colR: .38, top: 1.18, legPiv: .3, headPiv: [0, .8, .07], tailPiv: [0, .6, -.38],
+    color: 0x3cbf55, scale: 1.5, rollR: .5, colR: .38, top: 1.18, legPiv: .3, headPiv: [0, .8, .07], tailPiv: [0, .6, -.38],
     legs: DOG_LEGS, bounds: [-.4, .4, -.03, 1.22, -.53, .57], H: .0125,
     parts() {
       const K = .1, p = [];
@@ -1173,11 +1173,11 @@ function leavePerch(p) {
   return true;
 }
 function goBeg(p) {
-  const B = isDog(p) ? BOWL : CAT_BOWL, s = standPoint(p, B, isDog(p) ? .95 : .55);
+  const B = isDog(p) ? BOWL : CAT_BOWL, s = standPoint(p, B, isDog(p) ? .75 : .55);
   goTo(p, s.x, s.z, 1.6, () => { setState(p, 'beg', rnd(3, 5)); if (isDog(p)) { sWhine(); say(p, '🍖?', 2.2); } else { sMeow('yowl'); say(p, 'MEOWWW.', 2); } }, 'walk', false);
 }
 function goEat(p, key) {
-  const B = bowls[key].B, s = standPoint(p, B, isDog(p) ? .95 : .55);
+  const B = bowls[key].B, s = standPoint(p, B, isDog(p) ? .75 : .55);
   p.eatKey = key;
   goTo(p, s.x, s.z, isDog(p) ? 3 : 1.6, () => setState(p, 'eat', isDog(p) ? 3.4 : 5), 'run', false);
 }
