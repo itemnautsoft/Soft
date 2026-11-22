@@ -1,0 +1,9 @@
+{
+  "title": "Mitten Blocks",
+  "blurb": "A shared block table for VR and phone: build on your phone and it appears in the headset, build in VR and it appears on your phone. Live sync runs on the claude.ai page; this copy builds solo.",
+  "date": "2026-11-21",
+  "updated": "2026-11-21",
+  "tags": ["vr", "mobile", "3d", "builder"],
+  "controls": "Phone: tap to build/paint/erase, drag to spin, pinch to zoom. VR: point + trigger, panel on the left, right stick spins/lifts the table, left stick resizes it",
+  "artifact": "https://claude.ai/artifact/LVmKidM2U9zZt2BFVhq6d6"
+}
