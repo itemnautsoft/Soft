@@ -38,6 +38,9 @@
   .tile img { display:block; width:100%; aspect-ratio:4/3; object-fit:cover; background:#241c36; }
   .tile .nm { font-size:11px; font-weight:900; padding:4px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .tile .kind { position:absolute; top:4px; left:4px; font-size:10px; font-weight:900; background:var(--yel); color:var(--ink); border:2px solid var(--ink); border-radius:6px; padding:0 4px; }
+  .tile .det { position:absolute; bottom:24px; right:3px; font-size:10px; font-weight:900; border:2px solid var(--ink); border-radius:6px; padding:0 4px; cursor:pointer; background:#fff; color:var(--ink); }
+  .tile .det.full { background:var(--org); color:#fff; } .tile .det.light { background:var(--grn); }
+  .counts .perf { font-weight:900; } .perf.ok { color:var(--grn); } .perf.warn { color:var(--yel); } .perf.bad { color:var(--org); }
   .tile .x { position:absolute; top:3px; right:3px; width:22px; height:22px; border-radius:50%; border:2px solid var(--ink); background:var(--org); color:#fff; font-weight:900; font-size:12px; line-height:16px; padding:0; cursor:pointer; }
   .counts { font-size:12px; font-weight:700; color:#cfc5ea; }
   .sel { position:fixed; right:10px; bottom:10px; display:none; flex-direction:column; gap:6px; align-items:stretch; background:rgba(20,14,34,.9); border:3px solid var(--ink); border-radius:16px; box-shadow:5px 5px 0 var(--ink); padding:10px; z-index:2; width:min(250px,calc(100% - 20px)); }
@@ -74,7 +77,9 @@
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+  "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js",
+  "meshopt/": "https://cdn.jsdelivr.net/npm/meshoptimizer@0.25.0/"
 } }
 </script>
 </head>
@@ -153,6 +158,12 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+// fast pointing: a bounding-volume tree per mesh instead of testing every triangle every frame
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 // =====================================================================
 // constants
@@ -213,6 +224,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.xr.enabled = true;
 renderer.xr.setReferenceSpaceType('local-floor');
+renderer.xr.setFoveation(1);   // full fixed foveation: the edges of the lens cost less
 
 const scene = new THREE.Scene();
 const pmrem = new THREE.PMREMGenerator(renderer);
@@ -388,7 +400,13 @@ loaders.gltf = loaders.glb;
 
 async function loadImageTemplate(rec) {
   const f = rec.files[0];
-  const bmp = await createImageBitmap(f.blob);
+  let bmp = await createImageBitmap(f.blob);
+  const cap = TEX_CAP[rec.detail || 'auto'];
+  if (Math.max(bmp.width, bmp.height) > cap) {   // a 12 MP phone photo would take ~64 MB of headset memory
+    const k = cap / Math.max(bmp.width, bmp.height);
+    const small = await createImageBitmap(bmp, { resizeWidth:Math.round(bmp.width * k), resizeHeight:Math.round(bmp.height * k), resizeQuality:'high' });
+    bmp.close && bmp.close(); bmp = small;
+  }
   const tex = new THREE.Texture(bmp); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.needsUpdate = true;
   tex.flipY = false;  // ImageBitmap is not flipped by WebGL; flip UVs instead
   const a = bmp.width / bmp.height;
@@ -400,7 +418,9 @@ async function loadImageTemplate(rec) {
   pic.position.z = 0.002;
   const edge = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.012, h + 0.012), new THREE.MeshBasicMaterial({ color:'#111', side:THREE.DoubleSide }));
   g.add(edge, pic);
-  return { obj:g, clips:[], kind:'image', fit:1, box:new THREE.Box3(new THREE.Vector3(-w/2, -h/2, 0), new THREE.Vector3(w/2, h/2, 0.004)), w, h, bmp };
+  edge.geometry.computeBoundsTree(); geo.computeBoundsTree();
+  return { obj:g, clips:[], kind:'image', fit:1, box:new THREE.Box3(new THREE.Vector3(-w/2, -h/2, 0), new THREE.Vector3(w/2, h/2, 0.004)), w, h, bmp,
+           stats:{ tris:4, origTris:4, draws:2, tex:Math.max(bmp.width, bmp.height) } };
 }
 
 async function loadModelTemplate(rec) {
@@ -418,16 +438,107 @@ async function loadModelTemplate(rec) {
     const size = box.getSize(new THREE.Vector3());
     const longest = Math.max(size.x, size.y, size.z);
     if (!isFinite(longest) || longest <= 0) throw new Error('The model is empty');
-    obj.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
+    const stats = await optimizeModel(obj, rec.detail || 'auto');
     // keep the blob URLs alive: textures may still be decoding
     setTimeout(() => urls.forEach(u => URL.revokeObjectURL(u)), 60000);
-    return { obj, clips, kind:'model', fit: DEFAULT_MODEL_SIZE / longest, box, size };
+    return { obj, clips, kind:'model', fit: DEFAULT_MODEL_SIZE / longest, box, size, stats };
   } catch (e) { urls.forEach(u => URL.revokeObjectURL(u)); throw e; }
+}
+// ---- performance: triangle budget, texture size cap, fast raycasting
+const TRI_BUDGET = { auto:100000, light:30000, full:Infinity };
+const TEX_CAP = { auto:2048, light:1024, full:4096 };
+const triCount = g => (g.index ? g.index.count : (g.getAttribute('position')?.count || 0)) / 3;
+let simplifier = null;
+async function getSimplifier() {
+  if (!simplifier) simplifier = import('meshopt/meshopt_simplifier.module.js').then(async m => { await m.MeshoptSimplifier.ready; return m.MeshoptSimplifier; });
+  return simplifier;
+}
+const _box = new THREE.Box3(), _inv = new THREE.Matrix4(), _lr = new THREE.Ray(), _hp = new THREE.Vector3();
+function boxRaycast(raycaster, out) {   // skinned meshes: hit their bounding box, not every bent triangle
+  if (!this.geometry.boundingBox) this.geometry.computeBoundingBox();
+  _inv.copy(this.matrixWorld).invert();
+  _lr.copy(raycaster.ray).applyMatrix4(_inv);
+  if (!_lr.intersectBox(this.geometry.boundingBox, _hp)) return;
+  const p = _hp.clone().applyMatrix4(this.matrixWorld), d = raycaster.ray.origin.distanceTo(p);
+  if (d < raycaster.near || d > raycaster.far) return;
+  const bb = this.geometry.boundingBox, n = new THREE.Vector3();
+  const eps = [Math.abs(_hp.x - bb.min.x), Math.abs(_hp.x - bb.max.x), Math.abs(_hp.y - bb.min.y), Math.abs(_hp.y - bb.max.y), Math.abs(_hp.z - bb.min.z), Math.abs(_hp.z - bb.max.z)];
+  const k = eps.indexOf(Math.min(...eps)); n.setComponent(k >> 1, k & 1 ? 1 : -1);
+  out.push({ distance:d, point:p, object:this, face:{ normal:n } });
+}
+async function optimizeModel(obj, detail) {
+  const meshes = [];
+  obj.traverse(o => { if (o.isMesh) meshes.push(o); });
+  const origTris = meshes.reduce((n, m) => n + triCount(m.geometry), 0);
+  const budget = TRI_BUDGET[detail] ?? TRI_BUDGET.auto;
+  let tris = origTris;
+  if (origTris > budget) {
+    try {
+      const S = await getSimplifier();
+      const ratio = budget / origTris;
+      const done = new Map();
+      tris = 0;
+      for (const m of meshes) {
+        let g = m.geometry;
+        if (done.has(g)) { m.geometry = done.get(g); tris += triCount(m.geometry); continue; }
+        const src = g;
+        if (triCount(g) > 300) {
+          let renormal = false;
+          if (!g.index) {   // separate triangles (STL, many OBJs): weld corners by position so they can merge
+            g = g.clone();
+            if (g.getAttribute('normal')) { g.deleteAttribute('normal'); renormal = true; }
+            g = mergeVertices(g, 1e-5);
+          }
+          const pos = g.getAttribute('position');
+          const P = pos.isInterleavedBufferAttribute || !(pos.array instanceof Float32Array) || pos.itemSize !== 3
+            ? Float32Array.from({ length:pos.count * 3 }, (_, i) => pos.getComponent(Math.floor(i / 3), i % 3)) : pos.array;
+          const idx = g.index.array instanceof Uint32Array ? g.index.array : new Uint32Array(g.index.array);
+          const target = Math.max(3, Math.floor(idx.length * ratio / 3) * 3);
+          const [out] = S.simplify(idx, P, 3, target, detail === 'light' ? 0.08 : 0.04, []);
+          if (out.length >= 3 && out.length < idx.length) { g = g === src ? g.clone() : g; g.setIndex(new THREE.BufferAttribute(out, 1)); }
+          if (renormal) g.computeVertexNormals();
+        }
+        done.set(src, g); m.geometry = g; tris += triCount(g);
+      }
+    } catch (e) { console.warn('simplify', e); tris = origTris; }
+  }
+  // textures: shrink anything over the cap (the file in the library stays untouched)
+  const cap = TEX_CAP[detail] ?? TEX_CAP.auto;
+  const seen = new Set(); let maxTex = 0, draws = 0;
+  for (const m of meshes) {
+    const mats = Array.isArray(m.material) ? m.material : [m.material];
+    draws += Math.max(1, m.geometry.groups.length || mats.length);
+    for (const mat of mats) for (const k in mat) {
+      const t = mat[k];
+      if (!t || !t.isTexture || seen.has(t) || t.isCompressedTexture || t.isDataTexture) continue;
+      seen.add(t);
+      const im = t.image, w = im && (im.width || im.videoWidth), h = im && (im.height || im.videoHeight);
+      if (!w || !h) continue;
+      if (Math.max(w, h) > cap) {
+        const k2 = cap / Math.max(w, h), cv = document.createElement('canvas');
+        cv.width = Math.round(w * k2); cv.height = Math.round(h * k2);
+        try { cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); t.image = cv; t.needsUpdate = true; im.close && im.close(); }
+        catch (e) { console.warn('texture', e); }
+      }
+      maxTex = Math.max(maxTex, Math.min(cap, Math.max(w, h)));
+    }
+  }
+  for (const m of meshes) {
+    if (m.isSkinnedMesh) { m.frustumCulled = false; m.raycast = boxRaycast; continue; }
+    m.geometry.computeBoundingSphere();
+    try { if (!m.geometry.boundsTree) m.geometry.computeBoundsTree(); } catch (e) { console.warn('bvh', e); }
+  }
+  return { tris:Math.round(tris), origTris:Math.round(origTris), draws, tex:maxTex };
 }
 function getTemplate(id) {
   const a = assets.get(id);
   if (!a) return Promise.reject(new Error('missing asset'));
-  if (!a.tpl) a.tpl = (a.rec.kind === 'image' ? loadImageTemplate(a.rec) : loadModelTemplate(a.rec)).catch(e => { a.tpl = null; throw e; });
+  if (!a.tpl) a.tpl = (a.rec.kind === 'image' ? loadImageTemplate(a.rec) : loadModelTemplate(a.rec))
+    .then(tpl => {   // libraries from before the performance update learn their triangle counts here
+      if (tpl.stats && (!a.rec.stats || a.rec.stats.tris !== tpl.stats.tris)) { a.rec.stats = tpl.stats; if (Store.db && a.rec.thumb) Store.put('assets', a.rec).catch(() => {}); clearTimeout(getTemplate.t); getTemplate.t = setTimeout(renderTiles, 300); }
+      return tpl;
+    })
+    .catch(e => { a.tpl = null; throw e; });
   return a.tpl;
 }
 
@@ -522,6 +633,7 @@ async function spawnItem(rec) {
   const root = new THREE.Group(), body = new THREE.Group();
   root.userData.itemId = rec.id;
   const obj = tpl.kind === 'image' ? tpl.obj.clone() : SkeletonUtils.clone(tpl.obj);
+  obj.traverse(o => { if (o.isSkinnedMesh) { o.raycast = boxRaycast; o.frustumCulled = false; } });
   body.add(obj); root.add(body);
   const it = { rec, root, body, tpl, anchor:null, mixer:null };
   if (tpl.clips && tpl.clips.length) {
@@ -532,12 +644,15 @@ async function spawnItem(rec) {
   poseItem(it);
   groups[rec.space].add(root);
   items.set(rec.id, it);
+  updateCounts();
   return it;
 }
 function removeItemObj(it) {
+  if (selected === it) setSel(null);
   it.root.parent && it.root.parent.remove(it.root);
   if (it.mixer) mixers.delete(it.mixer);
   items.delete(it.rec.id);
+  updateCounts();
 }
 async function saveItem(it) {
   it.rec.updated = Date.now();
@@ -563,6 +678,7 @@ const planeObjs = new Map(), meshObjs = new Map();
 const hiddenMat = new THREE.MeshBasicMaterial({ visible:false, side:THREE.DoubleSide });
 const planeLineMat = new THREE.LineBasicMaterial({ color:'#ffd23f', transparent:true, opacity:0.55 });
 const ray = new THREE.Raycaster();
+ray.firstHitOnly = true;
 const _n = new THREE.Vector3(), _nm = new THREE.Matrix3();
 
 function hitNormal(hit, dir) {
@@ -631,6 +747,7 @@ function updateRoomSurfaces(frame, ref) {
         if (o) roomSurf.remove(o.mesh);
         if (!p.polygon || p.polygon.length < 3) return;
         const mesh = new THREE.Mesh(planeGeometry(p.polygon), hiddenMat);
+        mesh.geometry.computeBoundsTree();
         const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(p.polygon.map(q => new THREE.Vector3(q.x, 0.004, q.z))), planeLineMat);
         line.visible = false; mesh.add(line);
         mesh.matrixAutoUpdate = false; roomSurf.add(mesh);
@@ -651,6 +768,7 @@ function updateRoomSurfaces(frame, ref) {
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(m.vertices), 3));
         g.setIndex(new THREE.BufferAttribute(new Uint32Array(m.indices), 1));
+        try { g.computeBoundsTree(); } catch {}
         const mesh = new THREE.Mesh(g, hiddenMat); mesh.matrixAutoUpdate = false; roomSurf.add(mesh);
         o = { mesh, t:m.lastChangedTime }; meshObjs.set(m, o);
       }
@@ -874,11 +992,18 @@ function renderTiles() {
   const list = [...assets.values()].sort((a, b) => b.rec.added - a.rec.added);
   for (const a of list) {
     const t = document.createElement('div'); t.className = 'tile' + (pickAsset === a.rec.id ? ' on' : '');
-    t.innerHTML = `<img alt=""><div class="nm"></div><span class="kind">${a.rec.kind === 'image' ? 'PIC' : ext(a.rec.main).toUpperCase()}</span><button class="x" title="Delete">✕</button>`;
+    t.innerHTML = `<img alt=""><div class="nm"></div><span class="kind">${a.rec.kind === 'image' ? 'PIC' : ext(a.rec.main).toUpperCase()}</span><button class="x" title="Delete">✕</button>${a.rec.kind === 'model' ? `<button class="det ${a.rec.detail || 'auto'}" title="Detail: tap to change"></button>` : ''}`;
+    const det = t.querySelector('.det');
+    if (det) {
+      const st = a.rec.stats, d = a.rec.detail || 'auto';
+      det.textContent = (d === 'full' ? 'FULL ' : d === 'light' ? 'LIGHT ' : '') + (st ? kTris(st.tris) + '▲' : '…');
+      det.title = st ? `${kTris(st.origTris)} triangles in the file, ${kTris(st.tris)} shown. Tap: Auto → Full → Light` : 'Tap: Auto → Full → Light';
+    }
     t.querySelector('img').src = a.rec.thumb || '';
     t.querySelector('.nm').textContent = a.rec.name;
     t.onclick = ev => {
       if (ev.target.classList.contains('x')) return askDeleteAsset(a);
+      if (ev.target.classList.contains('det')) return cycleDetail(a);
       pickAsset = pickAsset === a.rec.id ? null : a.rec.id;
       if (pickAsset) hint('Tap the island to place it · press ISLAND or MY ROOM to place it in the headset');
       renderTiles();
@@ -888,9 +1013,35 @@ function renderTiles() {
   if (!list.length) el.innerHTML = '<div class="counts">Nothing here yet. Import something to start decorating.</div>';
   drawPanel();
 }
+const kTris = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1000 ? Math.round(n / 1000) + 'k' : String(n);
+function sceneLoad(space) {
+  let tris = 0, draws = 0;
+  for (const it of items.values()) if (it.rec.space === space && it.tpl.stats) { tris += it.tpl.stats.tris; draws += it.tpl.stats.draws; }
+  const level = tris > 1.2e6 || draws > 250 ? 'bad' : tris > 600e3 || draws > 150 ? 'warn' : 'ok';
+  return { tris, draws, level };
+}
 function updateCounts() {
   let r = 0, i = 0; for (const it of items.values()) it.rec.space === ROOM ? r++ : i++;
-  $('counts').textContent = `In your room: ${r} · On the island: ${i} · ${assets.size} in the library`;
+  const lr = sceneLoad(ROOM), li = sceneLoad(ISLAND);
+  const word = l => l === 'ok' ? 'smooth' : l === 'warn' ? 'getting heavy' : 'too heavy';
+  $('counts').innerHTML = `In your room: ${r} (<span class="perf ${lr.level}">${kTris(lr.tris)}▲ ${word(lr.level)}</span>) · On the island: ${i} (<span class="perf ${li.level}">${kTris(li.tris)}▲ ${word(li.level)}</span>) · ${assets.size} in the library`;
+  drawPanel();
+}
+async function cycleDetail(a) {
+  const order = ['auto', 'full', 'light'];
+  a.rec.detail = order[(order.indexOf(a.rec.detail || 'auto') + 1) % 3];
+  busy(true);
+  try {
+    a.tpl = null;
+    const tpl = await getTemplate(a.rec.id);
+    a.rec.stats = tpl.stats;
+    await Store.put('assets', a.rec);
+    for (const it of [...items.values()]) if (it.rec.assetId === a.rec.id) {
+      const rec = it.rec; removeItemObj(it); await spawnItem(rec);
+    }
+    hint({ auto:'Auto detail: heavy models are lightened to about 100k triangles', full:'Full detail: exactly as in the file (can slow the headset)', light:'Light: about 30k triangles and smaller textures' }[a.rec.detail]);
+  } catch (e) { hint('Couldn’t reload it: ' + (e.message || e)); }
+  finally { busy(false); renderTiles(); updateCounts(); }
 }
 let cfYes = null;
 function confirmBox(title, text, yes) { $('cfTitle').textContent = title; $('cfText').textContent = text; cfYes = yes; $('confirm').classList.add('show'); }
@@ -948,6 +1099,7 @@ async function importFilesNow(list, from) {
       try {
         const tpl = await getTemplate(rec.id);
         try { rec.thumb = makeThumb(tpl); } catch (e) { console.warn('thumb', e); }
+        rec.stats = tpl.stats;
         await Store.put('assets', rec);
         ok++;
       } catch (e) {
@@ -1159,6 +1311,12 @@ function drawPanel() {
   }
   const msg = performance.now() < panelMsgT ? panelMsg : carry ? 'Trigger: put it down · stick: size and turn · grip: cancel' : 'Pick something, then point at a wall, shelf or floor';
   g.fillText(msg.slice(0, 70), PW / 2, 678);
+  if (xr) {
+    const L = sceneLoad(mode === ROOM ? ROOM : ISLAND);
+    g.textAlign = 'right'; g.font = '900 20px Nunito, sans-serif';
+    g.fillStyle = L.level === 'ok' ? '#a6e22e' : L.level === 'warn' ? '#ffd23f' : '#ff5a1f';
+    g.fillText(`${kTris(L.tris)}▲ ${L.level === 'ok' ? 'smooth' : L.level === 'warn' ? 'heavy' : 'too heavy'}`, PW - 24, 620);
+  }
   if (BTN.pages > 1) { g.fillStyle = '#ffd23f'; g.fillText(`page ${page + 1} / ${BTN.pages}`, PW / 2, 650); }
   panelTex.needsUpdate = true;
 }
@@ -1294,8 +1452,9 @@ function updateXR(dt, frame) {
   if (anyPanel !== panelHover) { panelHover = anyPanel; drawPanel(); }
   const holding = hands.find(h => h.hover && h.hold > 0);
   if (hoverIt) {
-    hoverBox.setFromObject(hoverIt.root); hoverBox.material.color.set(holding ? '#ff5a1f' : '#ffd23f'); hoverBox.visible = true;
-  } else hoverBox.visible = false;
+    if (hoverBox.userData.it !== hoverIt) { hoverBox.setFromObject(hoverIt.root); hoverBox.userData.it = hoverIt; }
+    hoverBox.material.color.set(holding ? '#ff5a1f' : '#ffd23f'); hoverBox.visible = true;
+  } else { hoverBox.visible = false; hoverBox.userData.it = null; }
 }
 function showReticle(h, t) {
   h.reticle.visible = true;
@@ -1603,7 +1762,6 @@ renderer.setAnimationLoop((t, frame) => {
     }
   } else {
     orbit.update();
-    if (selBox && selected) selBox.update();
   }
   for (const m of mixers) m.update(dt);
   clouds.rotation.y += dt * 0.004;
@@ -1625,7 +1783,7 @@ renderer.setAnimationLoop((t, frame) => {
     }
   } catch (e) { console.warn(e); }
   updateCounts();
-  window.DECORNAUT = { link, hostLink, joinLink, orbit, assets, items, importFiles, newItemFromAsset, endCarry, carryTo, surfaceHit, ray, camera, ISLAND, ROOM, get carry() { return carry; }, quatFor, mountFor };
+  window.DECORNAUT = { cycleDetail, sceneLoad, link, hostLink, joinLink, orbit, assets, items, importFiles, newItemFromAsset, endCarry, carryTo, surfaceHit, ray, camera, ISLAND, ROOM, get carry() { return carry; }, quatFor, mountFor };
 })();
 </script>
 </body>
