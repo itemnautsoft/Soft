@@ -735,7 +735,7 @@ const SPECIES = {
       line([[0, .605], [0, .33]]);
       for (const s of [-1, 1]) {
         line([[0, .33], [s * .02, .27], [s * .06, .232], [s * .12, .232], [s * .17, .258], [s * .205, .292]]);
-        line([[s * .285, .493], [s * .16, .458]]); line([[s * .285, .318], [s * .17, .296]]);
+        line([[s * .285, .493], [s * .16, .458]]); line([[s * .285, .372], [s * .17, .35]]);
       }
       const nz = surfZ(0, .62);
       const nose = ellM(.03, .021, .018, mNosePink, 16); nose.position.set(0, .62, nz + .004); nose.rotation.x = .2; r.rootBone.add(nose);
