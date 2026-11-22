@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Decornaut — decorate your room in MR</title>
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#111; --mag:#ff2e88; --yel:#ffd23f; --org:#ff5a1f; --grn:#a6e22e; --lav:#b9a3ff; --bg:#2b2340; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; overflow:hidden; background:var(--bg); font-family:Nunito,system-ui,sans-serif; color:#fff; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  .top { position:fixed; top:10px; left:10px; right:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; pointer-events:none; z-index:2; }
+  .title { font-family:Bangers,Impact,sans-serif; font-size:30px; letter-spacing:1px; text-shadow:3px 3px 0 var(--ink); }
+  .pill { pointer-events:auto; background:rgba(0,0,0,.6); border:2px solid var(--ink); border-radius:999px; padding:5px 11px; font-size:13px; font-weight:900; box-shadow:3px 3px 0 var(--ink); display:flex; gap:6px; align-items:center; }
+  .dot { width:10px; height:10px; border-radius:50%; background:#999; border:2px solid var(--ink); }
+  .dot.ok { background:var(--grn); } .dot.warn { background:var(--yel); } .dot.bad { background:var(--org); }
+  .spacer { flex:1; }
+  .btn { pointer-events:auto; font:900 14px Nunito,sans-serif; color:var(--ink); background:#fff; border:3px solid var(--ink); border-radius:12px; padding:8px 12px; box-shadow:3px 3px 0 var(--ink); cursor:pointer; }
+  .btn:active { transform:translate(2px,2px); box-shadow:1px 1px 0 var(--ink); }
+  .btn.big { font-family:Bangers,Impact,sans-serif; font-size:21px; letter-spacing:1px; padding:6px 14px; color:#fff; text-shadow:2px 2px 0 var(--ink); }
+  .btn.mr { background:var(--mag); } .btn.vr { background:#38c6f4; }
+  .btn[disabled] { opacity:.4; cursor:default; }
+  .lib { position:fixed; left:10px; bottom:10px; width:min(380px,calc(100% - 20px)); max-height:min(56vh,520px); display:flex; flex-direction:column; background:rgba(20,14,34,.88); border:3px solid var(--ink); border-radius:16px; box-shadow:5px 5px 0 var(--ink); z-index:2; }
+  .lib.min .libBody { display:none; }
+  .libHead { display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:2px solid #000; }
+  .libHead h2 { font-family:Bangers,Impact,sans-serif; letter-spacing:1px; font-size:22px; margin:0; flex:1; text-shadow:2px 2px 0 var(--ink); }
+  .libBody { overflow:auto; padding:10px; display:flex; flex-direction:column; gap:10px; }
+  .drop { border:3px dashed #8c7ac0; border-radius:12px; padding:12px; text-align:center; font-weight:700; font-size:13px; color:#d9d0f5; }
+  .drop.over { border-color:var(--yel); color:var(--yel); }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(98px,1fr)); gap:8px; }
+  .tile { position:relative; background:#3d3258; border:3px solid var(--ink); border-radius:12px; overflow:hidden; cursor:pointer; box-shadow:2px 2px 0 var(--ink); }
+  .tile.on { outline:3px solid var(--yel); outline-offset:1px; }
+  .tile img { display:block; width:100%; aspect-ratio:4/3; object-fit:cover; background:#241c36; }
+  .tile .nm { font-size:11px; font-weight:900; padding:4px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tile .kind { position:absolute; top:4px; left:4px; font-size:10px; font-weight:900; background:var(--yel); color:var(--ink); border:2px solid var(--ink); border-radius:6px; padding:0 4px; }
+  .tile .x { position:absolute; top:3px; right:3px; width:22px; height:22px; border-radius:50%; border:2px solid var(--ink); background:var(--org); color:#fff; font-weight:900; font-size:12px; line-height:16px; padding:0; cursor:pointer; }
+  .counts { font-size:12px; font-weight:700; color:#cfc5ea; }
+  .sel { position:fixed; right:10px; bottom:10px; display:none; flex-direction:column; gap:6px; align-items:stretch; background:rgba(20,14,34,.9); border:3px solid var(--ink); border-radius:16px; box-shadow:5px 5px 0 var(--ink); padding:10px; z-index:2; width:min(250px,calc(100% - 20px)); }
+  .sel.show { display:flex; }
+  .sel .row { display:flex; gap:6px; } .sel .row .btn { flex:1; padding:7px 4px; }
+  .sel .nm { font-weight:900; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hint { position:fixed; left:50%; top:62px; transform:translateX(-50%); background:var(--yel); color:var(--ink); border:3px solid var(--ink); box-shadow:3px 3px 0 var(--ink); border-radius:12px; padding:7px 12px; font-weight:900; font-size:13px; max-width:92%; text-align:center; opacity:0; transition:opacity .25s; pointer-events:none; z-index:4; }
+  .hint.show { opacity:1; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:5; }
+  .modal.show { display:flex; }
+  .card { background:#fff; color:var(--ink); border:4px solid var(--ink); border-radius:18px; box-shadow:6px 6px 0 var(--ink); padding:18px; width:min(360px,90%); text-align:center; }
+  .card h3 { font-family:Bangers,Impact,sans-serif; letter-spacing:1px; margin:0 0 6px; font-size:28px; }
+  .card p { margin:0 0 14px; font-size:14px; }
+  .card .row { display:flex; gap:10px; justify-content:center; }
+  #busy { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.45); z-index:6; font-family:Bangers,Impact,sans-serif; font-size:30px; letter-spacing:1px; text-shadow:3px 3px 0 var(--ink); }
+  #busy.show { display:flex; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="top">
+  <div class="title">DECORNAUT</div>
+  <div class="pill"><span class="dot" id="dot"></span><span id="statusText">Checking headset…</span></div>
+  <div class="spacer"></div>
+  <button class="btn big mr" id="roomBtn" disabled>MY ROOM (MR)</button>
+  <button class="btn big vr" id="islandBtn" disabled>ISLAND (VR)</button>
+</div>
+
+<div class="lib" id="lib">
+  <div class="libHead">
+    <h2>LIBRARY</h2>
+    <button class="btn" id="importBtn">＋ Import</button>
+    <button class="btn" id="libMin" title="Hide or show">▾</button>
+  </div>
+  <div class="libBody">
+    <div class="drop" id="drop">Drop or import 3D models (GLB, glTF, OBJ+MTL, FBX, STL, PLY, DAE, 3MF, 3DS, USDZ, WRL, or a ZIP of a model and its textures) and pictures (PNG, JPG, WEBP, GIF). Pick pictures on their own: picked with a model they count as its textures.</div>
+    <div class="tiles" id="tiles"></div>
+    <div class="counts" id="counts"></div>
+  </div>
+  <input type="file" id="file" multiple hidden accept=".glb,.gltf,.bin,.obj,.mtl,.fbx,.stl,.ply,.dae,.3mf,.3ds,.usdz,.wrl,.zip,.png,.jpg,.jpeg,.webp,.gif,.bmp,.avif,.tga,image/*">
+</div>
+
+<div class="sel" id="sel">
+  <div class="nm" id="selName">Item</div>
+  <div class="row"><button class="btn" data-act="spinL">⟲ 15°</button><button class="btn" data-act="spinR">⟳ 15°</button></div>
+  <div class="row"><button class="btn" data-act="smaller">− Size</button><button class="btn" data-act="bigger">＋ Size</button></div>
+  <div class="row"><button class="btn" data-act="real">1:1 size</button><button class="btn" data-act="move">Move</button></div>
+  <div class="row"><button class="btn" data-act="delete" style="background:var(--org);color:#fff">Delete</button><button class="btn" data-act="done">Done</button></div>
+</div>
+
+<div class="hint" id="hint"></div>
+<div id="busy">LOADING…</div>
+
+<div class="modal" id="confirm">
+  <div class="card">
+    <h3 id="cfTitle">SURE?</h3>
+    <p id="cfText"></p>
+    <div class="row"><button class="btn" id="cfNo">Keep it</button><button class="btn" id="cfYes" style="background:var(--org);color:#fff">Delete</button></div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+
+// =====================================================================
+// constants
+// =====================================================================
+const MODEL_EXT = ['glb','gltf','obj','fbx','stl','ply','dae','3mf','3ds','usdz','wrl'];
+const IMAGE_EXT = ['png','jpg','jpeg','webp','gif','bmp','avif'];
+const DEFAULT_MODEL_SIZE = 0.35;   // metres, longest side, when first placed
+const DEFAULT_IMAGE_SIZE = 0.5;
+const ROOM = 'room', ISLAND = 'island';
+const ext = n => (n.split('?')[0].split('.').pop() || '').toLowerCase();
+const base = n => decodeURIComponent(n.split('?')[0].split('#')[0]).split(/[\\/]/).pop().toLowerCase();
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+const $ = id => document.getElementById(id);
+
+// =====================================================================
+// storage (IndexedDB on this device)
+// =====================================================================
+const Store = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('decornaut', 1);
+      r.onupgradeneeded = () => {
+        const d = r.result;
+        d.createObjectStore('assets', { keyPath:'id' });
+        d.createObjectStore('items', { keyPath:'id' });
+        d.createObjectStore('meta', { keyPath:'k' });
+      };
+      r.onsuccess = () => { this.db = r.result; res(); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  tx(store, mode, fn) {
+    return new Promise((res, rej) => {
+      if (!this.db) return rej(new Error('no db'));
+      const t = this.db.transaction(store, mode), s = t.objectStore(store);
+      let out; const q = fn(s); if (q) q.onsuccess = () => { out = q.result; };
+      t.oncomplete = () => res(out); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+    });
+  },
+  put(store, v) { return this.tx(store, 'readwrite', s => s.put(v)); },
+  del(store, k) { return this.tx(store, 'readwrite', s => s.delete(k)); },
+  all(store) { return this.tx(store, 'readonly', s => s.getAll()); },
+  async meta(k, v) {
+    if (v === undefined) { const r = await this.tx('meta', 'readonly', s => s.get(k)); return r ? r.v : undefined; }
+    return this.put('meta', { k, v });
+  },
+};
+
+// =====================================================================
+// renderer, scene, rig
+// =====================================================================
+const canvas = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.xr.enabled = true;
+renderer.xr.setReferenceSpaceType('local-floor');
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const rig = new THREE.Group(); scene.add(rig);            // moves you around the island
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.02, 500);
+camera.position.set(0, 2.4, 6.5);
+rig.add(camera);
+
+scene.add(new THREE.HemisphereLight('#ffffff', '#6b5a8a', 1.2));
+const sun = new THREE.DirectionalLight('#fff3dd', 2.0); sun.position.set(6, 10, 4); scene.add(sun);
+
+// toon look for the island (itemnaut style: 3-band ramp + ink outlines)
+const ramp = new THREE.DataTexture(new Uint8Array([95,95,95,255, 175,175,175,255, 255,255,255,255]), 3, 1);
+ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
+const toon = c => new THREE.MeshToonMaterial({ color:c, gradientMap:ramp });
+const INK = new THREE.MeshBasicMaterial({ color:'#111', side:THREE.BackSide });
+
+// =====================================================================
+// placeholder digital space: a floating island
+// =====================================================================
+const island = new THREE.Group(); scene.add(island);
+const islandSurfaces = [];
+function solid(geo, color, x, y, z, opts = {}) {
+  const m = new THREE.Mesh(geo, toon(color));
+  m.position.set(x, y, z);
+  if (opts.rot) m.rotation.set(...opts.rot);
+  const ink = new THREE.Mesh(geo, INK); ink.scale.setScalar(opts.ink ?? 1.03); m.add(ink);
+  island.add(m);
+  if (opts.surface !== false) islandSurfaces.push(m);
+  return m;
+}
+(function buildIsland() {
+  // ground + rock underside
+  const top = solid(new THREE.CylinderGeometry(9, 8.6, 0.6, 40), '#8fd14f', 0, -0.3, 0, { ink:1.01 });
+  solid(new THREE.ConeGeometry(8.6, 7, 12), '#7a5a48', 0, -4.1, 0, { rot:[Math.PI, 0, 0], surface:false, ink:1.02 });
+  solid(new THREE.CylinderGeometry(9.05, 9.05, 0.18, 40), '#6f4f3d', 0, -0.62, 0, { surface:false, ink:1.01 });
+  // a little open house frame: back wall, two side walls, floor and a shelf
+  const hx = 0, hz = -3.5;
+  solid(new THREE.BoxGeometry(5, 0.12, 3.4), '#e8d7b8', hx, 0.06, hz);
+  solid(new THREE.BoxGeometry(5, 2.8, 0.16), '#f4efe6', hx, 1.4, hz - 1.62);
+  solid(new THREE.BoxGeometry(0.16, 2.8, 3.4), '#b9a3ff', hx - 2.42, 1.4, hz);
+  solid(new THREE.BoxGeometry(0.16, 2.8, 3.4), '#b9a3ff', hx + 2.42, 1.4, hz);
+  const roof = solid(new THREE.BoxGeometry(5.4, 0.16, 3.9), '#ff2e88', hx, 2.88, hz, { surface:false });
+  roof.rotation.x = 0.06;
+  solid(new THREE.BoxGeometry(2.2, 0.05, 0.32), '#7a5a48', hx - 0.9, 1.25, hz - 1.38);   // shelf
+  solid(new THREE.BoxGeometry(2.2, 0.05, 0.32), '#7a5a48', hx - 0.9, 1.75, hz - 1.38);   // shelf
+  solid(new THREE.BoxGeometry(1.2, 0.06, 0.7), '#ffd23f', hx + 1.3, 0.78, hz - 0.6);     // table top
+  for (const [dx, dz] of [[-0.52,-0.28],[0.52,-0.28],[-0.52,0.28],[0.52,0.28]])
+    solid(new THREE.CylinderGeometry(0.035, 0.035, 0.72, 8), '#3a3a44', hx + 1.3 + dx, 0.38, hz - 0.6 + dz);
+  // plinths
+  for (const [x, z, h] of [[-3.2, 1.5, 0.9], [3.4, 0.8, 0.6], [2.2, 3.4, 1.1]])
+    solid(new THREE.BoxGeometry(0.55, h, 0.55), '#f4efe6', x, h / 2, z);
+  // trees and rocks
+  for (const [x, z, s] of [[-5.5, -1, 1], [5.6, -2.5, 1.3], [-4.2, 4.6, 0.8], [6.2, 3.8, 0.9]]) {
+    solid(new THREE.CylinderGeometry(0.12 * s, 0.16 * s, 1.2 * s, 8), '#7a5a48', x, 0.6 * s, z, { surface:false });
+    solid(new THREE.ConeGeometry(0.8 * s, 1.8 * s, 9), '#3fae5a', x, 1.9 * s, z);
+  }
+  for (const [x, z, s] of [[-2.6, 3.2, 0.5], [4.6, -0.2, 0.4], [-6.6, 2.2, 0.6], [0.8, 6.4, 0.45]])
+    solid(new THREE.DodecahedronGeometry(s), '#9a90b0', x, s * 0.5, z);
+})();
+
+// sky dome: opaque, so in the island it covers passthrough completely
+const skyCv = document.createElement('canvas'); skyCv.width = 16; skyCv.height = 256;
+(() => { const g = skyCv.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256);
+  gr.addColorStop(0, '#5b7dff'); gr.addColorStop(0.45, '#9fc2ff'); gr.addColorStop(0.55, '#ffd9ef'); gr.addColorStop(1, '#b9a3ff');
+  g.fillStyle = gr; g.fillRect(0, 0, 16, 256); })();
+const skyTex = new THREE.CanvasTexture(skyCv); skyTex.colorSpace = THREE.SRGBColorSpace;
+const sky = new THREE.Mesh(new THREE.SphereGeometry(300, 32, 16), new THREE.MeshBasicMaterial({ map:skyTex, side:THREE.BackSide, fog:false, depthWrite:false }));
+sky.renderOrder = -10; scene.add(sky);
+const clouds = new THREE.Group(); scene.add(clouds);
+for (let i = 0; i < 14; i++) {
+  const c = new THREE.Group(), a = i / 14 * Math.PI * 2, r = 40 + (i % 3) * 18;
+  for (let j = 0; j < 4; j++) {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(2.4 + Math.random() * 1.6, 10, 8), toon('#ffffff'));
+    s.position.set(j * 2.6 - 4, Math.random() * 1.2, Math.random() * 1.5); c.add(s);
+  }
+  c.position.set(Math.cos(a) * r, -6 + (i % 4) * 7, Math.sin(a) * r); c.lookAt(0, c.position.y, 0); clouds.add(c);
+}
+
+// =====================================================================
+// asset loading (all formats), templates, thumbnails
+// =====================================================================
+const assets = new Map();     // id -> { rec, tpl:Promise }
+let thumbR = null;
+
+function fileMapOf(files) {
+  const map = new Map(), urls = [];
+  for (const f of files) {
+    const u = URL.createObjectURL(f.blob); urls.push(u);
+    map.set(base(f.name), u);
+    map.set(f.name.toLowerCase().replace(/\\/g, '/'), u);
+  }
+  return { map, urls };
+}
+function managerFor(map) {
+  const m = new THREE.LoadingManager();
+  const own = new Set(map.values());
+  m.setURLModifier(url => {
+    if (own.has(url) || url.startsWith('data:')) return url;
+    return map.get(base(url)) || url;   // textures, .bin and .mtl found by file name
+  });
+  return m;
+}
+const loaders = {
+  async glb(url, mgr) {
+    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+    const { DRACOLoader } = await import('three/addons/loaders/DRACOLoader.js');
+    const { MeshoptDecoder } = await import('three/addons/libs/meshopt_decoder.module.js');
+    const l = new GLTFLoader(mgr);
+    const d = new DRACOLoader(); d.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/draco/gltf/');
+    l.setDRACOLoader(d); l.setMeshoptDecoder(MeshoptDecoder);
+    const g = await l.loadAsync(url);
+    return { obj:g.scene || g.scenes[0], clips:g.animations || [] };
+  },
+  async obj(url, mgr, files, map) {
+    const { OBJLoader } = await import('three/addons/loaders/OBJLoader.js');
+    const l = new OBJLoader(mgr);
+    const mtl = files.find(f => ext(f.name) === 'mtl');
+    if (mtl) {
+      const { MTLLoader } = await import('three/addons/loaders/MTLLoader.js');
+      const mats = await new MTLLoader(mgr).loadAsync(map.get(base(mtl.name)));
+      mats.preload(); l.setMaterials(mats);
+    }
+    return { obj:await l.loadAsync(url), clips:[] };
+  },
+  async fbx(url, mgr) {
+    const { FBXLoader } = await import('three/addons/loaders/FBXLoader.js');
+    const o = await new FBXLoader(mgr).loadAsync(url);
+    return { obj:o, clips:o.animations || [] };
+  },
+  async stl(url, mgr) {
+    const { STLLoader } = await import('three/addons/loaders/STLLoader.js');
+    const g = await new STLLoader(mgr).loadAsync(url);
+    g.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({ color: g.hasColors ? '#ffffff' : '#d9d4e8', vertexColors: !!g.hasColors, roughness:0.6 });
+    return { obj:new THREE.Mesh(g, mat), clips:[] };
+  },
+  async ply(url, mgr) {
+    const { PLYLoader } = await import('three/addons/loaders/PLYLoader.js');
+    const g = await new PLYLoader(mgr).loadAsync(url);
+    const vc = !!g.getAttribute('color');
+    if (!g.index) {   // point cloud
+      return { obj:new THREE.Points(g, new THREE.PointsMaterial({ size:0.004, vertexColors:vc, color: vc ? '#fff' : '#d9d4e8' })), clips:[] };
+    }
+    if (!g.getAttribute('normal')) g.computeVertexNormals();
+    return { obj:new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors:vc, color: vc ? '#fff' : '#d9d4e8', roughness:0.6 })), clips:[] };
+  },
+  async dae(url, mgr) {
+    const { ColladaLoader } = await import('three/addons/loaders/ColladaLoader.js');
+    const c = await new ColladaLoader(mgr).loadAsync(url);
+    return { obj:c.scene, clips:c.scene.animations || [] };
+  },
+  async '3mf'(url, mgr) {
+    const { ThreeMFLoader } = await import('three/addons/loaders/3MFLoader.js');
+    return { obj:await new ThreeMFLoader(mgr).loadAsync(url), clips:[] };
+  },
+  async '3ds'(url, mgr) {
+    const { TDSLoader } = await import('three/addons/loaders/TDSLoader.js');
+    return { obj:await new TDSLoader(mgr).loadAsync(url), clips:[] };
+  },
+  async usdz(url, mgr) {
+    const { USDZLoader } = await import('three/addons/loaders/USDZLoader.js');
+    return { obj:await new USDZLoader(mgr).loadAsync(url), clips:[] };
+  },
+  async wrl(url, mgr) {
+    const { VRMLLoader } = await import('three/addons/loaders/VRMLLoader.js');
+    return { obj:await new VRMLLoader(mgr).loadAsync(url), clips:[] };
+  },
+};
+loaders.gltf = loaders.glb;
+
+async function loadImageTemplate(rec) {
+  const f = rec.files[0];
+  const bmp = await createImageBitmap(f.blob);
+  const tex = new THREE.Texture(bmp); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.needsUpdate = true;
+  tex.flipY = false;  // ImageBitmap is not flipped by WebGL; flip UVs instead
+  const a = bmp.width / bmp.height;
+  const w = a >= 1 ? DEFAULT_IMAGE_SIZE : DEFAULT_IMAGE_SIZE * a, h = a >= 1 ? DEFAULT_IMAGE_SIZE / a : DEFAULT_IMAGE_SIZE;
+  const geo = new THREE.PlaneGeometry(w, h);
+  const uv = geo.getAttribute('uv'); for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i));
+  const g = new THREE.Group();
+  const pic = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map:tex, transparent: /png|webp|gif|avif/.test(ext(f.name)), alphaTest:0.02, side:THREE.FrontSide }));
+  pic.position.z = 0.002;
+  const edge = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.012, h + 0.012), new THREE.MeshBasicMaterial({ color:'#111', side:THREE.DoubleSide }));
+  g.add(edge, pic);
+  return { obj:g, clips:[], kind:'image', fit:1, box:new THREE.Box3(new THREE.Vector3(-w/2, -h/2, 0), new THREE.Vector3(w/2, h/2, 0.004)), w, h, bmp };
+}
+
+async function loadModelTemplate(rec) {
+  const files = rec.files;
+  const main = files.find(f => f.name === rec.main);
+  const { map, urls } = fileMapOf(files);
+  const mgr = managerFor(map);
+  try {
+    const fn = loaders[ext(rec.main)];
+    if (!fn) throw new Error('Unsupported format .' + ext(rec.main));
+    const { obj, clips } = await fn(map.get(base(main.name)), mgr, files, map);
+    if (!obj) throw new Error('The file had nothing to show');
+    obj.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = box.getSize(new THREE.Vector3());
+    const longest = Math.max(size.x, size.y, size.z);
+    if (!isFinite(longest) || longest <= 0) throw new Error('The model is empty');
+    obj.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
+    // keep the blob URLs alive: textures may still be decoding
+    setTimeout(() => urls.forEach(u => URL.revokeObjectURL(u)), 60000);
+    return { obj, clips, kind:'model', fit: DEFAULT_MODEL_SIZE / longest, box, size };
+  } catch (e) { urls.forEach(u => URL.revokeObjectURL(u)); throw e; }
+}
+function getTemplate(id) {
+  const a = assets.get(id);
+  if (!a) return Promise.reject(new Error('missing asset'));
+  if (!a.tpl) a.tpl = (a.rec.kind === 'image' ? loadImageTemplate(a.rec) : loadModelTemplate(a.rec)).catch(e => { a.tpl = null; throw e; });
+  return a.tpl;
+}
+
+function makeThumb(tpl) {
+  if (tpl.kind === 'image') {
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 192;
+    const g = cv.getContext('2d'); g.fillStyle = '#241c36'; g.fillRect(0, 0, 256, 192);
+    const s = Math.min(256 / tpl.bmp.width, 192 / tpl.bmp.height);
+    const w = tpl.bmp.width * s, h = tpl.bmp.height * s;
+    g.drawImage(tpl.bmp, (256 - w) / 2, (192 - h) / 2, w, h);
+    return cv.toDataURL('image/jpeg', 0.8);
+  }
+  if (!thumbR) {
+    thumbR = new THREE.WebGLRenderer({ antialias:true, alpha:true, preserveDrawingBuffer:true });
+    thumbR.setSize(256, 192, false);
+  }
+  const s = new THREE.Scene();
+  s.environment = scene.environment;
+  s.add(new THREE.HemisphereLight('#fff', '#556', 1.4));
+  const d = new THREE.DirectionalLight('#fff', 1.8); d.position.set(2, 3, 4); s.add(d);
+  const o = SkeletonUtils.clone(tpl.obj); s.add(o);
+  const c = tpl.box.getCenter(new THREE.Vector3()), r = tpl.box.getSize(new THREE.Vector3()).length() / 2;
+  const cam = new THREE.PerspectiveCamera(35, 4 / 3, r / 100, r * 100);
+  cam.position.copy(c).add(new THREE.Vector3(0.9, 0.6, 1.4).normalize().multiplyScalar(r * 2.9));
+  cam.lookAt(c);
+  thumbR.setClearColor('#241c36', 1);
+  thumbR.render(s, cam);
+  return thumbR.domElement.toDataURL('image/jpeg', 0.8);
+}
+
+// =====================================================================
+// items (placed things)
+// =====================================================================
+const items = new Map();        // id -> { rec, root, body, tpl, anchor, mixer }
+const groups = { [ROOM]: new THREE.Group(), [ISLAND]: new THREE.Group() };
+rig.add(groups[ROOM]);          // room items live in tracking space (rig stays at identity in room mode)
+scene.add(groups[ISLAND]);
+const mixers = new Set();
+
+const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m = new THREE.Matrix4();
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3();
+const UP = new THREE.Vector3(0, 1, 0);
+
+function mountFor(normal) { return normal.y > 0.6 ? 'floor' : 'wall'; }
+function quatFor(normal, mount, spin, out = new THREE.Quaternion()) {
+  const n = _a.copy(normal).normalize();
+  if (mount === 'floor') {
+    const z = _b.set(0, 0, 1).addScaledVector(n, -n.z);
+    if (z.lengthSq() < 1e-4) z.set(1, 0, 0).addScaledVector(n, -n.x);
+    z.normalize();
+    const x = _c.crossVectors(n, z).normalize();
+    _m.makeBasis(x, n, z);
+    out.setFromRotationMatrix(_m).multiply(_q2.setFromAxisAngle(UP, spin));
+  } else {
+    let y = _b.copy(UP).addScaledVector(n, -n.y);
+    if (y.lengthSq() < 1e-4) y.set(0, 0, -1).addScaledVector(n, n.z);
+    y.normalize();
+    const x = _c.crossVectors(y, n).normalize();
+    _m.makeBasis(x, y, n);
+    out.setFromRotationMatrix(_m).multiply(_q2.setFromAxisAngle(new THREE.Vector3(0, 0, 1), spin));
+  }
+  return out;
+}
+function layoutBody(it) {
+  const t = it.tpl, b = it.body, mount = it.rec.mount;
+  b.position.set(0, 0, 0); b.rotation.set(0, 0, 0);
+  if (t.kind === 'image') {
+    if (mount === 'floor') { b.rotation.x = -Math.PI / 2; b.position.y = 0.003; }
+    else b.position.z = 0.003;
+  } else {
+    const bx = t.box, cx = (bx.min.x + bx.max.x) / 2, cy = (bx.min.y + bx.max.y) / 2, cz = (bx.min.z + bx.max.z) / 2;
+    if (mount === 'floor') b.position.set(-cx, -bx.min.y, -cz);
+    else b.position.set(-cx, -cy, -bx.min.z);
+  }
+}
+function poseItem(it) {
+  const r = it.rec;
+  it.root.position.fromArray(r.pos);
+  if (r.quat) it.root.quaternion.fromArray(r.quat);
+  else it.root.quaternion.copy(quatFor(new THREE.Vector3().fromArray(r.normal), r.mount, r.spin));
+  it.root.scale.setScalar(r.scale * it.tpl.fit);
+  layoutBody(it);
+}
+function setSurface(it, point, normal) {
+  const r = it.rec;
+  r.pos = point.toArray(); r.normal = normal.toArray(); r.mount = mountFor(normal);
+  r.quat = quatFor(normal, r.mount, r.spin).toArray();
+  poseItem(it);
+}
+async function spawnItem(rec) {
+  const tpl = await getTemplate(rec.assetId);
+  const root = new THREE.Group(), body = new THREE.Group();
+  root.userData.itemId = rec.id;
+  const obj = tpl.kind === 'image' ? tpl.obj.clone() : SkeletonUtils.clone(tpl.obj);
+  body.add(obj); root.add(body);
+  const it = { rec, root, body, tpl, anchor:null, mixer:null };
+  if (tpl.clips && tpl.clips.length) {
+    it.mixer = new THREE.AnimationMixer(obj);
+    it.mixer.clipAction(tpl.clips[0]).play();
+    mixers.add(it.mixer);
+  }
+  poseItem(it);
+  groups[rec.space].add(root);
+  items.set(rec.id, it);
+  return it;
+}
+function removeItemObj(it) {
+  it.root.parent && it.root.parent.remove(it.root);
+  if (it.mixer) mixers.delete(it.mixer);
+  items.delete(it.rec.id);
+}
+async function saveItem(it) {
+  it.rec.updated = Date.now();
+  try { await Store.put('items', JSON.parse(JSON.stringify(it.rec))); } catch (e) { console.warn(e); hint('Couldn’t save on this device'); }
+  updateCounts();
+}
+async function deleteItem(it) {
+  removeItemObj(it);
+  dropAnchor(it);
+  try { await Store.del('items', it.rec.id); } catch {}
+  updateCounts();
+}
+function itemFromObject(o) {
+  while (o) { if (o.userData && o.userData.itemId) return items.get(o.userData.itemId); o = o.parent; }
+  return null;
+}
+
+// =====================================================================
+// surfaces: island meshes, or detected room planes / meshes / hit-test
+// =====================================================================
+const roomSurf = new THREE.Group(); rig.add(roomSurf);
+const planeObjs = new Map(), meshObjs = new Map();
+const hiddenMat = new THREE.MeshBasicMaterial({ visible:false, side:THREE.DoubleSide });
+const planeLineMat = new THREE.LineBasicMaterial({ color:'#ffd23f', transparent:true, opacity:0.55 });
+const ray = new THREE.Raycaster();
+const _n = new THREE.Vector3(), _nm = new THREE.Matrix3();
+
+function hitNormal(hit, dir) {
+  if (!hit.face) return _n.copy(dir).negate();
+  _nm.getNormalMatrix(hit.object.matrixWorld);
+  _n.copy(hit.face.normal).applyMatrix3(_nm).normalize();
+  if (_n.dot(dir) > 0) _n.negate();
+  return _n;
+}
+// returns { point, normal, onItem } in the coordinates of the space's group
+function surfaceHit(space, exclude, hitTestPose) {
+  const list = [];
+  if (space === ISLAND) list.push(...islandSurfaces); else list.push(...roomSurf.children);
+  for (const it of items.values()) if (it.rec.space === space && it !== exclude) list.push(it.root);
+  const hits = ray.intersectObjects(list, true);
+  for (const h of hits) {
+    if (h.object.isLine || h.object.isPoints) continue;
+    if (exclude && itemFromObject(h.object) === exclude) continue;
+    const n = hitNormal(h, ray.ray.direction).clone();
+    const p = h.point.clone();
+    return toSpace(space, p, n, h.distance);
+  }
+  if (space === ROOM && hitTestPose) {
+    const p = new THREE.Vector3().copy(hitTestPose.position);
+    const n = new THREE.Vector3(0, 1, 0).applyQuaternion(hitTestPose.orientation);
+    rig.localToWorld(p); n.transformDirection(rig.matrixWorld);
+    if (n.dot(ray.ray.direction) > 0) n.negate();
+    return toSpace(space, p, n, p.distanceTo(ray.ray.origin));
+  }
+  return null;
+}
+function toSpace(space, pWorld, nWorld, dist) {
+  if (space === ROOM) {   // room group is inside the rig
+    const p = groups[ROOM].worldToLocal(pWorld.clone());
+    const n = nWorld.clone().transformDirection(_m.copy(groups[ROOM].matrixWorld).invert());
+    return { point:p, normal:n, dist, world:pWorld };
+  }
+  return { point:pWorld, normal:nWorld, dist, world:pWorld };
+}
+function floatingTarget(space, distance = 1.2) {
+  const p = ray.ray.origin.clone().addScaledVector(ray.ray.direction, distance);
+  const n = ray.ray.direction.clone().negate(); n.y = 0;
+  if (n.lengthSq() < 1e-4) n.set(0, 0, 1);
+  n.normalize();
+  return { ...toSpace(space, p, n, distance), floating:true };
+}
+
+function planeGeometry(poly) {
+  const pts = poly.map(p => new THREE.Vector2(p.x, p.z));
+  const tris = THREE.ShapeUtils.triangulateShape(pts, []);
+  const pos = new Float32Array(pts.length * 3);
+  pts.forEach((p, i) => { pos[i * 3] = p.x; pos[i * 3 + 1] = 0; pos[i * 3 + 2] = p.y; });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setIndex(tris.flat());
+  g.computeVertexNormals();
+  return g;
+}
+function updateRoomSurfaces(frame, ref) {
+  const planes = frame.detectedPlanes;
+  if (planes) {
+    for (const [p, o] of planeObjs) if (!planes.has(p)) { roomSurf.remove(o.mesh); planeObjs.delete(p); }
+    planes.forEach(p => {
+      let o = planeObjs.get(p);
+      if (!o || o.t !== p.lastChangedTime) {
+        if (o) roomSurf.remove(o.mesh);
+        if (!p.polygon || p.polygon.length < 3) return;
+        const mesh = new THREE.Mesh(planeGeometry(p.polygon), hiddenMat);
+        const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(p.polygon.map(q => new THREE.Vector3(q.x, 0.004, q.z))), planeLineMat);
+        line.visible = false; mesh.add(line);
+        mesh.matrixAutoUpdate = false; roomSurf.add(mesh);
+        o = { mesh, line, t:p.lastChangedTime }; planeObjs.set(p, o);
+      }
+      const pose = frame.getPose(p.planeSpace, ref);
+      if (pose) o.mesh.matrix.fromArray(pose.transform.matrix);
+    });
+  }
+  const meshes = frame.detectedMeshes;
+  if (meshes) {
+    for (const [m, o] of meshObjs) if (!meshes.has(m)) { roomSurf.remove(o.mesh); meshObjs.delete(m); }
+    meshes.forEach(m => {
+      let o = meshObjs.get(m);
+      if (!o || o.t !== m.lastChangedTime) {
+        if (o) roomSurf.remove(o.mesh);
+        if (!m.vertices || !m.indices || !m.vertices.length) return;
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(m.vertices), 3));
+        g.setIndex(new THREE.BufferAttribute(new Uint32Array(m.indices), 1));
+        const mesh = new THREE.Mesh(g, hiddenMat); mesh.matrixAutoUpdate = false; roomSurf.add(mesh);
+        o = { mesh, t:m.lastChangedTime }; meshObjs.set(m, o);
+      }
+      const pose = frame.getPose(m.meshSpace, ref);
+      if (pose) o.mesh.matrix.fromArray(pose.transform.matrix);
+    });
+  }
+  roomSurf.updateMatrixWorld(true);
+}
+function showPlaneOutlines(on) { for (const o of planeObjs.values()) o.line.visible = on; }
+
+// =====================================================================
+// anchors (room only): saved with the headset's persistent anchors
+// =====================================================================
+const anchorJobs = [];
+let anchorsWork = null;   // null = unknown, true/false after first try
+function wantAnchor(it) {
+  if (!xr || it.rec.space !== ROOM || !xr.session) return;
+  anchorJobs.push(it);
+}
+function dropAnchor(it) {
+  if (it.anchor) { try { it.anchor.delete(); } catch {} it.anchor = null; }
+  if (it.rec.anchor) {
+    const uuid = it.rec.anchor; it.rec.anchor = null;
+    if (xr && xr.session && xr.session.deletePersistentAnchor) xr.session.deletePersistentAnchor(uuid).catch(() => {});
+    else queueOrphan(uuid);
+  }
+}
+async function queueOrphan(uuid) {
+  try { const l = (await Store.meta('orphanAnchors')) || []; l.push(uuid); await Store.meta('orphanAnchors', l); } catch {}
+}
+function runAnchorJobs(frame, ref) {
+  if (!anchorJobs.length || !frame.createAnchor) return;
+  while (anchorJobs.length) {
+    const it = anchorJobs.shift();
+    if (!items.has(it.rec.id)) continue;
+    const p = it.root.position, q = it.root.quaternion;
+    let pr;
+    try { pr = frame.createAnchor(new XRRigidTransform({ x:p.x, y:p.y, z:p.z }, { x:q.x, y:q.y, z:q.z, w:q.w }), ref); }
+    catch (e) { console.warn('createAnchor', e); continue; }
+    pr.then(async anchor => {
+      if (!items.has(it.rec.id) || carry?.it === it) { try { anchor.delete(); } catch {} return; }
+      it.anchor = anchor;
+      if (anchor.requestPersistentHandle) {
+        try {
+          it.rec.anchor = await anchor.requestPersistentHandle();
+          anchorsWork = true; saveItem(it);
+        } catch (e) {
+          console.warn('persist', e);
+          if (anchorsWork !== false) hint('The headset wouldn’t save an anchor; using the saved position instead');
+          anchorsWork = false;
+        }
+      }
+    }).catch(e => console.warn('anchor', e));
+  }
+}
+async function restoreAnchors(session) {
+  try {
+    const orphans = (await Store.meta('orphanAnchors')) || [];
+    if (orphans.length && session.deletePersistentAnchor) {
+      for (const u of orphans) await session.deletePersistentAnchor(u).catch(() => {});
+      await Store.meta('orphanAnchors', []);
+    }
+  } catch {}
+  const known = session.persistentAnchors ? new Set(session.persistentAnchors) : null;
+  for (const it of items.values()) {
+    if (it.rec.space !== ROOM) continue;
+    const u = it.rec.anchor;
+    if (u && session.restorePersistentAnchor && (!known || known.has(u))) {
+      session.restorePersistentAnchor(u).then(a => { if (items.has(it.rec.id)) it.anchor = a; })
+        .catch(() => { it.rec.anchor = null; wantAnchor(it); });
+    } else wantAnchor(it);
+  }
+}
+function followAnchors(frame, ref) {
+  for (const it of items.values()) {
+    if (!it.anchor || carry?.it === it) continue;
+    const pose = frame.getPose(it.anchor.anchorSpace, ref);
+    if (!pose) continue;
+    const t = pose.transform;
+    it.root.position.set(t.position.x, t.position.y, t.position.z);
+    it.root.quaternion.set(t.orientation.x, t.orientation.y, t.orientation.z, t.orientation.w);
+  }
+}
+function syncAnchoredPoses() {   // keep the stored fallback pose fresh
+  for (const it of items.values()) if (it.anchor) {
+    it.rec.pos = it.root.position.toArray(); it.rec.quat = it.root.quaternion.toArray(); saveItem(it);
+  }
+}
+
+// =====================================================================
+// carrying (placing new things, moving placed things)
+// =====================================================================
+let carry = null;   // { it, isNew, prev, hand }
+function startCarry(it, isNew, hand) {
+  if (carry) endCarry(false);
+  carry = { it, isNew, hand, prev: JSON.parse(JSON.stringify(it.rec)), spinSet: !isNew };
+  if (!isNew) { dropAnchor(it); }
+  showPlaneOutlines(true);
+  setSel(null);
+  drawPanel();
+}
+function carryTo(target, eyeWorld) {
+  if (!carry || !target) return;
+  const it = carry.it, r = it.rec;
+  const mount = mountFor(target.normal);
+  if (!carry.spinSet && mount === 'floor') {
+    const eye = it.root.parent.worldToLocal(eyeWorld.clone());
+    r.spin = Math.atan2(eye.x - target.point.x, eye.z - target.point.z);
+    carry.spinSet = true;
+  }
+  setSurface(it, target.point, target.normal);
+}
+function endCarry(commit) {
+  if (!carry) return;
+  const { it, isNew, prev } = carry;
+  carry = null;
+  showPlaneOutlines(false);
+  if (commit) {
+    saveItem(it);
+    if (it.rec.space === ROOM) wantAnchor(it);
+    sfx(620); setSel(xr ? null : it);
+  } else if (isNew) {
+    removeItemObj(it);
+  } else {
+    it.rec = prev; poseItem(it); if (it.rec.space === ROOM) wantAnchor(it);
+  }
+  drawPanel();
+}
+async function newItemFromAsset(assetId, space, hand) {
+  busy(true);
+  try {
+    const rec = { id:uid(), assetId, space, pos:[0, 0, 0], normal:[0, 0, 1], quat:null, spin:0, scale:1, mount:'wall', anchor:null, created:Date.now() };
+    const it = await spawnItem(rec);
+    startCarry(it, true, hand);
+    return it;
+  } catch (e) { console.warn(e); hint('Couldn’t load that one: ' + (e.message || e)); }
+  finally { busy(false); }
+}
+
+// =====================================================================
+// 2D page: library, island editing with mouse / touch
+// =====================================================================
+const orbit = new OrbitControls(camera, canvas);
+orbit.target.set(0, 1, -2); orbit.enableDamping = true; orbit.maxDistance = 30; orbit.minDistance = 0.4;
+orbit.maxPolarAngle = Math.PI * 0.62; orbit.update();
+let selected = null, selBox = null, pickAsset = null;
+
+function setSel(it) {
+  selected = it;
+  if (selBox) { scene.remove(selBox); selBox = null; }
+  if (it && !xr) {
+    selBox = new THREE.BoxHelper(it.root, '#ffd23f'); scene.add(selBox);
+    $('selName').textContent = assets.get(it.rec.assetId)?.rec.name || 'Item';
+    $('sel').classList.add('show');
+  } else $('sel').classList.remove('show');
+}
+$('sel').addEventListener('click', e => {
+  const act = e.target.closest('button')?.dataset.act; if (!act || !selected) return;
+  const it = selected, r = it.rec;
+  if (act === 'spinL' || act === 'spinR') { r.spin += (act === 'spinL' ? 1 : -1) * Math.PI / 12; r.quat = quatFor(new THREE.Vector3().fromArray(r.normal), r.mount, r.spin).toArray(); poseItem(it); saveItem(it); }
+  else if (act === 'smaller' || act === 'bigger') { r.scale = THREE.MathUtils.clamp(r.scale * (act === 'bigger' ? 1.2 : 1 / 1.2), 0.02, 200); poseItem(it); saveItem(it); }
+  else if (act === 'real') { r.scale = it.tpl.kind === 'image' ? 1 : 1 / it.tpl.fit; poseItem(it); saveItem(it); hint('Showing it at the size saved in the file (1 unit = 1 m)'); }
+  else if (act === 'move') { startCarry(it, false, null); hint('Tap a surface to put it down'); return; }
+  else if (act === 'delete') { const x = it; setSel(null); deleteItem(x); return; }
+  else if (act === 'done') { setSel(null); return; }
+  if (selBox) selBox.update();
+});
+
+const ndc = new THREE.Vector2();
+function rayFromPointer(e) {
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+}
+let down = null;
+canvas.addEventListener('pointerdown', e => { unlockAudio(); down = { x:e.clientX, y:e.clientY, t:performance.now() }; });
+canvas.addEventListener('pointermove', e => {
+  if (xr || !carry) return;
+  rayFromPointer(e);
+  const t = surfaceHit(ISLAND, carry.it);
+  if (t) { carry.it.root.visible = true; carryTo(t, camera.getWorldPosition(new THREE.Vector3())); }
+});
+canvas.addEventListener('pointerup', async e => {
+  if (!down || xr) return;
+  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = performance.now() - down.t; down = null;
+  if (moved > 9 || dt > 600) return;
+  rayFromPointer(e);
+  if (pickAsset && !carry) {
+    const id = pickAsset;
+    const t = surfaceHit(ISLAND, null);
+    if (!t) { hint('Tap the island to place it'); return; }
+    const it = await newItemFromAsset(id, ISLAND, null);
+    if (it) { carryTo(t, camera.getWorldPosition(new THREE.Vector3())); endCarry(true); }
+    return;
+  }
+  if (carry) {
+    const t = surfaceHit(ISLAND, carry.it);
+    if (t) { carryTo(t, camera.getWorldPosition(new THREE.Vector3())); endCarry(true); }
+    return;
+  }
+  const hit = ray.intersectObjects(groups[ISLAND].children, true)[0];
+  setSel(hit ? itemFromObject(hit.object) : null);
+});
+addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (carry) endCarry(false); pickAsset = null; renderTiles(); setSel(null); }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selected && !xr) { const x = selected; setSel(null); deleteItem(x); }
+});
+
+// library UI
+$('importBtn').onclick = () => $('file').click();
+$('file').onchange = e => { importFiles([...e.target.files]); e.target.value = ''; };
+$('libMin').onclick = () => { $('lib').classList.toggle('min'); $('libMin').textContent = $('lib').classList.contains('min') ? '▴' : '▾'; };
+const drop = $('drop');
+for (const ev of ['dragenter','dragover']) document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); });
+for (const ev of ['dragleave','drop']) document.addEventListener(ev, e => { e.preventDefault(); if (ev === 'dragleave' && e.relatedTarget) return; drop.classList.remove('over'); });
+document.addEventListener('drop', e => { if (e.dataTransfer?.files?.length) importFiles([...e.dataTransfer.files]); });
+
+function renderTiles() {
+  const el = $('tiles'); el.innerHTML = '';
+  const list = [...assets.values()].sort((a, b) => b.rec.added - a.rec.added);
+  for (const a of list) {
+    const t = document.createElement('div'); t.className = 'tile' + (pickAsset === a.rec.id ? ' on' : '');
+    t.innerHTML = `<img alt=""><div class="nm"></div><span class="kind">${a.rec.kind === 'image' ? 'PIC' : ext(a.rec.main).toUpperCase()}</span><button class="x" title="Delete">✕</button>`;
+    t.querySelector('img').src = a.rec.thumb || '';
+    t.querySelector('.nm').textContent = a.rec.name;
+    t.onclick = ev => {
+      if (ev.target.classList.contains('x')) return askDeleteAsset(a);
+      pickAsset = pickAsset === a.rec.id ? null : a.rec.id;
+      if (pickAsset) hint('Tap the island to place it · press ISLAND or MY ROOM to place it in the headset');
+      renderTiles();
+    };
+    el.appendChild(t);
+  }
+  if (!list.length) el.innerHTML = '<div class="counts">Nothing here yet. Import something to start decorating.</div>';
+  drawPanel();
+}
+function updateCounts() {
+  let r = 0, i = 0; for (const it of items.values()) it.rec.space === ROOM ? r++ : i++;
+  $('counts').textContent = `In your room: ${r} · On the island: ${i} · ${assets.size} in the library`;
+}
+let cfYes = null;
+function confirmBox(title, text, yes) { $('cfTitle').textContent = title; $('cfText').textContent = text; cfYes = yes; $('confirm').classList.add('show'); }
+$('cfNo').onclick = () => $('confirm').classList.remove('show');
+$('cfYes').onclick = () => { $('confirm').classList.remove('show'); cfYes && cfYes(); };
+function askDeleteAsset(a) {
+  const n = [...items.values()].filter(it => it.rec.assetId === a.rec.id).length;
+  confirmBox('DELETE FROM LIBRARY?', n ? `“${a.rec.name}” is placed ${n} time${n > 1 ? 's' : ''}. Those copies go too.` : `Remove “${a.rec.name}” from this headset?`, async () => {
+    for (const it of [...items.values()]) if (it.rec.assetId === a.rec.id) await deleteItem(it);
+    assets.delete(a.rec.id); await Store.del('assets', a.rec.id).catch(() => {});
+    if (pickAsset === a.rec.id) pickAsset = null;
+    renderTiles(); updateCounts();
+  });
+}
+
+// importing
+async function expandZips(files) {
+  const out = [];
+  for (const f of files) {
+    if (ext(f.name) !== 'zip') { out.push({ name:f.name, blob:f }); continue; }
+    const { unzipSync } = await import('three/addons/libs/fflate.module.js');
+    const z = unzipSync(new Uint8Array(await f.arrayBuffer()));
+    for (const [name, data] of Object.entries(z)) {
+      if (name.endsWith('/') || /(^|\/)__MACOSX\//.test(name) || base(name).startsWith('.')) continue;
+      out.push({ name, blob:new Blob([data]) });
+    }
+  }
+  return out;
+}
+async function importFiles(list) {
+  if (!list.length) return;
+  busy(true);
+  try {
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    const files = await expandZips(list);
+    const models = files.filter(f => MODEL_EXT.includes(ext(f.name)));
+    const recs = [];
+    if (models.length) {
+      const helpers = files.filter(f => !MODEL_EXT.includes(ext(f.name)));
+      for (const m of models) {
+        // .bin, .mtl and textures that came along are shared by every model in this import
+        recs.push({ id:uid(), kind:'model', name:base(m.name).replace(/\.[^.]+$/, ''), main:m.name, files:[m, ...helpers], added:Date.now() });
+      }
+    } else {
+      for (const f of files) {
+        if (IMAGE_EXT.includes(ext(f.name)) || (f.blob.type || '').startsWith('image/')) recs.push({ id:uid(), kind:'image', name:base(f.name).replace(/\.[^.]+$/, ''), main:f.name, files:[f], added:Date.now() });
+      }
+    }
+    if (!recs.length) { hint('Nothing I can open there. Try GLB, OBJ, FBX, STL or a picture.'); return; }
+    let ok = 0;
+    for (const rec of recs) {
+      assets.set(rec.id, { rec, tpl:null });
+      try {
+        const tpl = await getTemplate(rec.id);
+        try { rec.thumb = makeThumb(tpl); } catch (e) { console.warn('thumb', e); }
+        await Store.put('assets', rec);
+        ok++;
+      } catch (e) {
+        console.warn(e); assets.delete(rec.id);
+        hint(`Couldn’t open ${rec.name}: ${e.message || e}`);
+      }
+    }
+    if (ok) { hint(`Added ${ok} to the library`); pickAsset = recs.find(r => assets.has(r.id))?.id || null; }
+    renderTiles(); updateCounts();
+  } catch (e) { console.warn(e); hint('Import failed: ' + (e.message || e)); }
+  finally { busy(false); }
+}
+
+let hintT = 0;
+function hint(msg, ms = 3200) { const h = $('hint'); h.textContent = msg; h.classList.add('show'); clearTimeout(hintT); hintT = setTimeout(() => h.classList.remove('show'), ms); panelMsg = msg; panelMsgT = performance.now() + ms; drawPanel(); }
+function busy(on) { $('busy').classList.toggle('show', on); }
+
+// =====================================================================
+// XR session: room (passthrough) and island (digital space)
+// =====================================================================
+let xr = null;           // { session, ar, mode, hitSources:Map }
+let arOK = false, vrOK = false;
+const islandRig = { pos:new THREE.Vector3(0, 0, 3.2), yaw:0 };
+
+async function checkXR() {
+  if (!navigator.xr) { setStatus('bad', 'No headset here — you can still set up the island'); return; }
+  try { arOK = await navigator.xr.isSessionSupported('immersive-ar'); } catch { arOK = false; }
+  try { vrOK = await navigator.xr.isSessionSupported('immersive-vr'); } catch { vrOK = false; }
+  $('roomBtn').disabled = !arOK; $('islandBtn').disabled = !(arOK || vrOK);
+  if (arOK) setStatus('ok', 'Mixed reality ready');
+  else if (vrOK) setStatus('warn', 'VR only here — passthrough needs Quest Browser');
+  else setStatus('bad', 'No headset here — you can still set up the island');
+}
+function setStatus(c, t) { $('dot').className = 'dot ' + c; $('statusText').textContent = t; }
+
+async function enterXR(mode) {
+  unlockAudio();
+  if (xr) return;
+  const ar = arOK;
+  if (mode === ROOM && !ar) { hint('Passthrough isn’t available in this browser'); return; }
+  try {
+    const session = await navigator.xr.requestSession(ar ? 'immersive-ar' : 'immersive-vr', {
+      requiredFeatures:['local-floor'],
+      optionalFeatures:['bounded-floor','anchors','hit-test','plane-detection','mesh-detection','hand-tracking'],
+    });
+    xr = { session, ar, mode, hitSources:new Map() };
+    if (carry) endCarry(false);
+    setSel(null);
+    await renderer.xr.setSession(session);
+    session.addEventListener('end', onXREnd);
+    session.addEventListener('inputsourceschange', ev => { for (const s of ev.added) wantHitSource(s); for (const s of ev.removed) dropHitSource(s); });
+    for (const s of session.inputSources) wantHitSource(s);
+    orbit.enabled = false;
+    $('lib').style.display = 'none';
+    setMode(mode);
+    restoreAnchors(session);
+    xrFrames = 0;   // the panel opens once the head pose is known
+    helpUntil = performance.now() + 15000;
+  } catch (e) {
+    console.warn(e); xr = null;
+    hint('Couldn’t start: ' + (e.message || e));
+  }
+}
+function onXREnd() {
+  syncAnchoredPoses();
+  if (carry) endCarry(false);
+  for (const it of items.values()) { it.anchor = null; }
+  for (const o of planeObjs.values()) roomSurf.remove(o.mesh);
+  for (const o of meshObjs.values()) roomSurf.remove(o.mesh);
+  planeObjs.clear(); meshObjs.clear(); anchorJobs.length = 0;
+  xr = null; panel.visible = false; helpCard.visible = false; hoverBox.visible = false;
+  for (const h of hands) h.reticle.visible = false;
+  rig.position.set(0, 0, 0); rig.rotation.set(0, 0, 0);
+  camera.position.set(0, 2.4, 6.5); camera.quaternion.identity(); orbit.target.set(0, 1, -2); orbit.update();
+  orbit.enabled = true; $('lib').style.display = '';
+  setMode('2d');
+}
+function wantHitSource(src) {
+  if (!xr || !xr.session.requestHitTestSource || !src.targetRaySpace) return;
+  xr.session.requestHitTestSource({ space:src.targetRaySpace }).then(hs => { if (xr) xr.hitSources.set(src, hs); else hs.cancel(); }).catch(() => {});
+}
+function dropHitSource(src) { const hs = xr?.hitSources.get(src); if (hs) { try { hs.cancel(); } catch {} xr.hitSources.delete(src); } }
+
+let mode = '2d';
+function setMode(m) {
+  if (carry) endCarry(false);
+  if (mode === ISLAND && xr) { islandRig.pos.copy(rig.position); islandRig.yaw = rig.rotation.y; }
+  mode = m;
+  const inRoom = m === ROOM;
+  island.visible = clouds.visible = sky.visible = !inRoom;
+  groups[ROOM].visible = inRoom;
+  groups[ISLAND].visible = !inRoom;
+  renderer.setClearAlpha(inRoom ? 0 : 1);
+  renderer.setClearColor(inRoom ? 0x000000 : 0x2b2340, inRoom ? 0 : 1);
+  if (xr) {
+    xr.mode = m;
+    if (inRoom) { rig.position.set(0, 0, 0); rig.rotation.set(0, 0, 0); }
+    else { rig.position.copy(islandRig.pos); rig.rotation.set(0, islandRig.yaw, 0); }
+  }
+  drawPanel();
+}
+
+// controllers: red mittens, rays, reticles
+function mitten(left) {
+  const g = new THREE.Group(), red = toon('#e8262b');
+  const palm = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 12), red); palm.scale.set(1, 0.6, 1.25);
+  const thumb = new THREE.Mesh(new THREE.SphereGeometry(0.02, 12, 8), red); thumb.position.set(left ? 0.042 : -0.042, 0.005, -0.01);
+  const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.034, 0.03, 16), toon('#ffffff')); cuff.rotation.x = Math.PI / 2; cuff.position.z = 0.055;
+  [palm, thumb, cuff].forEach(m => { const ink = new THREE.Mesh(m.geometry, INK); ink.scale.setScalar(1.12); m.add(ink); g.add(m); });
+  return g;
+}
+const hands = [];
+for (let i = 0; i < 2; i++) {
+  const ctrl = renderer.xr.getController(i);
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]), new THREE.LineBasicMaterial({ color:'#ffffff', transparent:true, opacity:0.8 }));
+  ctrl.add(line); rig.add(ctrl);
+  const grip = renderer.xr.getControllerGrip(i); let mit = mitten(false); grip.add(mit); rig.add(grip);
+  const reticle = new THREE.Mesh(new THREE.RingGeometry(0.018, 0.028, 24), new THREE.MeshBasicMaterial({ color:'#ffd23f', side:THREE.DoubleSide, depthTest:false }));
+  reticle.renderOrder = 10; reticle.visible = false; scene.add(reticle);
+  const h = { ctrl, grip, line, reticle, src:null, prev:[], hover:null, hoverPanel:null, target:null, hold:0 };
+  ctrl.addEventListener('connected', e => {
+    h.src = e.data;
+    if (e.data.handedness === 'left') { grip.remove(mit); mit = mitten(true); grip.add(mit); }
+  });
+  ctrl.addEventListener('disconnected', () => { h.src = null; h.reticle.visible = false; });
+  ctrl.addEventListener('selectstart', () => onSelect(h));
+  ctrl.addEventListener('squeezestart', () => { if (carry && carry.hand === h) endCarry(false); });
+  hands.push(h);
+}
+const hoverBox = new THREE.BoxHelper(undefined, '#ffd23f'); hoverBox.visible = false; scene.add(hoverBox);
+
+// =====================================================================
+// VR panel: library tiles + mode switch, floats in front of you
+// =====================================================================
+const PW = 1024, PH = 720, COLS = 4, ROWS = 3, PER = COLS * ROWS;
+const panelCv = document.createElement('canvas'); panelCv.width = PW; panelCv.height = PH;
+const panelTex = new THREE.CanvasTexture(panelCv); panelTex.colorSpace = THREE.SRGBColorSpace;
+const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.64, 0.64 * PH / PW), new THREE.MeshBasicMaterial({ map:panelTex, depthTest:false }));
+panel.renderOrder = 20; panel.visible = false; scene.add(panel);
+let page = 0, panelHover = null, panelMsg = '', panelMsgT = 0, helpUntil = 0;
+const thumbImgs = new Map();
+function thumbImg(a) {
+  let im = thumbImgs.get(a.rec.id);
+  if (!im && a.rec.thumb) { im = new Image(); im.onload = drawPanel; im.src = a.rec.thumb; thumbImgs.set(a.rec.id, im); }
+  return im;
+}
+function panelButtons() {
+  const b = [];
+  if (xr?.ar) {
+    b.push({ kind:'mode', v:ROOM, x:430, y:18, w:180, h:60, label:'MY ROOM' });
+    b.push({ kind:'mode', v:ISLAND, x:620, y:18, w:180, h:60, label:'ISLAND' });
+  }
+  if (xr?.session?.initiateRoomCapture && mode === ROOM) b.push({ kind:'scan', x:810, y:18, w:120, h:60, label:'RESCAN' });
+  b.push({ kind:'close', x:944, y:18, w:62, h:60, label:'✕' });
+  const list = libList();
+  const pages = Math.max(1, Math.ceil(list.length / PER)); page = Math.min(page, pages - 1);
+  list.slice(page * PER, page * PER + PER).forEach((a, i) => {
+    const c = i % COLS, r = Math.floor(i / COLS);
+    b.push({ kind:'tile', v:a.rec.id, a, x:24 + c * 248, y:100 + r * 180, w:232, h:166 });
+  });
+  if (pages > 1) {
+    b.push({ kind:'prev', x:24, y:650, w:90, h:56, label:'◀' });
+    b.push({ kind:'next', x:910, y:650, w:90, h:56, label:'▶' });
+  }
+  b.pages = pages;
+  return b;
+}
+const libList = () => [...assets.values()].sort((a, b) => b.rec.added - a.rec.added);
+let BTN = [];
+function rr(g, x, y, w, h, r) { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); }
+function drawPanel() {
+  if (!panel) return;
+  BTN = panelButtons();
+  const g = panelCv.getContext('2d');
+  g.fillStyle = '#2b2340'; g.fillRect(0, 0, PW, PH);
+  g.lineWidth = 10; g.strokeStyle = '#111'; g.strokeRect(5, 5, PW - 10, PH - 10);
+  g.textBaseline = 'middle'; g.textAlign = 'left'; g.font = '56px Bangers, Impact, sans-serif';
+  g.lineWidth = 10; g.strokeText('DECORNAUT', 24, 50); g.fillStyle = '#fff'; g.fillText('DECORNAUT', 24, 50);
+  for (const b of BTN) {
+    const hov = panelHover && panelHover.kind === b.kind && panelHover.v === b.v && panelHover.x === b.x;
+    const on = b.kind === 'mode' && b.v === mode;
+    g.fillStyle = '#111'; rr(g, b.x + 5, b.y + 5, b.w, b.h, 14); g.fill();
+    g.fillStyle = b.kind === 'tile' ? (hov ? '#5b4d86' : '#3d3258') : on ? '#ffd23f' : b.kind === 'close' ? '#ff5a1f' : hov ? '#6b5c96' : '#4a3d6b';
+    rr(g, b.x, b.y - (hov ? 4 : 0), b.w, b.h, 14); g.fill();
+    g.lineWidth = 5; g.strokeStyle = '#111'; g.stroke();
+    if (b.kind === 'tile') {
+      const im = thumbImg(b.a);
+      if (im && im.complete && im.naturalWidth) g.drawImage(im, b.x + 8, b.y + 8 - (hov ? 4 : 0), b.w - 16, 120);
+      g.fillStyle = '#fff'; g.font = '900 22px Nunito, sans-serif'; g.textAlign = 'left';
+      g.fillText(b.a.rec.name.slice(0, 18), b.x + 12, b.y + 146 - (hov ? 4 : 0));
+    } else {
+      g.textAlign = 'center'; g.font = '34px Bangers, Impact, sans-serif'; g.fillStyle = on ? '#111' : '#fff';
+      g.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + 2 - (hov ? 4 : 0));
+    }
+  }
+  g.textAlign = 'center'; g.font = '900 22px Nunito, sans-serif'; g.fillStyle = '#d9d0f5';
+  if (!assets.size) g.fillText('Your library is empty. Take off the headset view, press ＋ Import on the page, then come back.', PW / 2, 360);
+  const msg = performance.now() < panelMsgT ? panelMsg : carry ? 'Trigger: put it down · stick: size and turn · grip: cancel' : 'Pick something, then point at a wall, shelf or floor';
+  g.fillText(msg.slice(0, 70), PW / 2, 678);
+  if (BTN.pages > 1) { g.fillStyle = '#ffd23f'; g.fillText(`page ${page + 1} / ${BTN.pages}`, PW / 2, 650); }
+  panelTex.needsUpdate = true;
+}
+document.fonts && document.fonts.ready.then(drawPanel);
+function headPose() {
+  const cam = renderer.xr.getCamera();
+  const p = cam.getWorldPosition(new THREE.Vector3());
+  const d = cam.getWorldDirection(new THREE.Vector3()); d.y = 0; if (d.lengthSq() < 1e-4) d.set(0, 0, -1); d.normalize();
+  return { p, d };
+}
+function panelOpenFront() {
+  const { p, d } = headPose();
+  panel.position.copy(p).addScaledVector(d, 0.75); panel.position.y -= 0.12;
+  panel.lookAt(p.x, panel.position.y, p.z);
+  panel.visible = true; drawPanel();
+}
+function panelButtonAt(uv) {
+  const x = uv.x * PW, y = (1 - uv.y) * PH;
+  return BTN.find(b => x >= b.x && x <= b.x + b.w && y >= b.y - 4 && y <= b.y + b.h) || null;
+}
+async function pressPanel(b, h) {
+  sfx(880, 0.05);
+  if (b.kind === 'close') { panel.visible = false; }
+  else if (b.kind === 'mode') { setMode(b.v); }
+  else if (b.kind === 'scan') { try { await xr.session.initiateRoomCapture(); } catch { hint('Room scan isn’t available right now'); } }
+  else if (b.kind === 'prev') { page = Math.max(0, page - 1); drawPanel(); }
+  else if (b.kind === 'next') { page = page + 1; drawPanel(); }
+  else if (b.kind === 'tile') {
+    await newItemFromAsset(b.v, mode === ROOM ? ROOM : ISLAND, h);
+    if (carry) carry.it.root.visible = false;   // shown once it finds a spot
+  }
+}
+
+// =====================================================================
+// XR input
+// =====================================================================
+const tmpM = new THREE.Matrix4();
+function aim(h) {
+  h.ctrl.updateMatrixWorld();
+  tmpM.identity().extractRotation(h.ctrl.matrixWorld);
+  ray.ray.origin.setFromMatrixPosition(h.ctrl.matrixWorld);
+  ray.ray.direction.set(0, 0, -1).applyMatrix4(tmpM).normalize();
+  ray.far = 30;
+}
+function onSelect(h) {
+  unlockAudio();
+  if (h.hoverPanel) { pressPanel(h.hoverPanel, h); buzz(h, 0.3, 25); return; }
+  if (carry) {
+    if (carry.hand === h || !carry.hand) {
+      if (carry.it.root.visible) { endCarry(true); buzz(h, 0.6, 45); }
+    }
+    return;
+  }
+  if (h.hover) { startCarry(h.hover, false, h); buzz(h, 0.4, 30); sfx(440); }
+}
+function buzz(h, i, ms) { try { h.src?.gamepad?.hapticActuators?.[0]?.pulse(i, ms); } catch {} }
+const dz = v => Math.abs(v) < 0.15 ? 0 : (v - Math.sign(v) * 0.15) / 0.85;
+let snapReady = true;
+
+function updateXR(dt, frame) {
+  const ref = renderer.xr.getReferenceSpace();
+  if (frame && ref) {
+    if (mode === ROOM) updateRoomSurfaces(frame, ref);
+    runAnchorJobs(frame, ref);
+    followAnchors(frame, ref);
+  }
+  rig.updateMatrixWorld(true);
+  const eye = renderer.xr.getCamera().getWorldPosition(new THREE.Vector3());
+  let anyPanel = null, hoverIt = null;
+  for (const h of hands) {
+    if (!h.src) { h.line.visible = false; h.reticle.visible = false; continue; }
+    h.line.visible = true;
+    aim(h);
+    h.hoverPanel = null; h.hover = null;
+    let len = 3;
+    const ph = panel.visible ? ray.intersectObject(panel, false)[0] : null;
+    if (ph) {
+      h.hoverPanel = panelButtonAt(ph.uv); anyPanel = h.hoverPanel || anyPanel; len = ph.distance; h.reticle.visible = false;
+    } else {
+      let htPose = null;
+      const hs = xr.hitSources.get(h.src);
+      if (hs && frame && ref && mode === ROOM) {
+        const res = frame.getHitTestResults(hs);
+        if (res.length) { const p = res[0].getPose(ref); if (p) htPose = p.transform; }
+      }
+      const isCarrier = carry && (carry.hand === h || !carry.hand);
+      if (isCarrier) {
+        if (!carry.hand) carry.hand = h;
+        const t = surfaceHit(mode, carry.it, htPose) || floatingTarget(mode);
+        carryTo(t, eye); carry.it.root.visible = true;
+        len = t.dist; showReticle(h, t);
+      } else {
+        const hit = ray.intersectObjects(groups[mode === ROOM ? ROOM : ISLAND].children, true)[0];
+        const it = hit && itemFromObject(hit.object);
+        if (it && !carry) { h.hover = it; hoverIt = it; len = hit.distance; h.reticle.visible = false; }
+        else {
+          const t = surfaceHit(mode, null, htPose);
+          if (t) { len = t.dist; showReticle(h, t); } else h.reticle.visible = false;
+        }
+      }
+    }
+    h.line.scale.z = Math.max(0.05, len);
+
+    const gp = h.src.gamepad;
+    if (!gp) continue;
+    const sx = dz(gp.axes[2] || 0), sy = dz(gp.axes[3] || 0);
+    const pressed = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
+    const edge = i => pressed(i) && !h.prev[i];
+    if (carry && carry.hand === h) {
+      // stick: up/down = size, left/right = turn
+      const r = carry.it.rec;
+      if (sy) r.scale = THREE.MathUtils.clamp(r.scale * Math.exp(-sy * dt * 1.4), 0.02, 200);
+      if (sx) r.spin -= sx * dt * 2.2;
+    } else if (mode === ISLAND && xr) {
+      if (h.src.handedness === 'left' && (sx || sy)) {
+        const { d } = headPose(); const right = new THREE.Vector3(-d.z, 0, d.x);
+        rig.position.addScaledVector(d, -sy * dt * 1.8).addScaledVector(right, sx * dt * 1.8);
+      }
+      if (h.src.handedness === 'right') {
+        if (Math.abs(sx) > 0.7 && snapReady) { snapTurn(-Math.sign(sx) * Math.PI / 6, eye); snapReady = false; }
+        if (Math.abs(sx) < 0.3) snapReady = true;
+      }
+    }
+    // A / X held on a thing = delete it
+    if ((pressed(4)) && h.hover && !carry) {
+      h.hold += dt;
+      if (h.hold > 0.8) { const x = h.hover; h.hold = 0; deleteItem(x); buzz(h, 1, 80); sfx(200); hint('Removed'); }
+    } else h.hold = 0;
+    // Y / B = panel
+    if (edge(5)) { if (panel.visible) panel.visible = false; else panelOpenFront(); }
+    for (let i = 0; i < gp.buttons.length; i++) h.prev[i] = pressed(i);
+  }
+  if (anyPanel !== panelHover) { panelHover = anyPanel; drawPanel(); }
+  const holding = hands.find(h => h.hover && h.hold > 0);
+  if (hoverIt) {
+    hoverBox.setFromObject(hoverIt.root); hoverBox.material.color.set(holding ? '#ff5a1f' : '#ffd23f'); hoverBox.visible = true;
+  } else hoverBox.visible = false;
+}
+function showReticle(h, t) {
+  h.reticle.visible = true;
+  h.reticle.position.copy(t.world || t.point);
+  const n = t.normal.clone(); if (t.world && mode === ROOM) n.transformDirection(groups[ROOM].matrixWorld);
+  h.reticle.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n.normalize());
+  h.reticle.position.addScaledVector(n, 0.004);
+  h.reticle.material.color.set(carry ? '#ff2e88' : '#ffd23f');
+}
+function snapTurn(a, eye) {
+  const off = eye.clone().sub(rig.position);
+  rig.rotation.y += a;
+  off.applyAxisAngle(UP, a);
+  rig.position.copy(eye).sub(off);
+}
+
+// =====================================================================
+// sound
+// =====================================================================
+let actx = null;
+function unlockAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch {} } if (actx && actx.state === 'suspended') actx.resume().catch(() => {}); }
+function sfx(f, len = 0.09) {
+  if (!actx) return;
+  const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'triangle'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 1.5, t + len);
+  g.gain.setValueAtTime(0.16, t); g.gain.exponentialRampToValueAtTime(0.001, t + len + 0.05);
+  o.connect(g).connect(actx.destination); o.start(t); o.stop(t + len + 0.06);
+}
+
+// help card for the first seconds in the headset
+const helpCv = document.createElement('canvas'); helpCv.width = 640; helpCv.height = 300;
+const helpTex = new THREE.CanvasTexture(helpCv); helpTex.colorSpace = THREE.SRGBColorSpace;
+function drawHelp() {
+  const g = helpCv.getContext('2d');
+  g.fillStyle = '#ffd23f'; g.fillRect(0, 0, 640, 300); g.lineWidth = 10; g.strokeStyle = '#111'; g.strokeRect(5, 5, 630, 290);
+  g.fillStyle = '#111'; g.textAlign = 'center'; g.font = '46px Bangers, Impact, sans-serif'; g.fillText('DECORATE!', 320, 50);
+  g.font = '900 23px Nunito, sans-serif';
+  ['Point + trigger a picture or model on the panel', 'Point at a wall, shelf or floor, trigger to stick it', 'While holding: stick = size / turn, grip = cancel',
+   'Trigger a placed thing to move it · hold A or X to delete', 'B or Y opens the panel · left stick walks on the island'].forEach((l, i) => g.fillText(l, 320, 102 + i * 40));
+  helpTex.needsUpdate = true;
+}
+drawHelp(); document.fonts && document.fonts.ready.then(drawHelp);
+const helpCard = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.2625), new THREE.MeshBasicMaterial({ map:helpTex, depthTest:false }));
+helpCard.renderOrder = 21; helpCard.visible = false; scene.add(helpCard);
+
+// =====================================================================
+// buttons, resize, loop, boot
+// =====================================================================
+$('roomBtn').onclick = () => enterXR(ROOM);
+$('islandBtn').onclick = () => enterXR(ISLAND);
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+const clock = new THREE.Clock();
+let xrFrames = -1;
+renderer.setAnimationLoop((t, frame) => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (xr && renderer.xr.isPresenting) {
+    updateXR(dt, frame);
+    if (xrFrames >= 0 && ++xrFrames > 3) { xrFrames = -1; panelOpenFront(); }
+    const now = performance.now();
+    helpCard.visible = now < helpUntil;
+    if (helpCard.visible && panel.visible) {
+      helpCard.position.copy(panel.position).add(new THREE.Vector3(0, 0.37, 0));
+      helpCard.quaternion.copy(panel.quaternion);
+    } else if (helpCard.visible) {
+      const { p, d } = headPose(); helpCard.position.copy(p).addScaledVector(d, 0.8); helpCard.lookAt(p);
+    }
+  } else {
+    orbit.update();
+    if (selBox && selected) selBox.update();
+  }
+  for (const m of mixers) m.update(dt);
+  clouds.rotation.y += dt * 0.004;
+  renderer.render(scene, camera);
+});
+
+(async function boot() {
+  setMode('2d');
+  checkXR();
+  try { await Store.open(); }
+  catch (e) { hint('This browser won’t let me save here, so nothing will be remembered', 6000); }
+  try {
+    for (const rec of await Store.all('assets')) assets.set(rec.id, { rec, tpl:null });
+    renderTiles();
+    const recs = await Store.all('items');
+    for (const rec of recs) {
+      if (!assets.has(rec.assetId)) { Store.del('items', rec.id).catch(() => {}); continue; }
+      spawnItem(rec).catch(e => console.warn('item', rec.id, e));
+    }
+  } catch (e) { console.warn(e); }
+  updateCounts();
+  window.DECORNAUT = { orbit, assets, items, importFiles, newItemFromAsset, endCarry, carryTo, surfaceHit, ray, camera, ISLAND, ROOM, get carry() { return carry; }, quatFor, mountFor };
+})();
+</script>
+</body>
+</html>

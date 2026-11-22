@@ -1,0 +1,9 @@
+{
+  "title": "Decornaut",
+  "blurb": "Decorate your real room in mixed reality: stick posters on walls and 3D models on shelves, and they stay put every time you come back. Flip to a floating island to decorate a digital space too.",
+  "date": "2026-11-21",
+  "updated": "2026-11-21",
+  "tags": ["vr", "mr", "quest", "3d", "app"],
+  "controls": "On the page: Import models (GLB, glTF, OBJ+MTL, FBX, STL, PLY, DAE, 3MF, 3DS, USDZ, WRL, ZIP) or pictures. In the headset: B/Y opens the panel, point + trigger picks and places, stick sizes and turns while holding, grip cancels, trigger a placed thing to move it, hold A/X to delete, left stick walks on the island",
+  "artifact": ""
+}
