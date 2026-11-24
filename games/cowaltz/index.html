@@ -40,7 +40,7 @@
   .pt { width:54px; height:54px; border-radius:16px; border:4px solid #161216; background:#2A2560; padding:0; position:relative; opacity:.62; box-shadow:2px 3px 0 #161216; }
   .pt svg { width:100%; height:100%; display:block; }
   .pt.on { opacity:1; background:#FFE94A; transform:scale(1.08); }
-  .pt b { position:absolute; left:50%; bottom:-11px; transform:translateX(-50%); font-family:'Bangers', cursive; font-weight:normal; font-size:11px; letter-spacing:.5px;
+  .pt b { position:absolute; left:50%; bottom:-11px; transform:translateX(-50%); font-family:'Bangers', cursive; font-weight:normal; font-size:12px; letter-spacing:.5px;
     background:#161216; color:#fff; border-radius:6px; padding:0 4px; white-space:nowrap; }
   .pt.hurt { animation: hurt .5s; }
   @keyframes hurt { 0%,100% { background:#2A2560; } 30% { background:#FF2E88; } }
@@ -128,13 +128,12 @@
     <h1>COWALTZ</h1>
     <p class="sub">The Knight, the Fairy Princess &amp; the Trooper vs. the bees of the Blue Moon</p>
     <div class="help">
-      <div>🕹️ <b>Stick</b> to move</div>
-      <div>🛡️ <b>Knight</b>: his shield bounces bees and stingers back into the swarm. Tap <b>BASH</b> to slam bees.</div>
-      <div>🏹 <b>Fairy</b>: hold <b>SHOOT</b> to fire arrows.</div>
-      <div>🔫 <b>Trooper</b>: hold <b>FIRE</b> for big knock-back balls.</div>
-      <div>👆 <b>Tap a hero</b> (or their portrait) to take control. The others fight on their own.</div>
-      <div>🐝 Bees aim (watch for the pink line), then launch themselves stinger-first. Only the queen shoots stingers.</div>
-      <div>💉 Every sting uses an <b>EpiPen</b>. Pick more up. Get stung with none left and it's over.</div>
+      <div>🕹️ <b>Stick</b> to move. Push a little to tiptoe, all the way to run.</div>
+      <div>👆 <b>Tap a hero</b> (or their portrait) to play as them. The others fight on their own.</div>
+      <div>🛡️ <b>Knight</b>: his shield bounces bees back. <b>BASH</b> to slam them.</div>
+      <div>🏹 <b>Fairy</b>: hold <b>SHOOT</b>. 🔫 <b>Trooper</b>: hold <b>FIRE</b>.</div>
+      <div>🐝 A pink line means a bee is about to dive. Knock bees into each other.</div>
+      <div>💉 A sting swells you up. A teammate runs over with an <b>EpiPen</b>. Out of EpiPens? Game over.</div>
     </div>
     <button class="big" id="startB">PLAY</button>
     <p id="bestT" style="font-size:16px;margin:8px 0 0"></p>
@@ -149,6 +148,7 @@
   </div>
 </div>
 <div id="err">This needs WebGL to run.</div>
+<div id="sr" aria-live="polite" style="position:fixed;left:-9999px;width:1px;height:1px;overflow:hidden"></div>
 
 <script type="module">
 import * as THREE from 'three';
@@ -158,6 +158,8 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 
 const QS = new URLSearchParams(location.search);
 const AUTOTEST = QS.has('autotest'), GOD = QS.has('god');
+const CALM = matchMedia('(prefers-reduced-motion: reduce)').matches;     // no shake or twinkle
+const say = t => { const el = document.getElementById('sr'); if (el) el.textContent = t; };
 
 // ======================= renderer / scene =======================
 let renderer;
@@ -183,6 +185,7 @@ function toon(color, outline = true, extra = null) {
   const k = color + (outline ? 'o' : 'n') + (extra ? JSON.stringify(extra) : '');
   if (!matCache[k]) {
     matCache[k] = new THREE.MeshToonMaterial(Object.assign({ color, gradientMap: ramp }, extra || {}));
+    matCache[k].flatShading = true;   // set after construction: the constructor drops unknown keys
     if (!outline) matCache[k].userData.outlineParameters = { visible: false };
   }
   return matCache[k];
@@ -194,7 +197,7 @@ function part(geo, color, parent, pos = [0, 0, 0], scl = null, rot = null, outli
   parent.add(m); return m;
 }
 function pivot(parent, pos = [0, 0, 0], rot = null) { const g = new THREE.Group(); g.position.set(...pos); if (rot) g.rotation.set(...rot); parent.add(g); return g; }
-const SPH = (r, w = 20, h = 14) => new THREE.SphereGeometry(r, w, h);
+const SPH = (r, w = 12, h = 9) => new THREE.SphereGeometry(r, w, h);   // low-poly on purpose
 
 // ======================= sphere math =======================
 const R = 11;
@@ -225,8 +228,8 @@ const randDir = (r = Math.random) => { const z = r() * 2 - 1, t = r() * 6.2832, 
 const anyTangent = (u, out) => { out.set(0, 1, 0); if (Math.abs(u.y) > 0.9) out.set(1, 0, 0); return tangent(out, u).normalize(); };
 
 // ======================= the blue moon =======================
-const MOON = 0x8EC3F5, MOON_DARK = 0x6A9FE0, MOON_RIM = 0xB4DBFF;
-const moon = new THREE.Mesh(SPH(R, 72, 54), toon(MOON));
+const MOON = 0x6FC2F7, MOON_DARK = 0x19B3A6, MOON_RIM = 0xC4F25A;
+const moon = new THREE.Mesh(SPH(R, 34, 24), toon(MOON));
 scene.add(moon);
 {
   const discs = [], rims = [], used = [];
@@ -235,8 +238,8 @@ scene.add(moon);
     if (used.some(o => o.d.distanceTo(d) * R < (o.r + r) * 0.9)) continue;
     used.push({ d, r });
     const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), d);
-    const disc = new THREE.CircleGeometry(r, 22); disc.applyQuaternion(q); disc.translate(...d.clone().multiplyScalar(R + 0.015).toArray()); discs.push(disc);
-    const rim = new THREE.TorusGeometry(r, 0.07 + r * 0.05, 5, 26); rim.applyQuaternion(q); rim.translate(...d.clone().multiplyScalar(R + 0.02).toArray()); rims.push(rim);
+    const disc = new THREE.CircleGeometry(r, 9); disc.applyQuaternion(q); disc.translate(...d.clone().multiplyScalar(R + 0.015).toArray()); discs.push(disc);
+    const rim = new THREE.TorusGeometry(r, 0.07 + r * 0.05, 4, 9); rim.applyQuaternion(q); rim.translate(...d.clone().multiplyScalar(R + 0.02).toArray()); rims.push(rim);
   }
   scene.add(new THREE.Mesh(mergeGeometries(discs), toon(MOON_DARK, false)));
   scene.add(new THREE.Mesh(mergeGeometries(rims), toon(MOON_RIM)));
@@ -246,7 +249,7 @@ scene.add(moon);
     const d = randDir(rnd), g = new THREE.IcosahedronGeometry(0.08 + rnd() * 0.12, 0);
     g.translate(...d.multiplyScalar(R + 0.03).toArray()); peb.push(g);
   }
-  scene.add(new THREE.Mesh(mergeGeometries(peb), toon(0xD6ECFF)));
+  scene.add(new THREE.Mesh(mergeGeometries(peb), toon(0xFFF27A)));
 }
 
 // ======================= sky: stars + a far ringed planet =======================
@@ -269,9 +272,9 @@ for (let i = 0; i < 150; i++) {
 }
 { // a big ringed planet hanging in the sky
   const pl = new THREE.Group();
-  part(SPH(9, 32, 24), 0xFF8FB3, pl);
-  part(new THREE.SphereGeometry(9.05, 32, 24, 0, 6.28, 1.2, 0.5), 0xFF5FA0, pl, [0, 0, 0], null, null, false);
-  const ring = part(new THREE.TorusGeometry(14, 1.1, 4, 48), 0xFFE94A, pl, [0, 0, 0], [1, 1, 0.25], [1.25, 0.3, 0]);
+  part(SPH(9, 16, 12), 0x1E7FE0, pl);                                     // an ocean world on the horizon
+  part(new THREE.SphereGeometry(9.05, 16, 12, 0, 6.28, 1.15, 0.55), 0x3EE07A, pl, [0, 0, 0], null, null, false);
+  const ring = part(new THREE.TorusGeometry(14, 1.1, 4, 24), 0xFFE94A, pl, [0, 0, 0], [1, 1, 0.25], [1.25, 0.3, 0]);
   pl.position.set(-60, 38, -70); scene.add(pl);
 }
 
@@ -368,6 +371,7 @@ function sfx(name) {
     case 'boom': tone('sine', 150, 45, 0.2, 0.7); noise(0.14, 0.55, 500); break;
     case 'whoosh': noise(0.28, 0.3, 1500); tone('sawtooth', 260, 640, 0.2, 0.08); break;
     case 'buzz': tone('sawtooth', 170, 230, 0.3, 0.1); break;
+    case 'skid': noise(0.2, 0.25, 2400); break;
     case 'wave': [523, 659, 784, 1046].forEach((f, i) => tone('square', f, f, 0.11, 0.14, i * 0.09)); break;
     case 'over': [392, 330, 262, 196].forEach((f, i) => tone('triangle', f, f * 0.98, 0.25, 0.4, i * 0.2)); break;
   }
@@ -540,7 +544,8 @@ function makeHero(kind) {
   scene.add(ring);
   return Object.assign(m, {
     kind, ring, u: new THREE.Vector3(0, 1, 0), face: new THREE.Vector3(0, 0, 1), vel: new THREE.Vector3(),
-    h: 0, inv: 0, phase: 0, walk: 0, bashT: 0, bashCd: 0, fireCd: 0, draw: 0, block: 0, recoil: 0, hitSet: new Set()
+    h: 0, inv: 0, phase: 0, walk: 0, bashT: 0, bashCd: 0, fireCd: 0, draw: 0, block: 0, recoil: 0, hitSet: new Set(),
+    puffy: 0, helpT: 0, cheer: 0, breath: 0, skid: 0, run: 0, idleT: -2 - Math.random() * 3, fidget: 0, lean: 0, bank: 0, lastFace: new THREE.Vector3(0, 0, 1)
   });
 }
 const knight = makeHero('knight'), fairy = makeHero('fairy'), soldier = makeHero('soldier');
@@ -574,8 +579,8 @@ const BEE_KIND = {          // every bee but the queen is a living missile: it a
   queen: { col: '#FFD23C', hp: 40, rad: 1.4, pts: 2500, scale: 2.2, spd: 1 },     // the only one that shoots stingers
 };
 const BEE_GEO = {
-  abd: new THREE.SphereGeometry(0.4, 20, 16).rotateX(Math.PI / 2),
-  head: new THREE.SphereGeometry(0.36, 22, 16),
+  abd: new THREE.SphereGeometry(0.4, 12, 9).rotateX(Math.PI / 2),
+  head: new THREE.SphereGeometry(0.36, 14, 10),
   sting: new THREE.ConeGeometry(0.09, 0.32, 8).rotateX(-Math.PI / 2),
   horn: new THREE.ConeGeometry(0.055, 0.17, 6),
   wing: new THREE.CircleGeometry(0.3, 16),
@@ -585,6 +590,7 @@ const BEE_MAT = {};
 for (const k in BEE_KIND) {
   const c = BEE_KIND[k].col;
   BEE_MAT[k] = { abd: new THREE.MeshToonMaterial({ map: stripeTex(c), gradientMap: ramp }), head: new THREE.MeshToonMaterial({ map: faceTex(c), gradientMap: ramp }) };
+  BEE_MAT[k].abd.flatShading = BEE_MAT[k].head.flatShading = true;
 }
 const WING_MAT = toon(0xF4FBFF, true, { side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
 function buildBee(kind) {
@@ -681,7 +687,7 @@ function buildPen() {
   part(new THREE.CylinderGeometry(0.1, 0.12, 0.14, 12), 0xFF7A1F, s, [0, -0.35, 0]);
   part(new THREE.CylinderGeometry(0.12, 0.11, 0.16, 12), 0x2F7BE8, s, [0, 0.36, 0]);
   s.rotation.z = 0.5;
-  const ring = part(new THREE.TorusGeometry(0.55, 0.05, 6, 30).rotateX(Math.PI / 2), noLine(new THREE.MeshBasicMaterial({ color: 0x7FF6FF, transparent: true, opacity: 0.8 })), g, [0, -0.85, 0]);
+  const ring = part(new THREE.TorusGeometry(0.55, 0.05, 6, 30).rotateX(Math.PI / 2), noLine(new THREE.MeshBasicMaterial({ color: 0x8BFF3C, transparent: true, opacity: 0.85 })), g, [0, -0.85, 0]);
   return { g, s, ring };
 }
 function spawnPen(u) {
@@ -695,14 +701,14 @@ let wave = 0, score = 0, pens = 3, best = 0, combo = 0, comboT = 0, waveQueue = 
 let slowmo = 1, overT = 0, simT = 0, shake = 0;
 try { best = +localStorage.getItem('cowaltz-best') || 0; } catch (e) { }
 const $ = id => document.getElementById(id);
-const stats = { kills: 0, stings: 0, ricochets: 0, blocks: 0, pens: 0, arrows: 0, balls: 0, bashes: 0, launches: 0, maxWave: 0 };
+const stats = { rescues: 0, skids: 0, kills: 0, stings: 0, ricochets: 0, blocks: 0, pens: 0, arrows: 0, balls: 0, bashes: 0, launches: 0, maxWave: 0 };
 
 function resetHeroes() {
   const u0 = new THREE.Vector3(0, 0.35, 1).normalize();
   knight.u.copy(u0); knight.face.set(0, 1, 0); tangent(knight.face, knight.u).normalize();
   const side = new THREE.Vector3().crossVectors(knight.u, knight.face).normalize();
   offsetU(u0, side, -1.4, fairy.u); offsetU(u0, side, 1.4, soldier.u);
-  for (const h of heroes) { if (h !== knight) { h.face.copy(knight.face); tangent(h.face, h.u).normalize(); } h.vel.set(0, 0, 0); h.inv = 0; h.bashT = 0; h.bashCd = 0; h.fireCd = 0; }
+  for (const h of heroes) { if (h !== knight) { h.face.copy(knight.face); tangent(h.face, h.u).normalize(); } h.vel.set(0, 0, 0); h.inv = 0; h.bashT = 0; h.bashCd = 0; h.fireCd = 0; h.puffy = 0; h.cheer = 0; h.skid = 0; h.run = 0; }
   camU.copy(u0); camFwd.copy(knight.face); tangent(camFwd, camU).normalize();
 }
 function clearField() {
@@ -743,6 +749,7 @@ function planWave(n) {
 function startWave() {
   wave++; stats.maxWave = wave; waveQueue = planWave(wave); spawnT = 0.4;
   banner(`WAVE ${wave}`, wave % 5 === 0 ? 'THE QUEEN IS HERE!' : (wave === 1 ? 'here come the bees…' : ''));
+  say(`Wave ${wave}` + (wave % 5 === 0 ? '. The queen is here.' : ''));
   sfx('wave'); updateHud(true);
 }
 function spawnPoint(minA, maxA) {
@@ -859,6 +866,7 @@ function updateCamera(dt, follow, dist, pitch) {
   const p = camCur.p, d = camCur.d;
   const focus = tA.copy(camU).multiplyScalar(R + 0.6);
   camera.position.copy(focus).addScaledVector(camU, Math.sin(p) * d).addScaledVector(camFwd, -Math.cos(p) * d);
+  if (CALM) shake = 0;
   if (shake > 0) { camera.position.x += (Math.random() - .5) * shake; camera.position.y += (Math.random() - .5) * shake; shake = Math.max(0, shake - dt * 2.5); }
   camera.up.copy(camU);
   camera.lookAt(tB.copy(focus).addScaledVector(camFwd, 0.9));
@@ -876,13 +884,14 @@ function nearestBee(u, maxD, coneFace = null, coneCos = -2) {
   }
   return best;
 }
-function nearestHero(u) { let best = knight, bd = 1e9; for (const h of heroes) { const d = chord(u, h.u); if (d < bd) { bd = d; best = h; } } return best; }
+function nearestHero(u) { let best = null, bd = 1e9; for (const h of heroes) { const d = chord(u, h.u) + (h.puffy > 0 ? 50 : 0); if (d < bd) { bd = d; best = h; } } return best; }
 function addScore(n) { score += n; }
 function knockBee(b, dir, speed, chain = 0) {
   const mul = b.kind === 'queen' ? 0.15 : 1;
   b.vel.copy(dir).multiplyScalar(speed * mul); tangent(b.vel, b.u);
   b.knock = b.kind === 'queen' ? 0.15 : 0.75; b.chain = chain; b.squash = 1;
   if (b.kind !== 'queen' && (b.mode === 'aim' || b.mode === 'launch')) { b.mode = 'recover'; b.st = 1.1; b.tgt = null; }
+  if (b.kind !== 'queen') b.dizzy = 1.7;
 }
 function damageBee(b, n, src) {
   if (b.dying) return;
@@ -911,17 +920,27 @@ function stingHero(h, fromU) {
   shake = 0.45; sfx('sting');
   const el = $(HERO_UI[h.kind].pt); el.classList.remove('hurt'); void el.offsetWidth; el.classList.add('hurt');
   if (pens <= 0) { popWord('OUCH!!', h.u, 2.2, { fill: '#fff', burst: '#FF2E88', size: 1.8, life: 1.2 }); slowmo = 0.25; overT = 1.1; h.inv = 99; updateHud(true); return; }
-  pens--; h.inv = 2.0;
+  pens--; h.puffy = 4.5; h.inv = h.puffy + 1.2; h.helpT = 0;      // swells up and waits for a teammate's EpiPen
   popWord('STUNG!', h.u, 2.4, { fill: '#fff', burst: '#FF2E88', size: 1.3, life: 0.9 });
-  setTimeout(() => { if (state === 'play') popWord('EPIPEN!', h.u, 2.6, { fill: '#161216', burst: '#FFD400', size: 1.2, life: 0.9 }); }, 280);
+  say(`The ${HERO_UI[h.kind].name.toLowerCase()} got stung. ${pens} EpiPens left.`);
   updateHud(true);
+}
+function giveEpiPen(h, from) {                                    // from = the teammate who ran over (or null)
+  h.puffy = 0; h.inv = 1.4; sfx('pick');
+  _p.copy(h.u).multiplyScalar(R + 1); for (let i = 0; i < 10; i++) emitSpark(_p, h.u, [0x8BFF3C, 0xFFE94A, 0xffffff][i % 3], i < 4);
+  if (from) {
+    stats.rescues++; addScore(250); from.cheer = 0.6; h.cheer = 0.6;
+    popWord('THANKS!', h.u, 2.5, { fill: '#161216', burst: '#8BFF3C', size: 1.2, life: 1 });
+    popWord('+250 TEAMWORK', from.u, 2.0, { fill: '#fff', size: 0.75, life: 1, rise: 1.6 });
+    say(`The ${HERO_UI[from.kind].name.toLowerCase()} brought the EpiPen.`);
+  } else popWord('PHEW…', h.u, 2.4, { fill: '#fff', size: 0.9, life: 0.9 });
 }
 function shieldPoint(out) { return offsetU(knight.u, knight.face, 0.55, out); }
 const _shield = new THREE.Vector3();
 function inShieldArc(fromU, cosLim = 0.3) { dirTo(knight.u, fromU, tD); return tD.dot(knight.face) > cosLim; }
 
 // ======================= hero update (player + AI) =======================
-const _want = new THREE.Vector3(), _aim = new THREE.Vector3(), _tmp = new THREE.Vector3(), _tmp2 = new THREE.Vector3();
+const _want = new THREE.Vector3(), _aim = new THREE.Vector3(), _tmp = new THREE.Vector3(), _tmp2 = new THREE.Vector3(), _dv = new THREE.Vector3();
 const isDanger = b => b.mode === 'aim' || b.mode === 'launch' || b.kind === 'queen';
 function threatDir(u, range, out) {      // weighted direction toward nearby danger
   out.set(0, 0, 0);
@@ -1028,7 +1047,11 @@ function playerHero(h, want, dt) {
   const mag = Math.min(1, Math.hypot(ix, iy));
   const right = tC.crossVectors(camFwd, camU);
   want.copy(right).multiplyScalar(ix).addScaledVector(camFwd, iy); tangent(want, h.u);
-  if (want.lengthSq() > 1e-6) want.setLength(mag * SPEED[h.kind]);
+  // analog range: a light push tiptoes, a full push runs, and holding it full builds a little extra speed
+  h.run = mag > 0.92 ? Math.min(1, h.run + dt * 1.4) : Math.max(0, h.run - dt * 3);
+  const curve = mag < 0.35 ? mag / 0.35 * 0.38 : 0.38 + (mag - 0.35) / 0.65 * 0.62;
+  if (want.lengthSq() > 1e-6) want.setLength(curve * SPEED[h.kind] * (1 + 0.22 * h.run));
+  if (h.puffy > 0) return;
   if (h === knight) {
     if (mag > 0.15) turnToward(h.face, h.u, _tmp2.copy(want).normalize(), 12 * dt);
     else { const nb = dangerBee(h.u, 7); if (nb) turnToward(h.face, h.u, dirTo(h.u, nb.u, _tmp2), 7 * dt); }
@@ -1044,20 +1067,49 @@ const AI = { knight: aiKnight, fairy: aiFairy, soldier: aiSoldier };
 function updateHero(h, dt) {
   h.inv = Math.max(0, h.inv - dt); h.bashCd -= dt; h.fireCd -= dt; h.draw = Math.max(0, h.draw - dt * 4); h.recoil = Math.max(0, h.recoil - dt * 5);
   _want.set(0, 0, 0);
-  if (state === 'play') { if (h === active && !AUTOTEST) playerHero(h, _want, dt); else AI[h.kind](h, _want, dt); }
+  if (state === 'play') {
+    if (h === active && !AUTOTEST) playerHero(h, _want, dt);
+    else if (h.puffy > 0) { let t = null, bd = 1e9; for (const o of heroes) if (o !== h && o.puffy <= 0 && chord(h.u, o.u) < bd) { bd = chord(h.u, o.u); t = o; } if (t) dirTo(h.u, t.u, _want).multiplyScalar(SPEED[h.kind]); }
+    else AI[h.kind](h, _want, dt);
+    // mutual aid: the closest free AI teammate drops everything and runs over with the EpiPen
+    const needy = h.puffy <= 0 && (h !== active || AUTOTEST) ? heroes.find(x => x !== h && x.puffy > 0) : null;
+    if (needy) {
+      let helper = null, bd = 1e9; for (const x of heroes) if (x.puffy <= 0 && (x !== active || AUTOTEST) && chord(x.u, needy.u) < bd) { bd = chord(x.u, needy.u); helper = x; }
+      if (helper === h) dirTo(h.u, needy.u, _want).multiplyScalar(SPEED[h.kind] * 1.15);
+    }
+    if (h.puffy <= 0) for (const o of heroes) if (o !== h && o.puffy > 0 && o.puffy < 3.8 && chord(h.u, o.u) < 1.15) giveEpiPen(o, h);   // a beat to see the swelling first
+    if (h.puffy > 0) {
+      h.puffy -= dt; _want.multiplyScalar(0.45);
+      h.helpT -= dt; if (h.helpT <= 0 && h.puffy > 0.6) { h.helpT = 1.4; popWord('HELP!', h.u, 2.3, { fill: '#fff', burst: '#FF2E88', size: 0.8, life: 0.8, rise: 0.6 }); }
+      if (h.puffy <= 0) giveEpiPen(h, null);
+    }
+  }
   else if (state === 'title') turnToward(h.face, h.u, _tmp2.copy(camFwd).negate(), 8 * dt);
   if (h.bashT > 0) { h.bashT -= dt; _want.copy(h.face).multiplyScalar(13); }
-  h.vel.lerp(_want, 1 - Math.exp(-(h.bashT > 0 ? 30 : 11) * dt)); tangent(h.vel, h.u);
+  const sp0 = h.vel.length();
+  if (h.bashT <= 0 && h.skid <= 0 && sp0 > 3.4 && _want.lengthSq() > 4 && _tmp.copy(_want).normalize().dot(_tmp2.copy(h.vel).divideScalar(sp0)) < -0.4) { h.skid = 0.26; stats.skids++; sfx('skid'); }
+  if (h.skid > 0) { h.skid -= dt; if (Math.random() < 0.6) { _p.copy(h.u).multiplyScalar(R + 0.12); emitSpark(_p, h.u, 0xffffff, false); } }
+  const acc = h.bashT > 0 ? 60 : h.skid > 0 ? 9 : (_want.lengthSq() > sp0 * sp0 ? 24 : 11);
+  _dv.subVectors(_want, h.vel); const dl = _dv.length(), mx = acc * dt; if (dl > mx && dl > 1e-9) _dv.multiplyScalar(mx / dl);
+  const fwdAcc = _dv.dot(h.face) / Math.max(dt, 1e-4);
+  h.vel.add(_dv); tangent(h.vel, h.u);
   for (const o of heroes) { if (o === h) continue; const dd = chord(h.u, o.u); if (dd < 0.95) h.vel.addScaledVector(dirTo(o.u, h.u, tD), (0.95 - dd) * 8); }
-  moveOnSphere(h.u, h.vel, dt, [h.face]);
+  const turnRate = signedAng(h.u, h.lastFace, h.face) / Math.max(dt, 1e-4); h.lastFace.copy(h.face);
+  moveOnSphere(h.u, h.vel, dt, [h.face, h.lastFace]);
+  h.lean += (clamp(fwdAcc * 0.012, -0.22, 0.28) - (h.skid > 0 ? 0.35 : 0) - h.lean) * Math.min(1, 10 * dt);
+  h.bank += (clamp(-turnRate * 0.05, -0.28, 0.28) * Math.min(1, sp0 / 3) - h.bank) * Math.min(1, 8 * dt);
   // animation
   const sp = h.vel.length(); h.walk += (Math.min(1, sp / 4) - h.walk) * Math.min(1, 10 * dt); h.phase += sp * dt * 3.2;
   const s = Math.sin(h.phase), w = h.walk, P = h.P;
   h.h = h.kind === 'fairy' ? 0.1 + Math.sin(simT * 3) * 0.05 : 0;
-  place(h.root, h.u, h.face, h.h + Math.abs(s) * 0.07 * w);
-  h.body.rotation.z = s * 0.09 * w; h.body.rotation.x = 0.12 * w;
-  P.legL.rotation.x = s * 0.7 * w; P.legR.rotation.x = -s * 0.7 * w;
-  P.armR.rotation.x = s * 0.6 * w; P.armL.rotation.x = -s * 0.6 * w;
+  h.cheer = Math.max(0, h.cheer - dt); h.breath = Math.max(0, h.breath - dt);
+  const hop = h.cheer > 0 ? Math.sin(Math.PI * h.cheer / 1.1) * 0.28 : 0, swing = 1 + h.run * 0.6, tip = sp0 < 1.8 ? 0.55 : 1;
+  place(h.root, h.u, h.face, h.h + hop + Math.abs(s) * 0.07 * w * tip);
+  h.body.rotation.z = s * 0.09 * w + h.bank; h.body.rotation.x = 0.12 * w + h.lean + 0.12 * h.run;
+  P.legL.rotation.x = s * 0.7 * w * tip * swing; P.legR.rotation.x = -s * 0.7 * w * tip * swing;
+  P.armR.rotation.x = s * 0.6 * w * swing; P.armL.rotation.x = -s * 0.6 * w * swing;
+  const breathe = 1 + 0.015 * Math.sin(simT * 2.2 + h.phase * 0) + (h.breath > 0 ? 0.07 * Math.sin(Math.PI * (1 - h.breath / 1.6)) : 0);
+  h.body.scale.set(1, breathe, 1);
   P.head.rotation.z = -s * 0.05 * w;
   if (h.kind === 'knight') {
     const bash = h.bashT > 0 ? 1 : 0;
@@ -1077,7 +1129,21 @@ function updateHero(h, dt) {
     P.armR.rotation.set(-1.2 + rc * 0.3, 0, 0.2); P.armL.rotation.set(-1.45 + rc * 0.3, 0, -0.55);
     P.gun.position.z = 0.36 - rc * 0.16; P.gun.rotation.x = -rc * 0.14; h.body.rotation.x -= rc * 0.08;
   }
-  h.root.visible = h.inv > 0 && h.inv < 50 ? Math.floor(h.inv * 12) % 2 === 0 : true;
+  // small moments: when standing still a while, each hero fidgets in their own way
+  if (sp0 < 0.3 && h.puffy <= 0 && h.bashT <= 0 && h.fireCd < -0.5) { h.idleT += dt; if (h.idleT > 0 && h.fidget <= 0) { h.fidget = 1.3; h.idleT = -(3 + Math.random() * 4); } }
+  else if (h.idleT > -1.5) h.idleT = -1.5;
+  if (h.fidget > 0) {
+    h.fidget -= dt; const k = Math.sin(Math.PI * Math.max(0, h.fidget) / 1.3);
+    if (h.kind === 'knight') { P.armR.rotation.x = -2.5 * k; P.armR.rotation.z = -0.5 * k; P.head.rotation.z += 0.08 * k; }      // straightens his helmet
+    else if (h.kind === 'fairy') { P.armL.rotation.x = -2.3 * k; P.armL.rotation.z = 0.85 * k; }                                 // pushes her glasses up
+    else { P.gun.rotation.x -= 0.6 * k; P.head.rotation.x = 0.3 * k; }                                                             // checks his gun
+  } else if (h.kind === 'soldier') P.head.rotation.x = 0;
+  if (h.cheer > 0) { const k = Math.sin(Math.PI * h.cheer / 1.1); if (h.kind === 'soldier') P.gun.rotation.x -= 0.8 * k; else { P.armR.rotation.x = -2.7 * k; if (h.kind === 'fairy') P.armL.rotation.x = -2.7 * k; } }
+  // swollen from a sting until the EpiPen arrives
+  const base = P.head.userData.base || (P.head.userData.base = P.head.scale.x);
+  h.swell = (h.swell || 0) + ((h.puffy > 0 ? 1 : 0) - (h.swell || 0)) * Math.min(1, 6 * dt);
+  P.head.scale.setScalar(base * (1 + 0.32 * h.swell + (h.puffy > 0 ? 0.03 * Math.sin(simT * 9) : 0)));
+  h.root.visible = h.puffy <= 0 && h.inv > 0 && h.inv < 50 ? Math.floor(h.inv * 12) % 2 === 0 : true;
   h.ring.visible = state === 'play' && h === active;
   if (h.ring.visible) { place(h.ring, h.u, h.face, 0.04); h.ring.scale.setScalar(1 + Math.sin(simT * 6) * 0.06); }
 }
@@ -1227,8 +1293,14 @@ function updateBees(dt) {
     b.body.rotation.z = b.spin; b.body.rotation.x = b.knock > 0 ? -0.5 : b.mode === 'launch' ? 0 : 0.15;
     b.body.position.x = b.mode === 'aim' ? (Math.random() - 0.5) * 0.12 : 0;
     const fl = Math.sin(b.t * (b.mode === 'launch' ? 90 : 60)) * 0.6; b.wings[0].rotation.z = 0.3 + fl; b.wings[1].rotation.z = -0.3 - fl;
+    if (b.dizzy > 0 || b.stars) {                                  // little stars circle a dazed bee
+      b.dizzy = Math.max(0, (b.dizzy || 0) - dt);
+      if (!b.stars) { b.stars = new THREE.Group(); for (let j = 0; j < 3; j++) { const sp = new THREE.Sprite(DIZZY_MAT); sp.scale.setScalar(0.26); sp.position.set(Math.cos(j * 2.094) * 0.38, 0, Math.sin(j * 2.094) * 0.38); b.stars.add(sp); } b.stars.position.y = 0.72; b.root.add(b.stars); }
+      b.stars.visible = b.dizzy > 0; b.stars.rotation.y += dt * 7;
+    }
   }
 }
+const DIZZY_MAT = new THREE.SpriteMaterial({ map: sparkTex[0], color: 0xFFE94A, depthWrite: false });
 
 // ======================= projectile update =======================
 function updateProjectiles(dt) {
@@ -1307,7 +1379,11 @@ function updateGame(dt) {
         spawnT = Math.max(0.35, 1.0 - wave * 0.05);
       }
     } else if (bees.every(b => b.dying) && state === 'play') {
-      nextWaveT = 2.6; addScore(250 * wave); popWord('WAVE CLEAR!', active.u, 2.6, { fill: '#FFE94A', burst: '#2F7BE8', size: 1.6, life: 1.4 });
+      nextWaveT = 2.6; addScore(250 * wave); popWord('WAVE CLEAR!', active.u, 2.6, { fill: '#FFE94A', burst: '#1E7FE0', size: 1.6, life: 1.4 });
+      for (const h of heroes) { h.cheer = 1.1; h.breath = 1.6; }
+      for (let a = 0; a < heroes.length; a++) for (let b = a + 1; b < heroes.length; b++) if (chord(heroes[a].u, heroes[b].u) < 2.6) {
+        const mid = tA.copy(heroes[a].u).add(heroes[b].u).normalize(); popWord('HIGH FIVE!', mid, 1.8, { fill: '#fff', burst: '#FF8A1F', size: 0.8, life: 0.9 }); break; }
+      say(`Wave ${wave} clear.`);
     }
     stageT += dt;
     if (stageT > 21 && pickups.length < 2) { stageT = 0; const d = anyTangent(camU, new THREE.Vector3()).applyAxisAngle(camU, Math.random() * 6.28); spawnPen(offsetU(camU, d, 3 + Math.random() * 4, new THREE.Vector3())); }
@@ -1324,13 +1400,13 @@ function updateGame(dt) {
 }
 let last = performance.now(), titleYaw = 0;
 function frame(now) {
-  let dt = Math.min(0.05, (now - last) / 1000); last = now;
+  let dt = clamp((now - last) / 1000, 0, 0.05); last = now;
   if (state === 'over' && overT <= 0) slowmo += (1 - slowmo) * Math.min(1, dt * 2);
   const gdt = dt * slowmo; simT += gdt;
   updateGame(gdt);
   if (state === 'title') { if (!QS.has('icon')) orbitDelta += dt * 18; updateCamera(dt, tA.copy(knight.u).add(fairy.u).add(soldier.u).normalize(), QS.has('icon') ? 5.4 : 7, QS.has('icon') ? 0.22 : 0.32); }
   else updateCamera(dt, active.u);
-  for (const s of twinklers) { const u = s.userData; s.scale.setScalar(u.base * (0.8 + 0.25 * Math.sin(simT * u.sp + u.ph))); }
+  if (!CALM) for (const s of twinklers) { const u = s.userData; s.scale.setScalar(u.base * (0.8 + 0.25 * Math.sin(simT * u.sp + u.ph))); }
   effect.render(scene, camera);
   requestAnimationFrame(frame);
 }
@@ -1341,7 +1417,7 @@ addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; cam
 document.addEventListener('visibilitychange', () => { if (document.hidden) bgm.pause(); else if (state === 'play') playMusic(); });
 if (document.fonts) document.fonts.load('40px Bangers').then(() => { for (const k in wordCache) delete wordCache[k]; }).catch(() => { });
 if (AUTOTEST) startGame();
-window.__cw = { get active() { return active.kind; }, heroScreen(k) { const h = heroes.find(x => x.kind === k); const p = h.u.clone().multiplyScalar(R + h.h + 0.75).project(camera); return { x: (p.x * 0.5 + 0.5) * innerWidth, y: (-p.y * 0.5 + 0.5) * innerHeight }; }, get state() { return state; }, get wave() { return wave; }, get score() { return score; }, get pens() { return pens; }, set pens(v) { pens = v; }, bees, bullets, heroes, stats, setActive, startGame, get bulletCount() { return bulletCount; }, spawnBee, spawnPen, camU, camFwd, knight, fairy, soldier };
+window.__cw = { sting(k) { const h = heroes.find(x => x.kind === k); h.inv = 0; stingHero(h, offsetU(h.u, h.face, 1, new THREE.Vector3())); }, get active() { return active.kind; }, heroScreen(k) { const h = heroes.find(x => x.kind === k); const p = h.u.clone().multiplyScalar(R + h.h + 0.75).project(camera); return { x: (p.x * 0.5 + 0.5) * innerWidth, y: (-p.y * 0.5 + 0.5) * innerHeight }; }, get state() { return state; }, get wave() { return wave; }, get score() { return score; }, get pens() { return pens; }, set pens(v) { pens = v; }, bees, bullets, heroes, stats, setActive, startGame, get bulletCount() { return bulletCount; }, spawnBee, spawnPen, camU, camFwd, knight, fairy, soldier };
 </script>
 </body>
 </html>
