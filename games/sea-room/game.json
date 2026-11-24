@@ -1,8 +1,8 @@
 {
   "title": "Sea Room",
-  "blurb": "A virtual pet room by the ocean with Sprout, a big soft green pup with a chocolate Lab's heart, and Sage, a round sage-green cat who does what she likes. Turn your phone to look around, call them with your finger or your voice.",
+  "blurb": "A calm room full of windows over the ocean, shared by Sprout, a big soft pup with a chocolate Lab's heart, and Sage, a round sage-green cat who does what she likes. Turn your phone to look around, call them with your finger or your voice, and keep a photo diary.",
   "date": "2026-11-18",
-  "updated": "2026-11-22",
+  "updated": "2026-11-24",
   "tags": [
     "mobile",
     "3d",
@@ -10,6 +10,6 @@
     "tilt",
     "voice"
   ],
-  "controls": "Turn the phone (or ⟲ ⟳) to change the view; tap the floor to throw the ball; press and hold the floor to call both pets; tap or rub a pet to fill its heart; 🎤 for voice commands (sit, come, dinner, roll over, good kitty…); Feed and Nap buttons",
+  "controls": "Turn the phone (or ⟲ ⟳) to change the view; tap the floor to throw the ball; hold the floor to call both pets; tap or rub a pet to fill its heart; Talk (or 🎤 on this site) for commands; 📷 photos and 📖 diary; Feed and Nap",
   "artifact": "https://claude.ai/artifact/ASmcoLegd4cCcF9o3PqXYP"
 }

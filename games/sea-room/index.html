@@ -12,54 +12,89 @@
 <meta name="apple-mobile-web-app-title" content="Sea Room">
 <meta name="theme-color" content="#0b3550">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Bangers&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&display=swap" rel="stylesheet">
 <style>
-  html,body{margin:0;height:100%;overflow:hidden;background:#0b3550;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;font-family:'Fredoka',system-ui,sans-serif}
-  #stage{position:absolute;left:50%;top:50%;transform-origin:50% 50%;overflow:hidden}
-  #hud{position:absolute;inset:0;pointer-events:none;color:#fff}
-  #hud button,#hud .clickable{pointer-events:auto}
-  button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
-  #top{position:absolute;left:10px;right:10px;top:10px;display:flex;gap:8px;align-items:flex-start}
-  #cards{flex:1;display:flex;gap:6px;min-width:0}
-  .card{flex:1;min-width:0;background:rgba(20,26,70,.55);border-radius:14px;padding:5px 7px 6px;backdrop-filter:blur(4px);display:flex;flex-direction:column;gap:4px}
-  .card .nm{align-self:flex-start;max-width:100%;overflow:hidden;text-overflow:ellipsis;color:#fff;border:2px solid #23255f;border-radius:11px;padding:1px 8px;font-size:14px;font-weight:700;box-shadow:0 3px 0 #23255f;text-shadow:0 1px 0 #23255f;white-space:nowrap}
-  .card.dog .nm{background:#3cbf55}.card.cat .nm{background:#7f9a88}
-  .card .bars{display:grid;grid-template-columns:1fr 1fr;gap:3px 7px}
-  .tb{display:flex;flex-direction:column;gap:6px}
-  #mic.live{background:#e2463c;animation:pulse 1.2s infinite}
-  @keyframes pulse{50%{box-shadow:0 0 0 6px rgba(226,70,60,.35)}}
-  .st{display:flex;align-items:center;gap:4px;font-size:12px}
-  .st i{flex:1;height:7px;background:rgba(255,255,255,.25);border-radius:6px;overflow:hidden;display:block}
-  .st b{display:block;height:100%;width:50%;background:#7ee08a;border-radius:6px;transition:width .4s,background .4s}
-  #mute,#mic{background:rgba(20,26,70,.55);border:0;border-radius:12px;font-size:18px;padding:6px 8px;color:#fff}
-  #bottom{position:absolute;left:0;right:0;bottom:14px;display:flex;justify-content:center;align-items:flex-end;gap:10px}
-  .act{background:#fff;color:#23255f;border:3px solid #23255f;border-radius:18px;width:66px;height:62px;font-size:26px;line-height:1;box-shadow:0 5px 0 #23255f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0}
-  .act small{font-size:12px;font-weight:700}
-  .act:active{transform:translateY(4px);box-shadow:0 1px 0 #23255f}
-  .rot{background:rgba(20,26,70,.6);color:#fff;border:2px solid rgba(255,255,255,.5);border-radius:50%;width:44px;height:44px;font-size:22px;margin-bottom:8px}
-  .bubble{position:absolute;left:0;top:0;transform:translate(-50%,-100%);background:#fff;color:#23255f;border:3px solid #23255f;border-radius:16px;padding:3px 11px;font-family:'Bangers','Fredoka',sans-serif;font-size:24px;letter-spacing:1px;white-space:nowrap;opacity:0;transition:opacity .2s;box-shadow:3px 3px 0 #23255f}
-  .bubble:after{content:'';position:absolute;left:50%;bottom:-11px;margin-left:-8px;border:8px solid transparent;border-top-color:#23255f;border-bottom:0}
-  .bubble.on{opacity:1}
-  .bubble.cat{color:#3d5245;border-color:#4b6355;box-shadow:3px 3px 0 #4b6355;font-size:21px}
-  .bubble.cat:after{border-top-color:#4b6355}
-  .float{position:absolute;font-size:26px;pointer-events:none;animation:up 1.3s ease-out forwards}
-  @keyframes up{0%{transform:translate(-50%,0) scale(.6);opacity:0}15%{opacity:1;transform:translate(-50%,-10px) scale(1.1)}100%{transform:translate(calc(-50% + var(--dx)),-90px) scale(.9);opacity:0}}
-  #toast{position:absolute;left:50%;top:104px;transform:translateX(-50%);background:rgba(20,26,70,.78);padding:7px 14px;border-radius:14px;font-size:15px;text-align:center;max-width:82%;opacity:0;transition:opacity .3s}
-  #toast.on{opacity:1}
-  #viewTag{position:absolute;right:12px;bottom:96px;font-size:12px;opacity:.85;text-shadow:0 1px 2px #000}
+  /* paper, ink and four highlighter accents */
+  :root{--ink:#1d1d24;--paper:#fbf8f1;--grn:#23d160;--yel:#ffd60a;--org:#ff8a2b;--blu:#1fa3ff;--m:14px;--r:12px}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b3550;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;font-family:'M PLUS Rounded 1c',system-ui,sans-serif;color:var(--ink)}
+  #stage{position:absolute;left:50%;top:50%;transform-origin:50% 50%;overflow:hidden;transition:opacity .18s}
   #view{position:absolute;left:50%;top:50%;transform-origin:50% 50%;will-change:transform}
   #view canvas{display:block}
-  #stage{transition:opacity .18s}
-  #intro{position:absolute;inset:0;background:radial-gradient(circle at 50% 35%,#2f8fb5,#0b3550);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;padding:24px;box-sizing:border-box;gap:10px}
-  #intro h1{font-family:'Bangers',sans-serif;font-size:46px;letter-spacing:2px;margin:0;text-shadow:0 4px 0 #23255f}
-  #intro p{margin:0;max-width:340px;font-size:15px;line-height:1.35}
-  #intro .rows{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;text-align:left;max-width:340px;font-size:14px;background:rgba(0,0,0,.2);padding:10px 12px;border-radius:14px}
-  #go{margin-top:8px;background:#34b84a;color:#fff;border:3px solid #23255f;border-radius:18px;font-size:22px;font-weight:700;padding:10px 26px;box-shadow:0 5px 0 #23255f;text-shadow:0 2px 0 #23255f}
-  #renameBox{position:absolute;inset:0;background:rgba(10,20,50,.6);display:none;align-items:center;justify-content:center}
+  #hud{position:absolute;inset:0;pointer-events:none}
+  #hud button{pointer-events:auto}
+  button{font-family:inherit;color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent}
+  /* top: who's who, and what they need */
+  #top{position:absolute;left:var(--m);right:var(--m);top:var(--m);display:flex;flex-direction:column;gap:8px}
+  #cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0}
+  .tag{display:flex;align-items:center;gap:7px;background:var(--paper);border:1.5px solid var(--ink);border-radius:var(--r);padding:5px 10px 5px 8px;font-size:14px;font-weight:800;min-height:34px;box-sizing:border-box;max-width:100%}
+  .tag .dot{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink);flex:none}
+  .tag .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;text-align:left}
+  .tag .heart{display:flex;gap:2px}
+  .tag .heart i{width:6px;height:10px;border-radius:2px;background:#e4ddd0}
+  .tag .heart i.on{background:var(--grn)}
+  .tag .needs{display:flex;gap:3px;font-size:13px}
+  .tag .needs span{background:var(--yel);border-radius:6px;padding:0 3px;line-height:18px}
+  .tag.sel{background:#fff6c2}
+  .icons{display:flex;gap:6px;align-self:flex-end}
+  .ib{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--ink);background:var(--paper);font-size:16px;padding:0;display:flex;align-items:center;justify-content:center}
+  #mic.live{background:var(--org)}
+  /* stats panel (tap a name) */
+  #panel{position:absolute;left:var(--m);top:60px;background:var(--paper);border:1.5px solid var(--ink);border-radius:var(--r);padding:10px 12px;display:none;width:200px;font-size:13px;pointer-events:auto}
+  #panel.on{display:block}
+  #panel h3{margin:0 0 8px;font-size:15px;font-weight:800}
+  #panel .row{display:grid;grid-template-columns:52px 1fr;align-items:center;gap:8px;margin:5px 0}
+  #panel .bar{height:8px;border:1.5px solid var(--ink);border-radius:5px;overflow:hidden;background:#fff}
+  #panel .bar b{display:block;height:100%;width:50%;transition:width .4s}
+  #panel .rename{margin-top:8px;border:0;background:none;padding:0;font-size:12px;text-decoration:underline}
+  /* bottom: four equal actions */
+  #bottom{position:absolute;left:var(--m);right:var(--m);bottom:var(--m);display:grid;grid-template-columns:40px repeat(4,1fr) 40px;gap:8px;align-items:end}
+  .act{background:var(--paper);border:1.5px solid var(--ink);border-radius:var(--r);height:58px;font-size:22px;line-height:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:0;position:relative;overflow:hidden}
+  .act small{font-size:12px;font-weight:800}
+  .act:after{content:'';position:absolute;left:0;right:0;bottom:0;height:5px;background:var(--c)}
+  .act:active{background:#efe9dd}
+  .act.on{background:#fff6c2}
+  .rot{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--ink);background:var(--paper);font-size:18px;padding:0;margin-bottom:9px}
+  #viewTag{position:absolute;left:var(--m);bottom:84px;font-size:11px;font-weight:800;color:var(--paper);text-shadow:0 1px 2px rgba(0,0,0,.6)}
+  /* talk chips (on-screen commands, like the mic) */
+  #talk{position:absolute;left:0;right:0;bottom:84px;display:none;gap:6px;padding:0 var(--m);overflow-x:auto;pointer-events:auto;scrollbar-width:none}
+  #talk.on{display:flex}
+  #talk button{flex:none;background:var(--paper);border:1.5px solid var(--ink);border-radius:18px;padding:7px 12px;font-size:13px;font-weight:800;white-space:nowrap}
+  #talk button.who{background:var(--yel)}
+  /* pets' speech */
+  .bubble{position:absolute;left:0;top:0;transform:translate(-50%,-100%);background:#fff;border:2px solid var(--ink);border-radius:14px;padding:3px 10px;font-size:16px;font-weight:800;white-space:nowrap;opacity:0;transition:opacity .2s}
+  .bubble:after{content:'';position:absolute;left:50%;bottom:-9px;margin-left:-7px;border:7px solid transparent;border-top-color:var(--ink);border-bottom:0}
+  .bubble.on{opacity:1}
+  .bubble.cat{border-color:#4b6355;color:#3d5245;font-weight:500}
+  .bubble.cat:after{border-top-color:#4b6355}
+  .float{position:absolute;font-size:24px;pointer-events:none;animation:up 1.3s ease-out forwards}
+  @keyframes up{0%{transform:translate(-50%,0) scale(.6);opacity:0}15%{opacity:1;transform:translate(-50%,-10px) scale(1.1)}100%{transform:translate(calc(-50% + var(--dx)),-90px) scale(.9);opacity:0}}
+  #toast{position:absolute;left:50%;top:118px;transform:translateX(-50%);background:rgba(29,29,36,.9);color:var(--paper);padding:8px 14px;border-radius:var(--r);font-size:14px;text-align:center;max-width:80%;opacity:0;transition:opacity .3s;display:flex;align-items:center;gap:10px}
+  #toast img{width:44px;height:44px;border-radius:6px;border:1.5px solid var(--paper)}
+  #toast.on{opacity:1}
+  /* overlays */
+  .sheet{position:absolute;inset:0;background:var(--paper);overflow:auto;box-sizing:border-box;padding:28px 22px 40px}
+  #intro{display:flex;flex-direction:column;justify-content:center;gap:18px;max-width:none}
+  #intro .in{max-width:360px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+  #intro h1{margin:0;font-size:40px;font-weight:800;letter-spacing:.5px}
+  #intro h1 span{display:block;height:6px;width:64px;background:var(--blu);margin-top:8px;border-radius:3px}
+  #intro p{margin:0;font-size:15px;line-height:1.5}
+  #intro .rows{display:grid;grid-template-columns:28px 1fr;gap:10px 10px;font-size:14px;line-height:1.45}
+  .big{background:var(--grn);border:1.5px solid var(--ink);border-radius:var(--r);font-size:18px;font-weight:800;padding:12px 26px;align-self:flex-start}
+  #diary{display:none}
+  #diary.on{display:block}
+  #diary header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+  #diary h2{margin:0;font-size:26px;font-weight:800}
+  #diary .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:18px}
+  #diary figure{margin:0}
+  #diary img{width:100%;aspect-ratio:1;object-fit:cover;border:1.5px solid var(--ink);border-radius:8px;display:block;background:#ddd}
+  #diary figcaption{font-size:13px;line-height:1.45;margin-top:7px}
+  #diary time{display:block;font-size:11px;color:#77736a;margin-top:3px}
+  #diary .rm{border:0;background:none;padding:0;font-size:11px;text-decoration:underline;color:#77736a}
+  #diary .empty{font-size:14px;color:#77736a;line-height:1.5;max-width:320px}
+  #renameBox{position:absolute;inset:0;background:rgba(29,29,36,.45);display:none;align-items:center;justify-content:center}
   #renameBox.on{display:flex}
-  #renameBox div{background:#fff;border:3px solid #23255f;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px;color:#23255f;box-shadow:0 5px 0 #23255f}
-  #renameBox input{font:inherit;font-size:20px;padding:6px 10px;border:2px solid #23255f;border-radius:10px;width:200px}
-  #renameBox button{font-size:18px;background:#34b84a;color:#fff;border:3px solid #23255f;border-radius:12px;padding:6px}
+  #renameBox div{background:var(--paper);border:1.5px solid var(--ink);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:12px}
+  #renameBox input{font:inherit;font-size:18px;padding:8px 10px;border:1.5px solid var(--ink);border-radius:8px;width:210px;background:#fff}
   #err{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#fff;text-align:center;padding:30px}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}</script>
@@ -69,31 +104,37 @@
   <div id="hud">
     <div id="top">
       <div id="cards"></div>
-      <div class="tb"><button id="mute">🔊</button><button id="mic" title="Voice commands">🎤</button></div>
+      <div class="icons"><button class="ib" id="snap" aria-label="Take a photo for the diary">📷</button><button class="ib" id="book" aria-label="Open the diary">📖</button><button class="ib" id="mic" aria-label="Voice commands">🎤</button><button class="ib" id="mute" aria-label="Sound on or off">🔊</button></div>
     </div>
+    <div id="panel"></div>
     <div id="floats"></div>
     <div id="toast"></div>
     <div id="viewTag"></div>
+    <div id="talk"></div>
     <div id="bottom">
-      <button class="rot" id="rotL" title="Turn view left">⟲</button>
-      <button class="act" id="feed">🍖<small>Feed</small></button>
-      <button class="act" id="throw">🎾<small>Ball</small></button>
-      <button class="act" id="nap">🛏️<small>Nap</small></button>
-      <button class="rot" id="rotR" title="Turn view right">⟳</button>
+      <button class="rot" id="rotL" aria-label="Turn view left">⟲</button>
+      <button class="act" id="feed" style="--c:var(--org)">🍖<small>Feed</small></button>
+      <button class="act" id="throw" style="--c:var(--yel)">🎾<small>Ball</small></button>
+      <button class="act" id="nap" style="--c:var(--blu)">🌙<small>Nap</small></button>
+      <button class="act" id="talkBtn" style="--c:var(--grn)">💬<small>Talk</small></button>
+      <button class="rot" id="rotR" aria-label="Turn view right">⟳</button>
     </div>
   </div>
-  <div id="renameBox"><div><b id="renameTitle">Name your pup</b><input id="nameIn" maxlength="14"><button id="nameOk">That's the one!</button></div></div>
-  <div id="intro">
-    <h1>SEA ROOM</h1>
-    <p><b id="introDog">Sprout</b>, a big-hearted, food-crazy pup, and <b id="introCat">Sage</b>, a cat who does what she likes, share a long room by the ocean.</p>
-    <div class="rows">
-      <span>📱</span><span>Turn your phone to walk around the room: upright looks out to sea, upside-down looks back at the door, sideways shows each long wall.</span>
-      <span>🌀</span><span>Every turn sends them both rolling across the floor to you.</span>
-      <span>👆</span><span>Tap the floor to throw the ball. Press and hold the floor and they come to your finger. Tap or rub a pet to fill its 💚.</span>
-      <span>🎤</span><span>Tap the mic and talk: “sit”, “come here”, “dinner”, “roll over”, “good kitty”… (on your Itemnaut site).</span>
-      <span>⟲⟳</span><span>No tilt? The round buttons turn the view too (arrow keys on a computer).</span>
+  <div id="renameBox"><div><b id="renameTitle">Name your pup</b><input id="nameIn" maxlength="14"><button id="nameOk" class="big">Save</button></div></div>
+  <div id="diary" class="sheet"><header><h2>Diary</h2><button class="ib" id="diaryClose" aria-label="Close the diary">✕</button></header><div class="grid" id="diaryGrid"></div></div>
+  <div id="intro" class="sheet">
+    <div class="in">
+      <h1>Sea Room<span></span></h1>
+      <p><b id="introDog">Sprout</b>, a big-hearted pup who lives for dinner, and <b id="introCat">Sage</b>, a cat who does what she likes, share a long room by the ocean.</p>
+      <div class="rows">
+        <span>📱</span><span>Turn your phone to look around. They roll over to you every time.</span>
+        <span>👆</span><span>Tap the floor to throw the ball. Hold the floor and they come to your finger.</span>
+        <span>💚</span><span>Tap or rub a pet to fill its heart.</span>
+        <span>💬</span><span>Talk to them with the buttons, or the mic on your Itemnaut site.</span>
+        <span>📷</span><span>Take photos for your diary.</span>
+      </div>
+      <button id="go" class="big">Come in</button>
     </div>
-    <button id="go">Let's go!</button>
   </div>
   <div id="err"></div>
 </div>
@@ -283,26 +324,26 @@ function canvasTex(w, h, draw) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
-const wallMat = new THREE.MeshStandardMaterial({ color: 0xf4ece0, roughness: .92 });
+const wallMat = new THREE.MeshStandardMaterial({ color: 0xf7f4ee, roughness: .92 });
 const trimMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .6 });
 const woodMat = new THREE.MeshStandardMaterial({ color: 0xb98a5c, roughness: .7 });
 const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xd8f3ff, roughness: .05, transparent: true, opacity: .1, depthWrite: false, side: THREE.DoubleSide });
 
 // floor
 const floorTex = canvasTex(512, 1024, (x, w, h) => {
-  const cols = ['#c8955f', '#bf8a55', '#d3a26c', '#c48f5a', '#b98450'];
+  const cols = ['#dcc19a', '#d6b98f', '#e2c9a4', '#d9bd94', '#d2b48a'];
   const pw = w / 8;
   for (let i = 0; i < 8; i++) {
     let y = -rnd(0, 300);
     while (y < h) {
       const len = rnd(220, 420);
       x.fillStyle = cols[(Math.random() * cols.length) | 0]; x.fillRect(i * pw, y, pw, len);
-      x.globalAlpha = .12; x.strokeStyle = '#7a5230';
+      x.globalAlpha = .06; x.strokeStyle = '#8a6a44';
       for (let k = 0; k < 6; k++) { x.beginPath(); const xx = i * pw + rnd(4, pw - 4); x.moveTo(xx, y); x.bezierCurveTo(xx + rnd(-6, 6), y + len * .3, xx + rnd(-6, 6), y + len * .6, xx + rnd(-4, 4), y + len); x.stroke(); }
-      x.globalAlpha = 1; x.fillStyle = '#6e4a2c'; x.fillRect(i * pw, y, pw, 2);
+      x.globalAlpha = 1; x.fillStyle = '#b89a72'; x.fillRect(i * pw, y, pw, 2);
       y += len;
     }
-    x.fillStyle = '#6e4a2c'; x.fillRect(i * pw, 0, 2, h);
+    x.fillStyle = '#b89a72'; x.fillRect(i * pw, 0, 2, h);
   }
 });
 floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(1.2, 2.4);
@@ -364,14 +405,14 @@ curWall = wallGroups.W;
 // west wall (x = -HX): three big windows
 wall('x', -HX, -HZ - .2, HZ + .2, [[-6.1, -3.5, .55, 3.7, 0, [-4.8]], [-2.6, .6, .55, 3.7, 0, [-1]], [1.5, 4.6, .55, 3.7, 0, [3.05]]]);
 curWall = wallGroups.E;
-// east wall (x = +HX): one big window + art wall
-wall('x', HX, -HZ - .2, HZ + .2, [[-6.1, -2.7, .55, 3.7, 0, [-4.4]]]);
+// east wall (x = +HX): two big windows around one print
+wall('x', HX, -HZ - .2, HZ + .2, [[-6.1, -2.7, .55, 3.7, 0, [-4.4]], [1.4, 5.4, .55, 3.7, 0, [3.4]]]);
 curWall = wallGroups.F;
 // far wall (z = -HZ): floor-to-ceiling glass
 wall('z', -HZ, -HX, HX, [[-2.25, 2.25, .5, 3.95, 0, [-.75, .75]]]);
 curWall = wallGroups.N;
-// entrance wall (z = +HZ): door
-wall('z', HZ, -HX, HX, [[.2, 1.5, 0, 2.5, 1]]);
+// entrance wall (z = +HZ): a window and the door
+wall('z', HZ, -HX, HX, [[-2.2, -.4, .6, 3.6, 0, [-1.3]], [.2, 1.5, 0, 2.5, 1]]);
 
 // door
 const doorMat = new THREE.MeshStandardMaterial({ color: 0x2f8f9d, roughness: .55 });
@@ -392,13 +433,12 @@ const matTex = canvasTex(256, 128, (x, w, h) => {
 const wmat = new THREE.Mesh(new THREE.PlaneGeometry(1.4, .7), new THREE.MeshStandardMaterial({ map: matTex, roughness: 1 }));
 wmat.rotation.x = -Math.PI / 2; wmat.position.set(.85, .006, HZ - .55); wmat.receiveShadow = true; addR(wmat);
 curWall = wallGroups.N;
-// coat hooks + leash
-const navyMat = new THREE.MeshStandardMaterial({ color: 0x2a2c6e, roughness: .4 });
-const hookBar = new THREE.Mesh(new THREE.BoxGeometry(1.2, .12, .05), woodMat); hookBar.position.set(-1.2, 1.95, HZ - .03); addR(hookBar);
-for (const hx of [-1.6, -1.2, -.8]) { const h = new THREE.Mesh(new THREE.SphereGeometry(.045, 10, 8), navyMat); h.position.set(hx, 1.95, HZ - .09); addR(h); }
+// one peg by the door with the dog's leash (it says: walks happen here)
+const navyMat = new THREE.MeshStandardMaterial({ color: 0x1d1d24, roughness: .6 });
 {
-  const curve = new THREE.CatmullRomCurve3([new V3(-1.2, 1.95, HZ - .1), new V3(-1.32, 1.5, HZ - .12), new V3(-1.2, 1.1, HZ - .1), new V3(-1.05, 1.45, HZ - .12), new V3(-1.2, 1.95, HZ - .1)]);
-  const leash = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, .025, 8, true), new THREE.MeshStandardMaterial({ color: 0xe2463c, roughness: .5 }));
+  const peg = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, .14, 6), navyMat); peg.rotation.x = Math.PI / 2; peg.position.set(2.0, 1.95, HZ - .07); addR(peg);
+  const curve = new THREE.CatmullRomCurve3([new V3(2.0, 1.95, HZ - .12), new V3(1.88, 1.5, HZ - .12), new V3(2.0, 1.08, HZ - .1), new V3(2.12, 1.45, HZ - .12), new V3(2.0, 1.95, HZ - .12)]);
+  const leash = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, .025, 6, true), new THREE.MeshStandardMaterial({ color: 0xff5a1f, roughness: .6 }));
   addR(leash);
 }
 
@@ -411,73 +451,46 @@ for (const [px, col] of [[-.9, 0xf2c14e], [.95, 0xffffff]]) {
   pil.scale.set(1.2, .8, .5); pil.position.set(px * 1.25, .7, -HZ + .14); addR(pil);
 }
 
-// plants
+// plants: low-poly, flat-shaded
 function plant(x, z) {
   const g = new THREE.Group();
-  const pot = new THREE.Mesh(new THREE.CylinderGeometry(.24, .18, .45, 20), new THREE.MeshStandardMaterial({ color: 0xd2694a, roughness: .8 }));
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(.24, .18, .45, 8), new THREE.MeshStandardMaterial({ color: 0xff8a2b, roughness: .8, flatShading: true }));
   pot.position.y = .225; pot.castShadow = true; g.add(pot);
-  const lm = new THREE.MeshStandardMaterial({ color: 0x2f9e5a, roughness: .6 });
-  for (let i = 0; i < 8; i++) {
-    const l = new THREE.Mesh(new THREE.SphereGeometry(.13, 10, 8), lm); l.scale.set(.6, 2.4, .25);
-    const a = i / 8 * Math.PI * 2; l.position.set(Math.cos(a) * .12, .75 + rnd(0, .2), Math.sin(a) * .12);
-    l.rotation.set(Math.sin(a) * .5, 0, -Math.cos(a) * .5); l.castShadow = true; g.add(l);
+  const lm = new THREE.MeshStandardMaterial({ color: 0x23b35a, roughness: .7, flatShading: true });
+  for (let i = 0; i < 7; i++) {
+    const l = new THREE.Mesh(new THREE.ConeGeometry(.09, .75, 4), lm);
+    const a = i / 7 * Math.PI * 2; l.position.set(Math.cos(a) * .08, .78, Math.sin(a) * .08);
+    l.rotation.set(Math.sin(a) * .35, a, -Math.cos(a) * .35); l.castShadow = true; g.add(l);
   }
   g.position.set(x, 0, z); addR(g);
 }
 plant(-2.0, -HZ + .45); plant(2.0, -HZ + .45);
 
 curWall = wallGroups.E;
-// paintings on east wall
-function painting(z, y, w, h, draw) {
-  const tex = canvasTex(256, Math.round(256 * h / w), draw);
-  const fr = new THREE.Mesh(new THREE.BoxGeometry(.06, h + .12, w + .12), woodMat); fr.position.set(HX - .03, y, z); addR(fr);
-  const pic = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, roughness: .8 }));
-  pic.rotation.y = -Math.PI / 2; pic.position.set(HX - .065, y, z); addR(pic);
-}
-painting(-.6, 2.25, 1.5, 1.05, (x, w, h) => {
-  const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#ffb36b'); g.addColorStop(.55, '#ffd9a0'); g.addColorStop(.56, '#2f8fb5'); g.addColorStop(1, '#16527a');
-  x.fillStyle = g; x.fillRect(0, 0, w, h); x.fillStyle = '#fff3c4'; x.beginPath(); x.arc(w * .62, h * .5, 30, Math.PI, 0); x.fill();
-  x.fillStyle = 'rgba(255,240,200,.6)'; for (let i = 0; i < 6; i++) x.fillRect(w * .62 - 30 + i * 4, h * .58 + i * 9, 60 - i * 8, 3);
-});
-painting(1.4, 2.0, .7, .7, (x, w, h) => {
-  x.fillStyle = '#fff6e6'; x.fillRect(0, 0, w, h); x.fillStyle = '#34b84a';
-  x.beginPath(); x.ellipse(w / 2, h * .62, 48, 40, 0, 0, 7); x.fill();
-  for (const [dx, dy] of [[-58, -30], [-22, -66], [22, -66], [58, -30]]) { x.beginPath(); x.ellipse(w / 2 + dx, h * .62 + dy, 19, 23, 0, 0, 7); x.fill(); }
-});
-painting(3.0, 2.3, .9, .6, (x, w, h) => {
-  x.fillStyle = '#23255f'; x.fillRect(0, 0, w, h); x.fillStyle = '#f2c14e';
-  x.save(); x.translate(w / 2, h / 2); x.rotate(-.3); x.fillRect(-70, -12, 140, 24);
-  for (const sx of [-1, 1]) for (const sy of [-1, 1]) { x.beginPath(); x.arc(sx * 72, sy * 14, 18, 0, 7); x.fill(); }
-  x.restore();
-});
-// shelf with books
+// one print on the east wall: sun over sea, three shapes
 {
-  const shelf = new THREE.Mesh(new THREE.BoxGeometry(.3, .06, 1.6), woodMat); shelf.position.set(HX - .15, 1.35, 4.3); shelf.castShadow = true; addR(shelf);
-  const cols = [0xe2463c, 0x2a2c6e, 0xf2c14e, 0x2f8f9d, 0x34b84a, 0xffffff];
-  let z = 3.6;
-  for (let i = 0; i < 9; i++) {
-    const bw = rnd(.07, .13), bh = rnd(.25, .38);
-    const b = new THREE.Mesh(new THREE.BoxGeometry(.22, bh, bw), new THREE.MeshStandardMaterial({ color: cols[i % cols.length], roughness: .7 }));
-    b.position.set(HX - .15, 1.38 + bh / 2, z + bw / 2); b.rotation.x = i === 6 ? .25 : 0; addR(b); z += bw + .01;
-  }
+  const w = 1.7, h = 1.15, y = 2.2, z = -.65;
+  const tex = canvasTex(340, 230, (x, W, H) => {
+    x.fillStyle = '#fbf8f1'; x.fillRect(0, 0, W, H);
+    x.fillStyle = '#ffd60a'; x.beginPath(); x.arc(W * .5, H * .5, 52, 0, Math.PI * 2); x.fill();
+    x.fillStyle = '#1fa3ff'; x.fillRect(0, H * .58, W, H * .42);
+    x.fillStyle = '#18c77a'; x.fillRect(0, H * .8, W, H * .2);
+  });
+  const fr = new THREE.Mesh(new THREE.BoxGeometry(.04, h + .06, w + .06), navyMat); fr.position.set(HX - .02, y, z); addR(fr);
+  const pic = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, roughness: .9 }));
+  pic.rotation.y = -Math.PI / 2; pic.position.set(HX - .045, y, z); addR(pic);
 }
 curWall = null;
 // pendant lamps
 for (const z of [-3.2, 3.2]) {
   const cord = new THREE.Mesh(new THREE.CylinderGeometry(.01, .01, .55), navyMat); cord.position.set(0, RH - .28, z); addR(cord);
-  const shade = new THREE.Mesh(new THREE.SphereGeometry(.28, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xf2c14e, roughness: .5, side: THREE.DoubleSide }));
-  shade.position.set(0, RH - .6, z); addR(shade);
+  const shade = new THREE.Mesh(new THREE.ConeGeometry(.32, .34, 6, 1, true), new THREE.MeshStandardMaterial({ color: 0xffd60a, roughness: .6, side: THREE.DoubleSide, flatShading: true }));
+  shade.position.set(0, RH - .62, z); addR(shade);
   const bulb = new THREE.Mesh(new THREE.SphereGeometry(.09, 12, 8), new THREE.MeshBasicMaterial({ color: 0xfff1cc })); bulb.position.set(0, RH - .65, z); addR(bulb);
 }
-// rug
-const rugTex = canvasTex(256, 512, (x, w, h) => {
-  x.fillStyle = '#f4e9d4'; x.fillRect(0, 0, w, h);
-  const st = ['#2a2c6e', '#5fb3c6', '#f4e9d4', '#e07a3f'];
-  for (let i = 0; i < 16; i++) { x.fillStyle = st[i % 4]; x.fillRect(0, i * 32, w, 16); }
-  x.strokeStyle = '#2a2c6e'; x.lineWidth = 14; x.strokeRect(7, 7, w - 14, h - 14);
-});
-const rug = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 4.2), new THREE.MeshStandardMaterial({ map: rugTex, roughness: 1 }));
-rug.rotation.x = -Math.PI / 2; rug.position.set(-.4, .004, -3.3); rug.receiveShadow = true; addR(rug);
+// rug: one calm sea-green circle
+const rug = new THREE.Mesh(new THREE.CircleGeometry(1.45, 12), new THREE.MeshStandardMaterial({ color: 0x9fd8cb, roughness: 1, flatShading: true }));
+rug.rotation.x = -Math.PI / 2; rug.position.set(-.4, .004, -3.4); rug.receiveShadow = true; addR(rug);
 
 // dog bed
 const BED = { x: 1.05, z: -1.1 };
@@ -485,14 +498,14 @@ const BED = { x: 1.05, z: -1.1 };
   const g = new THREE.Group();
   const base = new THREE.Mesh(new THREE.CylinderGeometry(.92, .95, .12, 32), new THREE.MeshStandardMaterial({ color: 0xf4e3c8, roughness: 1 }));
   base.position.y = .06; base.receiveShadow = true; g.add(base);
-  const bol = new THREE.Mesh(new THREE.TorusGeometry(.86, .17, 14, 40), new THREE.MeshStandardMaterial({ color: 0xe07a3f, roughness: .9 }));
+  const bol = new THREE.Mesh(new THREE.TorusGeometry(.86, .17, 14, 40), new THREE.MeshStandardMaterial({ color: 0xff8a2b, roughness: .9 }));
   bol.rotation.x = -Math.PI / 2; bol.position.y = .17; bol.castShadow = bol.receiveShadow = true; g.add(bol);
   g.scale.set(1.42, 1, 1.42); g.position.set(BED.x, 0, BED.z); addR(g);
 }
 // feeding corner: dog bowl, water, cat bowl on a mat
 const BOWL = { x: -1.35, z: 2.05 }, WATER = { x: -1.4, z: 2.8 }, CAT_BOWL = { x: .75, z: 3.0 };
 {
-  const mt = canvasTex(256, 160, (x, w, h) => { x.fillStyle = '#f2e6cf'; x.fillRect(0, 0, w, h); x.strokeStyle = '#c96f3b'; x.lineWidth = 10; x.strokeRect(8, 8, w - 16, h - 16); });
+  const mt = canvasTex(256, 160, (x, w, h) => { x.fillStyle = '#efe9dd'; x.fillRect(0, 0, w, h); });
   const m = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 1.7), new THREE.MeshStandardMaterial({ map: mt, roughness: 1 }));
   m.rotation.x = -Math.PI / 2; m.position.set(-.3, .003, 2.55); m.receiveShadow = true; addR(m);
 }
@@ -501,16 +514,25 @@ function bowl(x, z, col, s = 1) {
   const m = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), new THREE.MeshStandardMaterial({ color: col, roughness: .5 }));
   m.scale.set(s, s, s); m.position.set(x, 0, z); m.castShadow = m.receiveShadow = true; addR(m); return m;
 }
-bowl(BOWL.x, BOWL.z, 0xe2463c);
-bowl(WATER.x, WATER.z, 0x2f8f9d);
-bowl(CAT_BOWL.x, CAT_BOWL.z, 0xb89ad6, .72);
+bowl(BOWL.x, BOWL.z, 0xff5a1f);
+bowl(WATER.x, WATER.z, 0x1fa3ff);
+bowl(CAT_BOWL.x, CAT_BOWL.z, 0xffd60a, .72);
 const water = new THREE.Mesh(new THREE.CircleGeometry(.25, 24), new THREE.MeshStandardMaterial({ color: 0x9fe0f0, roughness: .05, transparent: true, opacity: .8 }));
 water.rotation.x = -Math.PI / 2; water.position.set(WATER.x, .13, WATER.z); addR(water);
+// the cat's scratching post (low-poly; she uses it)
+const SCRATCH = { x: 2.02, z: 4.55 };
+{
+  const g = new THREE.Group(), fm = { roughness: .9, flatShading: true };
+  const base = new THREE.Mesh(new THREE.BoxGeometry(.62, .08, .62), new THREE.MeshStandardMaterial({ color: 0xefe9dd, ...fm })); base.position.y = .04; g.add(base);
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(.1, .1, 1.15, 7), new THREE.MeshStandardMaterial({ color: 0xd9c39a, ...fm })); post.position.y = .655; post.castShadow = true; g.add(post);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(.5, .06, .5), new THREE.MeshStandardMaterial({ color: 0xffd60a, ...fm })); top.position.y = 1.26; top.castShadow = true; g.add(top);
+  g.position.set(SCRATCH.x, 0, SCRATCH.z); addR(g);
+}
 // toy basket
 {
   const bk = new THREE.Mesh(new THREE.CylinderGeometry(.34, .28, .4, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0xc9a46a, roughness: 1, side: THREE.DoubleSide }));
   bk.position.set(1.95, .2, 6.0); bk.castShadow = true; addR(bk);
-  const rope = new THREE.Mesh(new THREE.TorusGeometry(.14, .04, 8, 20), new THREE.MeshStandardMaterial({ color: 0x5fb3c6 })); rope.position.set(1.9, .45, 6.0); rope.rotation.set(.4, .3, .8); addR(rope);
+  const rope = new THREE.Mesh(new THREE.TorusGeometry(.14, .04, 8, 20), new THREE.MeshStandardMaterial({ color: 0x23d160 })); rope.position.set(1.9, .45, 6.0); rope.rotation.set(.4, .3, .8); addR(rope);
   const bone = new THREE.Mesh(new THREE.CapsuleGeometry(.04, .25, 4, 8), new THREE.MeshStandardMaterial({ color: 0xfff3dd })); bone.position.set(2.05, .42, 5.95); bone.rotation.z = 1.1; addR(bone);
 }
 // outdoor deck past the far glass
@@ -901,7 +923,7 @@ function safeSpot(p, x, z) {
     x = clamp(x, p.b.x0, p.b.x1); z = clamp(z, p.b.z0, p.b.z1);
     const f = toHud(x, 0, z), t = toHud(x, p.H, z);
     const m = 40 + p.R * 30;
-    if (!f.behind && f.y < sh - 118 && t.y > 104 && f.x > m && f.x < sw - m) return { x, z };
+    if (!f.behind && f.y < sh - 118 && t.y > 118 && f.x > m && f.x < sw - m) return { x, z };
     x = lerp(x, cx, .14); z = lerp(z, cz, .14);
   }
   return { x: clamp(x, p.b.x0, p.b.x1), z: clamp(z, p.b.z0, p.b.z1) };
@@ -1083,29 +1105,107 @@ function floatEmoji(p, e, n = 1) {
     floatsEl.appendChild(el); setTimeout(() => el.remove(), 1600 + i * 120);
   }
 }
+const NEED_ICONS = { hunger: '🍖', energy: '💤', fun: '🎾' };
+const NEED_NAMES = { hunger: 'Food', energy: 'Energy', fun: 'Play', love: 'Love' };
 const cards = [];
+let selected = null;   // who the talk chips speak to (null = both)
+let panelPet = null;
+const hex = c => '#' + c.toString(16).padStart(6, '0');
 for (const p of pets) {
-  const c = document.createElement('div'); c.className = 'card ' + p.kind;
-  c.innerHTML = `<button class="nm">${p.kind === 'dog' ? '🐶' : '🐱'} <span></span></button><div class="bars">` +
-    ['hunger:🍖', 'energy:⚡', 'fun:🎾', 'love:💚'].map(s => `<div class="st" title="${s.split(':')[0]}">${s.split(':')[1]}<i><b data-k="${s.split(':')[0]}"></b></i></div>`).join('') + '</div>';
+  const c = document.createElement('button'); c.className = 'tag ' + p.kind;
+  c.innerHTML = `<span class="dot" style="background:${hex(p.sp.color)}"></span><span class="nm"></span><span class="heart">${'<i></i>'.repeat(5)}</span><span class="needs"></span>`;
   $('#cards').appendChild(c);
-  c.querySelector('.nm').onclick = () => openRename(p);
+  c.onclick = () => { panelPet = panelPet === p ? null : p; renderPanel(); };
   cards.push({ p, el: c });
+}
+function renderPanel() {
+  const el = $('#panel');
+  if (!panelPet) { el.classList.remove('on'); return; }
+  const p = panelPet, tag = cards.find(c => c.p === p).el;
+  el.innerHTML = '<h3></h3>' + Object.keys(NEED_NAMES).map(k => `<div class="row"><span>${NEED_NAMES[k]}</span><div class="bar"><b data-k="${k}"></b></div></div>`).join('') + '<button class="rename">Rename</button>';
+  el.querySelector('h3').textContent = p.name;
+  el.querySelector('.rename').onclick = () => openRename(p);
+  el.style.left = Math.min(tag.offsetLeft + 14, sw - 214 - 14) + 'px'; el.style.top = ($('#top').offsetHeight + 22) + 'px';
+  el.classList.add('on'); updateBars();
 }
 function updateBars() {
   for (const { p, el } of cards) {
-    el.querySelector('.nm span').textContent = p.name;
-    el.querySelectorAll('b[data-k]').forEach(b => { const v = p.S[b.dataset.k]; b.style.width = v + '%'; b.style.background = v < 25 ? '#ff7a6b' : v < 50 ? '#ffd166' : '#7ee08a'; });
+    el.querySelector('.nm').textContent = p.name;
+    const n = Math.round(p.S.love / 20);
+    el.querySelectorAll('.heart i').forEach((i, k) => i.classList.toggle('on', k < n));
+    el.querySelector('.needs').innerHTML = Object.keys(NEED_ICONS).filter(k => p.S[k] < 35).map(k => `<span title="${NEED_NAMES[k]}">${NEED_ICONS[k]}</span>`).join('');
+    el.classList.toggle('sel', selected === p);
+    el.setAttribute('aria-label', `${p.name}. ` + Object.keys(NEED_NAMES).map(k => `${NEED_NAMES[k]} ${Math.round(p.S[k])} of 100`).join(', '));
   }
+  if (panelPet) $('#panel').querySelectorAll('b[data-k]').forEach(b => { const v = panelPet.S[b.dataset.k]; b.style.width = v + '%'; b.style.background = v < 25 ? 'var(--org)' : v < 50 ? 'var(--yel)' : 'var(--grn)'; });
   $('#introDog').textContent = dog.name; $('#introCat').textContent = cat.name;
 }
 let renaming = null;
 function openRename(p) { renaming = p; $('#renameTitle').textContent = p.kind === 'dog' ? 'Name your pup' : 'Name your cat'; $('#nameIn').value = p.name; $('#renameBox').classList.add('on'); setTimeout(() => $('#nameIn').focus(), 50); }
 $('#nameOk').onclick = () => {
   const p = renaming; if (!p) return;
-  p.name = $('#nameIn').value.trim().slice(0, 14) || p.name; $('#renameBox').classList.remove('on'); updateBars(); save();
+  p.name = $('#nameIn').value.trim().slice(0, 14) || p.name; $('#renameBox').classList.remove('on'); updateBars(); renderPanel(); save();
   if (p.kind === 'dog') { say(p, 'WOOF!'); sBark(); } else { say(p, 'mrrp.'); sMeow('mrrp'); }
 };
+
+/* talk: on-screen commands, the same words the mic understands */
+const TALK = [['come', 'Come'], ['sit', 'Sit'], ['stay', 'Stay'], ['down', 'Down'], ['rollover', 'Roll over'], ['paw', 'High five'], ['spin', 'Spin'], ['speak', 'Speak'], ['play', 'Play'], ['praise', 'Good!'], ['no', 'No']];
+function renderTalk() {
+  const t = $('#talk'); t.innerHTML = '';
+  const who = document.createElement('button'); who.className = 'who'; who.textContent = selected ? selected.name : 'Both';
+  who.onclick = () => { selected = selected === null ? dog : selected === dog ? cat : null; renderTalk(); updateBars(); };
+  t.appendChild(who);
+  for (const [c, l] of TALK) {
+    const b = document.createElement('button'); b.textContent = l;
+    b.onclick = () => { initAudio(); (selected ? [selected] : pets).forEach((p, i) => setTimeout(() => command(p, c), i * 250)); };
+    t.appendChild(b);
+  }
+}
+$('#talkBtn').onclick = () => { const on = !$('#talk').classList.contains('on'); $('#talk').classList.toggle('on', on); $('#talkBtn').classList.toggle('on', on); if (on) renderTalk(); };
+
+/* diary: snapshots with a line about what they were up to */
+const DIARY_KEY = 'sea-room-diary-v1';
+let diary = []; try { diary = JSON.parse(localStorage.getItem(DIARY_KEY) || '[]'); } catch (e) {}
+let snapPending = false;
+$('#snap').onclick = () => { if (started) { initAudio(); snapPending = true; } };
+const DOING = {
+  dog: { sleep: 'is fast asleep', eat: 'is wolfing down dinner', chase: 'is chasing the ball', zoomies: 'has the zoomies', belly: 'wants a belly rub', beg: 'is staring at his empty bowl',
+    watch: 'is watching the waves', sniff: 'is sniffing around', flop: 'is flopped on the floor', bow: 'is asking for a game', sitWait: 'is sitting nicely', happy: 'is all wiggles',
+    rollover: 'is rolling over', paw: 'is giving a high five', spin: 'is chasing his tail', sad: 'is sorry', drink: 'is having a drink', circle: 'is turning round and round', yawn: 'is yawning', call: 'is right by your hand' },
+  cat: { sleep: 'is curled up asleep', eat: 'is nibbling dinner', perchWatch: 'is watching gulls from the window seat', groom: 'is washing her face', loaf: 'is a loaf', stretch: 'is stretching',
+    snub: 'is ignoring everyone', rub: 'is saying hello to the pup', stalk: 'is about to pounce', pounceRun: 'is pouncing', swat: 'has had enough', zoomies: 'has the zoomies', flop: 'is lying in the sun',
+    beg: 'is demanding dinner', happy: 'is purring', belly: 'is showing her belly', scratch: 'is using her scratching post', knead: 'is kneading', drink: 'is having a drink', yawn: 'is yawning', sitWait: 'is sitting with you', call: 'came when called' }
+};
+function caption() {
+  return pets.map(p => p.name + ' ' + (p.ballMode ? 'is rolling across the floor' : (DOING[p.kind][p.state] || (p.speed > .3 ? 'is wandering about' : 'is hanging out'))) + '.').join(' ');
+}
+function doSnap() {
+  try {
+    const src = renderer.domElement, k = src.width / cw, side = Math.min(innerWidth, innerHeight) * k;
+    const c = document.createElement('canvas'); c.width = c.height = 360;
+    c.getContext('2d').drawImage(src, (src.width - side) / 2, (src.height - side) / 2, side, side, 0, 0, 360, 360);
+    const img = c.toDataURL('image/jpeg', .72);
+    diary.unshift({ img, cap: caption(), t: Date.now() }); diary = diary.slice(0, 18);
+    try { localStorage.setItem(DIARY_KEY, JSON.stringify(diary)); } catch (e) { diary.length = Math.max(1, diary.length - 3); try { localStorage.setItem(DIARY_KEY, JSON.stringify(diary)); } catch (e2) {} }
+    sTone('triangle', 1400, 900, .05, .12); sNoise(3000, .05, .15, .05);
+    toastEl.innerHTML = ''; const im = new Image(); im.src = img; const sp = document.createElement('span'); sp.textContent = 'Saved to the diary';
+    toastEl.append(im, sp); toastEl.classList.add('on'); toastT = 2.2;
+  } catch (e) { toast('Couldn’t take a photo here.'); }
+}
+function openDiary() {
+  const g = $('#diaryGrid'); g.innerHTML = '';
+  if (!diary.length) g.innerHTML = '<p class="empty">No photos yet. Tap 📷 any time to keep a moment.</p>';
+  diary.forEach((d, i) => {
+    const f = document.createElement('figure'), im = new Image(); im.src = d.img; im.alt = d.cap;
+    const cap = document.createElement('figcaption'); cap.textContent = d.cap;
+    const tm = document.createElement('time'); tm.textContent = new Date(d.t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const rm = document.createElement('button'); rm.className = 'rm'; rm.textContent = 'Remove';
+    rm.onclick = () => { diary.splice(i, 1); try { localStorage.setItem(DIARY_KEY, JSON.stringify(diary)); } catch (e) {} openDiary(); };
+    cap.append(tm, rm); f.append(im, cap); g.appendChild(f);
+  });
+  $('#diary').classList.add('on');
+}
+$('#book').onclick = openDiary; $('#diaryClose').onclick = () => $('#diary').classList.remove('on');
 $('#nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#nameOk').click(); e.stopPropagation(); });
 
 /* ---------- behaviour helpers ---------- */
@@ -1142,6 +1242,9 @@ function afterRoll(p) {
   setState(p, 'shake', .7);
   p.afterShake = () => {
     if (p.S.energy < 15) { say(p, '💫 zzz?'); return goNap(p); }
+    if (isDog(p) && !cat.ballMode && !cat.perched && Math.random() < .35) { // checks on the cat first
+      const c = cat; return goTo(p, c.x + (p.x < c.x ? -1 : 1), c.z, 1.6, () => { setState(p, 'sniff', 1.2); say(p, 'you ok?', 1.2); setTimeout(() => say(c, '…fine.', 1.2), 700); setTimeout(() => greet(p), 1300); });
+    }
     if (!isDog(p) && Math.random() < .35) { setState(p, 'groom', rnd(2.5, 4)); say(p, '*dignified*', 1.4); return; }
     greet(p);
   };
@@ -1155,13 +1258,13 @@ function greet(p) {
   }, 'run');
 }
 function goNap(p) {
-  if (isDog(p)) return goTo(p, BED.x, BED.z, 1.2, () => { setState(p, 'sleep', 999); say(p, 'zzz', 2); }, 'walk', false);
+  if (isDog(p)) return goTo(p, BED.x, BED.z, 1.2, () => setState(p, 'circle', 1.5), 'walk', false);
   // cat: curls up with the pup if it's in bed and she likes you both, otherwise on the window seat
   if (dog.state === 'sleep' || Math.random() < .35) {
     const s = { x: BED.x + .55, z: BED.z + .45 };
-    return goTo(p, s.x, s.z, .9, () => { setState(p, 'sleep', 999); say(p, dog.state === 'sleep' ? '♡ zz' : 'zz', 2); }, 'walk', false);
+    return goTo(p, s.x, s.z, .9, () => { setState(p, 'knead', 2.2); if (dog.state === 'sleep') say(p, '♡', 1.2); }, 'walk', false);
   }
-  perch(p, () => { setState(p, 'sleep', 999); say(p, 'zz', 2); });
+  perch(p, () => setState(p, 'knead', 2.2));
 }
 function perch(p, then) {
   const x = rnd(-1.1, 1.1);
@@ -1171,6 +1274,21 @@ function leavePerch(p) {
   if (!p.perched) return false;
   setState(p, 'jumpDown', .5); p.jFrom = { x: p.x, z: p.z }; p.jTo = { x: p.x, z: p.b.z0 + .2 }; p.afterJump = () => setState(p, 'idle', 1);
   return true;
+}
+function goDrink(p) {
+  const s = standPoint(p, WATER, isDog(p) ? .72 : .5);
+  goTo(p, s.x, s.z, 1.1, () => setState(p, 'drink', isDog(p) ? 2.6 : 3.2), 'walk', false);
+}
+function goScratch(p) {
+  goTo(p, SCRATCH.x - .6, SCRATCH.z, .9, () => { p.yawTarget = Math.PI / 2; setState(p, 'scratch', rnd(2.2, 3.2)); }, 'walk', false);
+}
+function speakUpFor(helper, hungry) { // pets look out for each other
+  if (helper.ballMode || helper.perched || isSleeping(helper) || ['eat', 'beg', 'jumpUp', 'jumpDown'].includes(helper.state)) return;
+  const a = rnd(0, Math.PI * 2);
+  goTo(helper, hungry.x + Math.cos(a) * 1.2, hungry.z + Math.sin(a) * 1.2, isDog(helper) ? 2 : 1.1, () => {
+    setState(helper, 'sitWait', 2.6);
+    if (isDog(helper)) { sBark(2); say(helper, 'SHE’S HUNGRY!!', 1.6); } else { sMeow('meow'); say(helper, hungry.name + ' is starving.', 1.8); }
+  });
 }
 function goBeg(p) {
   const B = isDog(p) ? BOWL : CAT_BOWL, s = standPoint(p, B, isDog(p) ? .75 : .55);
@@ -1213,6 +1331,7 @@ function thinkDog(p) {
   if (S.energy < 22) return goNap(p);
   if (S.hunger < 28) return goBeg(p);
   if (S.fun < 40 && ball.state === 'rest' && Math.random() < .55) { say(p, '🎾…', 1.2); setState(p, 'chase', 30); p.goSpeed = 2.2; return; }
+  if (S.energy < 45 && Math.random() < .15) return setState(p, 'yawn', 1.2);
   const r = Math.random(), c = cat;
   if (r < .16) goTo(p, rnd(p.b.x0, p.b.x1), rnd(p.b.z0, p.b.z1), rnd(1, 1.5), () => setState(p, 'idle', rnd(1, 3)));
   else if (r < .25) { const w = { x: -1.4, z: rnd(-4, 3) }; goTo(p, w.x, w.z, 1.2, () => { p.yawTarget = -Math.PI / 2; setState(p, 'watch', rnd(4, 7)); say(p, ['🌊', '🐦?', '💦!'][(Math.random() * 3) | 0], 1.6); }); }
@@ -1224,6 +1343,7 @@ function thinkDog(p) {
   else if (r < .8 && c.state === 'sleep' && S.energy < 60) goTo(p, BED.x, BED.z, 1, () => { setState(p, 'sleep', 999); say(p, '♡ zzz'); }, 'walk', false);
   else if (r < .86) { setState(p, 'spin', 1.6); say(p, 'MY TAIL!', 1.2); }
   else if (r < .9) { setState(p, 'sneeze', .9); }
+  else if (r < .95) goDrink(p);
   else setState(p, 'sit', rnd(2.5, 4));
 }
 function thinkCat(p) {
@@ -1233,6 +1353,7 @@ function thinkCat(p) {
   if (S.hunger < 28) return goBeg(p);
   if (p.perched) { if (Math.random() < .4) leavePerch(p); else { setState(p, 'perchWatch', rnd(4, 8)); if (Math.random() < .5) { sChatter(); say(p, 'ek ek ek', 1.4); } } return; }
   if (ball.state === 'rest' && dist(p, ball) < 3.2 && S.fun < 65 && Math.random() < .35) return pounce(p);
+  if (S.energy < 50 && Math.random() < .12) return setState(p, 'yawn', 1.4);
   const r = Math.random();
   if (r < .17) perch(p, () => { setState(p, 'perchWatch', rnd(5, 9)); say(p, ['🐦', '…birds.', 'ek ek'][(Math.random() * 3) | 0], 1.5); });
   else if (r < .32) setState(p, 'groom', rnd(3, 5));
@@ -1243,6 +1364,8 @@ function thinkCat(p) {
   else if (r < .76) { setState(p, 'snub', rnd(3, 5)); }
   else if (r < .83 && !dog.ballMode && dog.state !== 'sleep') { const d = dog; goTo(p, d.x + rnd(-.3, .3), d.z + (d.z > 0 ? -1.4 : 1.4), .9, () => { setState(p, 'rub', 2); say(p, 'mrrp ♡', 1.4); sMeow('mrrp'); d.wag = 1; say(d, '!!! ♡', 1.2); p.S.love += 3; }); }
   else if (r < .88 && S.energy > 50) { setState(p, 'zoomies', rnd(1.5, 2.5)); p.zoomA = rnd(0, 6); say(p, '!!!', .9); }
+  else if (r < .94) goScratch(p);
+  else if (r < .96) goDrink(p);
   else greet(p);
 }
 function playWithCat(p) {
@@ -1426,7 +1549,7 @@ canvas.addEventListener('pointerdown', e => {
   pDown = true; pMoved = 0; pStart = [e.clientX, e.clientY];
   castAt(e.clientX, e.clientY);
   pPet = petAt();
-  if (pPet) { pet(pPet, false); return; }
+  if (pPet) { pet(pPet, false); if ($('#talk').classList.contains('on')) { selected = pPet; renderTalk(); updateBars(); } return; }
   clearTimeout(holdTimer);
   holdTimer = setTimeout(() => { if (pDown && pMoved < 22) startCall(e.clientX, e.clientY); }, 330);
 });
@@ -1640,6 +1763,7 @@ function stepPet(p, dt, t) {
       case 'beg':
         sitPose(); lookCam(1); PT.headTilt = .3; wagT = .8; p.yawTarget = cd;
         if (p.st > 1.6 && p.st - dt <= 1.6) dogp ? sWhine() : sMeow('meow');
+        if (p.st > .4 && p.st - dt <= .4 && Math.random() < .6) speakUpFor(p.other, p);
         if (bowls[dogp ? 'dog' : 'cat'].fill > 0) goEat(p, dogp ? 'dog' : 'cat');
         else if (p.st > p.dur) setState(p, 'idle', 2);
         break;
@@ -1690,7 +1814,7 @@ function stepPet(p, dt, t) {
         const zt = safeSpot(p, Math.cos(p.zoomA) * 1.3, Math.sin(p.zoomA * .5) * 4.2);
         p.target = zt; p.goSpeed = dogp ? 4.2 : 3.6; p.onArrive = null; wagT = 1; PT.earUp = .6; swishT = 1;
         p.S.energy -= dt * 1.5; p.S.fun += dt * 2;
-        if (p.st > p.dur) { p.target = null; setState(p, 'idle', 1.5); say(p, dogp ? '*PANT PANT*' : '…as planned.', 1.2); }
+        if (p.st > p.dur) { p.target = null; setState(p, 'idle', 1.5); say(p, dogp ? '*PANT PANT*' : '…as planned.', 1.2); if (dogp && Math.random() < .5) setTimeout(() => goDrink(p), 900); }
         break;
       }
       case 'spin': p.yaw += dt * Math.PI * 2 / p.dur * (dogp ? 2 : 1); wagT = 1; if (p.st > p.dur) setState(p, 'happy', 1); break;
@@ -1732,10 +1856,37 @@ function stepPet(p, dt, t) {
         if (p.st > p.dur) { if (!up) p.perched = false; const f = p.afterJump; p.afterJump = null; if (f) f(); else setState(p, up ? 'perchWatch' : 'idle', 3); }
         break;
       }
+      case 'drink': {
+        p.yawTarget = faceTo(p, WATER.x, WATER.z);
+        PT.headNod = .6 + Math.sin(p.st * 16) * .08; PT.pitch = .1; PT.tongue = 0; wagT = .5; swishT = .1;
+        if (Math.floor(p.st * 3.5) !== Math.floor((p.st - dt) * 3.5)) sTone('sine', 720, 340, .05, .05);
+        if (p.st > p.dur) { setState(p, 'idle', 1.2); if (dogp && Math.random() < .5) say(p, '*drip drip*', 1); }
+        break;
+      }
+      case 'circle':
+        p.yaw += dt * Math.PI * 2 * 1.2 / p.dur; PT.headNod = .25; wagT = .3;
+        if (p.st > p.dur) { setState(p, 'sleep', 999); say(p, '*sigh* zzz', 1.8); }
+        break;
+      case 'knead':
+        PT.lower = .04; PT.pitch = -.1; PT.eyes = .35; swishT = .1; p.purrT = .4;
+        if (p.st > p.dur) { setState(p, 'sleep', 999); say(p, 'zz', 1.6); }
+        break;
+      case 'yawn': {
+        const e = Math.sin(Math.PI * clamp(p.st / p.dur, 0, 1));
+        PT.headNod = -.4 * e; PT.eyes = 1 - .85 * e; PT.tongue = dogp ? 1 + .8 * e : 0; wagT = .1;
+        if (p.st < dt * 1.5) say(p, '*yaaawn*', 1);
+        if (p.st > p.dur) setState(p, 'idle', 1.5);
+        break;
+      }
+      case 'scratch':
+        p.yawTarget = Math.PI / 2; PT.pitch = -.42; PT.backFold = .2; swishT = .6; PT.tailUp = .5;
+        if (Math.floor(p.st * 7) !== Math.floor((p.st - dt) * 7)) sNoise(rnd(2500, 4000), .06, .08);
+        if (p.st > p.dur) { setState(p, 'happy', 1.2); p.S.fun = Math.min(100, p.S.fun + 6); }
+        break;
       case 'roll': setState(p, 'idle', 1); break;
     }
     if (p.yawTarget != null && p.speed < .2 && !p.target) p.yaw += clamp(angDiff(p.yaw, p.yawTarget), -dt * 5, dt * 5);
-    if (!['sit', 'sitWait', 'happy', 'beg', 'eat', 'watch', 'perchWatch', 'paw', 'snub', 'stalk', 'call', 'bow', 'swat'].includes(p.state)) p.yawTarget = null;
+    if (!['sit', 'sitWait', 'happy', 'beg', 'eat', 'watch', 'perchWatch', 'paw', 'snub', 'stalk', 'call', 'bow', 'swat', 'drink', 'scratch'].includes(p.state)) p.yawTarget = null;
     if (!['jumpUp', 'jumpDown'].includes(p.state)) {
       const onBed = !p.perched && Math.hypot(p.x - BED.x, p.z - BED.z) < 1.15;
       p.y = damp(p.y, p.perched ? BENCH_TOP : onBed ? .15 : 0, 10, dt);
@@ -1796,6 +1947,8 @@ function applyPose(p, dt, t) {
     if (L.front && L.side > 0) a -= 1.5 * P.pawUp;
     if (P.side > .3) a += Math.sin(t * 7 + L.lx * 10 + L.lz * 7) * (.25 + P.legKick * .6) * P.side;
     if (p.state === 'rollover') a = -.9;
+    if (L.front && p.state === 'knead') a = -.55 * Math.max(0, Math.sin(t * 6 + (L.side > 0 ? Math.PI : 0)));
+    if (L.front && p.state === 'scratch') a = -1.35 + .35 * Math.sin(t * 11 + (L.side > 0 ? Math.PI : 0));
     L.piv.rotation.x = a * (1 - curl);
     L.piv.rotation.z = curl * L.side * .3;
     L.piv.position.set(L.lx * (1 - .3 * curl), sp.legPiv + curl * .08 * kl, L.lz * (1 - .3 * curl));
@@ -1855,6 +2008,7 @@ function tick() {
     for (const p of pets) applyPose(p, dt, t);
     ballMesh.position.set(ball.x, ball.y, ball.z);
   }
+  { const dr = pets.some(p => p.state === 'drink'); water.scale.setScalar(dr ? 1 + .05 * Math.sin(t * 22) : 1); }
   setPurr(started && (cat.purrT > 0 || (isSleeping(cat) && cat.S.love > 55 && dist(cat, dog) < 1.6)));
   camZ = damp(camZ, clamp(dog.z * .55 + cat.z * .45, -3, 3), 2, dt);
   updateCamera();
@@ -1875,6 +2029,7 @@ function tick() {
   }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) toastEl.classList.remove('on'); }
   renderer.render(scene, camera);
+  if (snapPending) { snapPending = false; doSnap(); }
   requestAnimationFrame(tick);
 }
 
