@@ -23,6 +23,9 @@ html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:'Balo
 #box{position:absolute;left:50%;bottom:28px;width:230px;height:110px;margin-left:-115px;transition:transform .6s cubic-bezier(.5,-0.3,.4,1.3);transform:translateY(0)}
 #box.away{transform:translateY(200px)}
 #box .body{position:absolute;inset:0;border:4px solid #120c07;border-radius:12px;background:linear-gradient(#c9452f,#9c2f1f);box-shadow:0 6px 0 #120c07}
+#heads{position:absolute;left:16px;right:16px;bottom:12px;height:34px;display:flex;align-items:flex-end;justify-content:center;gap:10px;pointer-events:none}
+#heads i{display:block;width:9px;height:30px;border:2px solid #120c07;border-radius:6px 6px 2px 2px;background:linear-gradient(#d8402c 0 10px,#e8c890 10px)}
+#heads i.gone{opacity:.18;background:#2b1d12}
 #box .label{position:absolute;left:16px;right:16px;bottom:12px;height:34px;border-radius:6px;background:#f6e6c4;border:3px solid #120c07;color:#120c07;font-weight:800;font-size:18px;text-align:center;line-height:28px}
 #striker{position:absolute;left:10px;right:10px;top:10px;height:30px;border-radius:6px;border:3px solid #120c07;background:#5a3a22 repeating-linear-gradient(45deg,rgba(0,0,0,.25) 0 3px,transparent 3px 6px)}
 #striker.hot{box-shadow:0 0 14px 4px rgba(255,170,60,.8)}
@@ -52,19 +55,14 @@ html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:'Balo
 <canvas id="dark"></canvas>
 <canvas id="fx"></canvas>
 <div id="ui">
-  <div id="hud">
-    <span class="lab">🔥</span><div class="bar" id="flameBar"><i></i></div>
-    <span class="lab">Wax</span><div class="bar" id="waxBar"><i></i></div>
-    <span class="lab" id="matchCt">×4</span>
-    <span class="lab" id="candleCt">0/5</span>
-  </div>
+  <div id="hud"></div>
   <div id="msg"></div>
-  <div id="box" class="away"><div class="body"></div><div id="striker"></div><div class="label">MATCHES</div></div>
+  <div id="box" class="away"><div class="body"></div><div id="striker"></div><div id="heads"></div></div>
   <div id="match"><svg class="fl" viewBox="0 0 44 60"><path d="M22 2C30 16 40 24 40 38a18 18 0 0 1-36 0C4 26 14 22 22 2z" fill="#ffd75e" stroke="#120c07" stroke-width="3"/><path d="M22 26c5 7 8 10 8 16a8 8 0 0 1-16 0c0-6 4-9 8-16z" fill="#fffbe8"/></svg><div class="stick"></div><div class="burnt"></div><div class="head"></div></div>
   <div id="joy"><i></i></div>
   <div class="screen" id="title">
     <h1>Candle Kid</h1>
-    <p>It's dark. Strike a match, light the little candle, and find the other candles before your flame — or your wax — runs out.</p>
+    <p>It's dark, and Lumi can't see a thing. Strike a match, light him up, and go wake the other candles. Nobody has to light the room alone.</p>
     <button class="btn" id="btnCam">Play with camera</button>
     <button class="btn alt" id="btnRoom">Play in demo room</button>
     <div id="camNote"></div>
@@ -181,16 +179,18 @@ flameInner.position.z = .15; flameInner.scale.z = .4; flame.add(flameInner);
 
 const _lv = new THREE.Vector3();
 function animateRig(dt, t, moving){
-  const walk = Math.min(1, moving * 1.4), ph = t * 11, s = Math.sin(ph);
+  if (S.fakeMove) S.gait += dt * 12;
+  const walk = Math.min(1, moving * 2.2), ph = S.gait, s = Math.sin(ph), stride = .25 + .4 * moving, skid = S.mv.skid ? 1 : 0;
   bones.forEach((b, i) => { b.position.copy(BONE_REST[i]); b.rotation.set(0, 0, 0); b.scale.set(1, 1, 1); });
   // legs swing from the hip, boots roll heel-to-toe, the lifted foot rises
-  B.legL.rotation.x = s * .5 * walk; B.legR.rotation.x = -s * .5 * walk;
-  B.footL.rotation.x = -s * .35 * walk + Math.max(0, -s) * .25 * walk;
-  B.footR.rotation.x = s * .35 * walk + Math.max(0, s) * .25 * walk;
+  B.legL.rotation.x = s * stride * walk * (1 - skid) - .35 * skid; B.legR.rotation.x = -s * stride * walk * (1 - skid) - .25 * skid;
+  B.footL.rotation.x = (-s * .35 * walk + Math.max(0, -s) * .25 * walk) * (1 - skid) + .3 * skid;
+  B.footR.rotation.x = (s * .35 * walk + Math.max(0, s) * .25 * walk) * (1 - skid) + .3 * skid;
   B.legL.position.y += Math.max(0, s) * .045 * walk; B.legR.position.y += Math.max(0, -s) * .045 * walk;
   // pot: bob on each step, waddle side to side, lean into the walk
   B.pot.position.y += Math.abs(s) * .045 * walk + Math.sin(t * 2) * .006;
-  B.pot.rotation.z = s * .08 * walk; B.pot.rotation.x = .07 * walk;
+  B.pot.rotation.z = s * (.04 + .06 * moving) * walk + Math.sin(t * 48) * .035 * S.shiver; B.pot.rotation.x = (.03 + .11 * moving) * walk * (1 - skid) - .2 * skid;
+  if (moving > 0 && moving < .3) B.pot.position.y += .025;   // tiptoe
   // wax springs: lags behind acceleration, bends with the wind, droops when unlit
   _lv.copy(S.vel).sub(prevVel).divideScalar(Math.max(dt, 1e-3)); prevVel.copy(S.vel);
   _lv.applyAxisAngle(new THREE.Vector3(0, 1, 0), -kid.rotation.y);
@@ -201,14 +201,21 @@ function animateRig(dt, t, moving){
   wob.vx += ((tx - wob.x) * 90 - wob.vx * 7) * dt; wob.vz += ((tz - wob.z) * 90 - wob.vz * 7) * dt;
   wob.x += wob.vx * dt; wob.z += wob.vz * dt;
   B.waxLow.rotation.set(wob.x * .3, 0, wob.z * .3);
-  B.waxMid.rotation.set(wob.x * .45, (1 - walk) * Math.sin(t * .6) * .12, wob.z * .45);
-  B.waxTop.rotation.set(wob.x * .5, 0, wob.z * .5);
+  // when idle, glance toward the nearest sleeping candle
+  let lookT = (1 - walk) * Math.sin(t * .6) * .12;
+  if (S.idleT > 1.5){
+    let best = null, bd = 1e9; for (const c of candles) if (!c.lit){ const d = c.pos.distanceTo(kid.position); if (d < bd){ bd = d; best = c; } }
+    if (best){ const a = Math.atan2(best.pos.x - kid.position.x, best.pos.z - kid.position.z) - kid.rotation.y; lookT = THREE.MathUtils.clamp(Math.atan2(Math.sin(a), Math.cos(a)), -.6, .6); }
+  }
+  S.look = THREE.MathUtils.lerp(S.look || 0, lookT, Math.min(1, dt * 3));
+  B.waxMid.rotation.set(wob.x * .45, S.look, wob.z * .45);
+  B.waxTop.rotation.set(wob.x * .5, 0, wob.z * .5 + Math.sin(t * 38) * .1 * S.flick);
   // squash & stretch: step impacts, breathing, a happy stretch when he lights up
   if (S.lit && !wasLit) hop = 1; wasLit = S.lit;
   if (S.litCount > litCountSeen){ hop = 1; litCountSeen = S.litCount; } if (S.litCount < litCountSeen) litCountSeen = S.litCount;
   hop = Math.max(0, hop - dt * 1.6);
   const hopS = Math.sin((1 - hop) * Math.PI * 3) * hop;
-  const sq = 1 - Math.abs(Math.cos(ph)) * .045 * walk + Math.sin(t * 2) * .012 + hopS * .12;
+  const sq = 1 - Math.abs(Math.cos(ph)) * .045 * walk + Math.sin(t * 2) * .012 + hopS * .12 + breathCurve() * .07;
   B.waxLow.scale.set(1 / Math.sqrt(sq), sq, 1 / Math.sqrt(sq));
   B.pot.position.y += Math.max(0, hopS) * .08;
 }
@@ -282,22 +289,155 @@ prop(new THREE.BoxGeometry(1.3, 1.9, 1.0).translate(0, .95, 0), 0x3aa0d8, -4.3, 
 prop(new THREE.BoxGeometry(.5, .5, .5).translate(0, .25, 0), 0xf2f2f2, .8, 4.8, .6, .45);
 prop(lathe([[0,0],[.3,0],[.3,.06],[.22,.08],[.22,.5],[.3,.52],[.3,.58],[0,.58]]), 0xd9603f, 5.5, -1.2, 0, .45);
 
-// checkpoint candles
+// candle friends: asleep until Lumi lights them, then they wake up and come along
 const candles = [];
 const candleSpots = [[-1.6, -4.6], [5.4, -4.8], [5.6, 1.4], [-5.6, -.4], [1.6, 5.6]];
 const smallFlameGeo = lathe([[0,0],[.05,.02],[.075,.07],[.06,.14],[0,.24]], 16);
+const eyeGeo = new THREE.SphereGeometry(.026, 10, 8), lidGeo = new THREE.BoxGeometry(.055, .01, .01);
+const smileGeo = new THREE.TorusGeometry(.055, .009, 5, 14, Math.PI * .7);
 for (const [x, z] of candleSpots){
-  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
-  mesh(lathe([[0,0],[.18,0],[.19,.02],[.19,.5],[.16,.55],[0,.53]]), toon(0xefe3cf, {emissive: 0x000000}), g);
-  mesh(new THREE.CylinderGeometry(.24, .28, .07, 20).translate(0, .035, 0), toon(BRASS), g);
-  mesh(new THREE.CylinderGeometry(.012, .012, .1, 6).translate(0, .58, 0), black, g, false);
-  const f = mesh(smallFlameGeo, new THREE.MeshBasicMaterial({color: 0xffd75e}), g); f.position.y = .6; f.visible = false;
+  const g = new THREE.Group(); scene.add(g);
+  const bod = new THREE.Group(); g.add(bod);
+  mesh(lathe([[0,0],[.18,0],[.19,.02],[.19,.5],[.16,.55],[0,.53]]), toon(0xefe3cf, {emissive: 0x000000}), bod);
+  mesh(new THREE.CylinderGeometry(.24, .28, .07, 20).translate(0, .035, 0), toon(BRASS), bod);
+  mesh(new THREE.CylinderGeometry(.012, .012, .1, 6).translate(0, .58, 0), black, bod, false);
+  const f = mesh(smallFlameGeo, new THREE.MeshBasicMaterial({color: 0xffd75e}), bod); f.position.y = .6; f.visible = false;
   const gl = new THREE.Sprite(new THREE.SpriteMaterial({map: GLOW, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true}));
-  gl.scale.set(.9, .9, 1); gl.position.y = .7; gl.visible = false; g.add(gl);
-  const L = new THREE.PointLight(0xffa64d, 0, 5, 1.5); L.position.set(x, .9, z); scene.add(L);
+  gl.scale.set(.9, .9, 1); gl.position.y = .7; gl.visible = false; bod.add(gl);
+  // faces: closed eyes while asleep, dot eyes + smile once awake
+  const asleep = new THREE.Group(), awake = new THREE.Group(); bod.add(asleep, awake);
+  for (const sx of [-1, 1]){
+    const l = new THREE.Mesh(lidGeo, black); l.position.set(sx * .065, .32, .188); asleep.add(l);
+    const e = new THREE.Mesh(eyeGeo, black); e.scale.set(1, 1.35, .5); e.position.set(sx * .065, .33, .188); awake.add(e);
+  }
+  const sm = new THREE.Mesh(smileGeo, black); sm.rotation.z = Math.PI + Math.PI * .15; sm.position.set(0, .27, .186); awake.add(sm);
+  const L = new THREE.PointLight(0xffa64d, 0, 5, 1.5); scene.add(L);
   const sh = new THREE.Mesh(new THREE.PlaneGeometry(.8, .8), blob.material); sh.rotation.x = -Math.PI / 2; sh.position.y = .012; g.add(sh);
-  candles.push({g, f, gl, L, x, z, lit: false, t: Math.random() * 10});
-  obstacles.push({x, z, r: .35});
+  const ob = {x, z, r: .35}; obstacles.push(ob);
+  const c = {g, bod, f, gl, L, asleep, awake, ob, home: new THREE.Vector3(x, 0, z), pos: new THREE.Vector3(x, 0, z),
+    lit: false, order: 0, t: Math.random() * 10, ph: 0, speed: 0, face: Math.random() * 6, hop: 0,
+    get x(){ return this.pos.x; }, get z(){ return this.pos.z; },
+    reset(){ this.lit = false; this.pos.copy(this.home); this.f.visible = this.gl.visible = false; this.L.intensity = 0;
+      this.asleep.visible = true; this.awake.visible = false; this.ob.x = this.home.x; this.ob.z = this.home.z; this.ob.r = .35;
+      this.bod.position.set(0, 0, 0); this.bod.rotation.set(0, 0, 0); this.bod.scale.set(1, 1, 1); this.hop = 0; },
+    wake(order){ this.lit = true; this.order = order; this.f.visible = this.gl.visible = true;
+      this.asleep.visible = false; this.awake.visible = true; this.ob.r = 0; this.hop = 1; }
+  };
+  c.reset(); candles.push(c);
+}
+// Lumi's path, so friends can follow in his footsteps
+const trail = [];
+function pushTrail(){ const p = kid.position; if (!trail.length || trail[0].distanceTo(p) > .12){ trail.unshift(p.clone()); if (trail.length > 140) trail.pop(); } }
+function trailPoint(dist){
+  let acc = 0;
+  for (let i = 1; i < trail.length; i++){ acc += trail[i].distanceTo(trail[i - 1]); if (acc >= dist) return trail[i]; }
+  return trail.length ? trail[trail.length - 1] : kid.position;
+}
+const windDir = () => S.gust ? S.gust.dir : (S.gustDir || 0);
+function friendsNear(r){ let n = 0; for (const c of candles) if (c.lit && c.pos.distanceTo(kid.position) < r) n++; return n; }
+function shelter(){
+  const w = windDir(); if (!w) return 0; let n = 0;
+  for (const c of candles) if (c.lit && (c.pos.x - kid.position.x) * -w > .25 && c.pos.distanceTo(kid.position) < 1.5) n++;
+  return Math.min(.85, n * .25);
+}
+const _ft = new THREE.Vector3();
+function updateFriends(dt){
+  const awake = candles.filter(c => c.lit).sort((a, b) => a.order - b.order), n = awake.length, w = windDir();
+  awake.forEach((c, k) => {
+    if (S.mode === 'won'){ const a = k / n * Math.PI * 2 + S.t * .3; _ft.set(kid.position.x + Math.sin(a) * 1.3, 0, kid.position.z + Math.cos(a) * 1.3); }
+    else if (w){ _ft.set(kid.position.x - w * .75, 0, kid.position.z + (k - (n - 1) / 2) * .45); }   // huddle on the windy side
+    else _ft.copy(trailPoint((k + 1) * .85));
+    const dx = _ft.x - c.pos.x, dz = _ft.z - c.pos.z, d = Math.hypot(dx, dz);
+    const sp = d > .05 ? Math.min(4.2, d * 3.2) : 0;
+    if (sp){ const st = Math.min(d, sp * dt); c.pos.x += dx / d * st; c.pos.z += dz / d * st; }
+    c.pos.x = THREE.MathUtils.clamp(c.pos.x, -ROOM - .5, ROOM + .5); c.pos.z = THREE.MathUtils.clamp(c.pos.z, -ROOM - .5, ROOM + .5);
+    c.speed = THREE.MathUtils.lerp(c.speed, sp, Math.min(1, dt * 8));
+    // keep a little personal space
+    const kd = c.pos.distanceTo(kid.position); if (kd < .62 && kd > 1e-3){ c.pos.x = kid.position.x + (c.pos.x - kid.position.x) / kd * .62; c.pos.z = kid.position.z + (c.pos.z - kid.position.z) / kd * .62; }
+    for (const o of awake) if (o !== c){ const od = c.pos.distanceTo(o.pos); if (od < .46 && od > 1e-3){ c.pos.x += (c.pos.x - o.pos.x) / od * (.46 - od) * .5; c.pos.z += (c.pos.z - o.pos.z) / od * (.46 - od) * .5; } }
+    // face where they're going, or turn to look at Lumi
+    const look = c.speed > .3 ? Math.atan2(dx, dz) : Math.atan2(kid.position.x - c.pos.x, kid.position.z - c.pos.z);
+    c.face += Math.atan2(Math.sin(look - c.face), Math.cos(look - c.face)) * Math.min(1, dt * 8);
+    c.ph += dt * (c.speed * 5 + 2);
+    c.hop = Math.max(0, c.hop - dt * 1.5);
+    const hopS = Math.sin((1 - c.hop) * Math.PI * 3) * c.hop, mvk = Math.min(1, c.speed);
+    c.bod.position.y = Math.abs(Math.sin(c.ph)) * .07 * mvk + Math.max(0, hopS) * .18;
+    const sq = 1 - Math.abs(Math.cos(c.ph)) * .06 * mvk + hopS * .12;
+    c.bod.scale.set(1 / Math.sqrt(sq), sq, 1 / Math.sqrt(sq));
+    c.bod.rotation.z = w ? -w * .22 * Math.cos(c.face) : 0;   // lean into the wind
+    c.bod.rotation.x = S.resting && kd < 1.8 ? .12 : 0;      // lean in close while Lumi warms up
+  });
+  for (const c of candles){
+    c.t += dt;
+    if (!c.lit){ const b = 1 + .02 * Math.sin(c.t * 1.5); c.bod.scale.set(1, b, 1); }
+    c.g.position.set(c.pos.x, 0, c.pos.z); c.g.rotation.y = c.face;
+    c.L.position.set(c.pos.x, .9, c.pos.z);
+    if (c.lit){ const k = .9 + .1 * Math.sin(c.t * 19) * Math.sin(c.t * 5.7); c.f.scale.set(1, k, 1); c.gl.scale.setScalar(.9 * k); c.L.intensity = 3 * k; }
+  }
+}
+// wax drips: a warm drop lands now and then, then cools and stays where he walked
+const dripGeo = new THREE.SphereGeometry(.05, 10, 6); dripGeo.scale(1, .32, 1);
+const dripWarm = new THREE.MeshStandardMaterial({color: 0xfff6e6, emissive: 0xffa040, emissiveIntensity: .55, roughness: .2});
+const dripSet = new THREE.MeshStandardMaterial({color: 0xe9e3d6, roughness: .85});
+const drips = []; let dripAcc = 0;
+function clearDrips(){ for (const d of drips) scene.remove(d.m); drips.length = 0; }
+function updateDrips(dt){
+  if (S.lit && S.mode === 'play'){
+    dripAcc += dt * (.2 + .45 * S.flame + 1.3 * S.mv.s / 3.4);
+    while (dripAcc > 1){
+      dripAcc -= 1;
+      const a = Math.random() * Math.PI * 2, r = .3 + Math.random() * .14;
+      const m = new THREE.Mesh(dripGeo, dripWarm); m.position.set(kid.position.x + Math.sin(a) * r, .012, kid.position.z + Math.cos(a) * r);
+      m.rotation.y = Math.random() * 6; scene.add(m); drips.push({m, age: 0, size: .7 + Math.random() * .7});
+      if (drips.length > 90) scene.remove(drips.shift().m);
+    }
+  }
+  for (const d of drips){
+    d.age += dt;
+    const k = Math.min(1, d.age / .2); d.m.scale.set(d.size * (.4 + .6 * k), d.size * (1.6 - .6 * k), d.size * (.4 + .6 * k));
+    if (d.age > 2.5 && d.m.material !== dripSet) d.m.material = dripSet;
+  }
+}
+// small moments when he stands still: flicks his wick, takes a deep breath, glances at sleeping candles
+function breathCurve(){ return S.breath > 0 ? Math.sin((1 - S.breath) * Math.PI) : 0; }
+function idleMoments(dt){
+  S.flick = Math.max(0, S.flick - dt * 2); S.breath = Math.max(0, S.breath - dt / 2.6); S.shiver = Math.max(0, S.shiver - dt * 1.2);
+  if (S.mode !== 'play' || !S.lit || S.idleT === 0){ S.nextIdle = 3.5; S.idleStep = 0; return; }
+  if (S.idleT > S.nextIdle){
+    if (S.idleStep++ % 2 === 0){ S.flick = 1; S.flare = Math.max(S.flare, .35); const w = toScreen(wickWorld); sparks(w.x, w.y, 6, 1, true); noise(.08, 3200, 2400, .12, 3); }
+    else { S.breath = 1; noise(2.2, 300, 500, .06, .4); }
+    S.nextIdle = S.idleT + 5.5;
+  }
+}
+// puffs of wax flakes when he skids
+const puffs = [];
+function puff(p, n){ const s = toScreen(new THREE.Vector3(p.x, .1, p.z)); for (let i = 0; i < n * 3; i++) puffs.push({x: s.x + (Math.random() - .5) * 30, y: s.y, vx: (Math.random() - .5) * 2, vy: -Math.random() * 1.5, life: .5 + Math.random() * .4}); }
+// in-world hints instead of text
+function ghostFinger(x, y, a){ fctx.fillStyle = `rgba(255,255,255,${.4 * a})`; fctx.strokeStyle = `rgba(255,255,255,${.75 * a})`; fctx.lineWidth = 2; fctx.beginPath(); fctx.arc(x, y, 17, 0, 6.3); fctx.fill(); fctx.stroke(); }
+function drawHints(){
+  const t = S.t;
+  for (let i = puffs.length - 1; i >= 0; i--){ const p = puffs[i]; p.life -= 1 / 60; if (p.life <= 0){ puffs.splice(i, 1); continue; } p.x += p.vx; p.y += p.vy; fctx.fillStyle = `rgba(240,232,220,${p.life * .7})`; fctx.beginPath(); fctx.arc(p.x, p.y, 2.5, 0, 6.3); fctx.fill(); }
+  if (S.mode === 'title' || S.studio) return;
+  // sleeping candles keep a tiny ember, so you can spot them in the dark
+  for (const c of candles) if (!c.lit){
+    const s = toScreen(new THREE.Vector3(c.pos.x, .62, c.pos.z)); if (s.z >= 1) continue;
+    const a = .4 + .3 * Math.sin(t * 2 + c.t);
+    const g = fctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, 12); g.addColorStop(0, `rgba(255,160,70,${a})`); g.addColorStop(1, 'rgba(255,120,40,0)');
+    fctx.fillStyle = g; fctx.beginPath(); fctx.arc(s.x, s.y, 12, 0, 6.3); fctx.fill();
+  }
+  if (S.mode === 'strike' && S.match && !S.match.lit && !S.taught.strike){
+    if (!S.match.held){ ghostFinger(S.match.x + 60, S.match.y + 10, .6 + .4 * Math.sin(t * 5)); }
+    else { const r = ui.striker.getBoundingClientRect(), u = (t * 1.3) % 1; ghostFinger(r.left + 10 + u * (r.width + 10), r.top + r.height / 2 + 87, Math.sin(u * Math.PI)); }
+  }
+  if (S.mode === 'strike' && S.match && S.match.lit){
+    const w = toScreen(wickWorld), rr = 22 + 7 * Math.sin(t * 7);
+    fctx.strokeStyle = 'rgba(255,220,120,.85)'; fctx.lineWidth = 3; fctx.beginPath(); fctx.arc(w.x, w.y, rr, 0, 6.3); fctx.stroke();
+  }
+  if (S.mode === 'play' && !S.taught.move){
+    const x = W / 2, y = H * .78, u = Math.sin(t * 2.2);
+    fctx.strokeStyle = 'rgba(255,255,255,.35)'; fctx.lineWidth = 3; fctx.beginPath(); fctx.arc(x, y, 45, 0, 6.3); fctx.stroke();
+    ghostFinger(x, y - 30 * Math.max(0, u), .8);
+  }
 }
 
 // ---------- audio ----------
@@ -317,34 +457,36 @@ const S = {
   mode: 'title', cam: false, flame: 0, wax: 1, lit: false, matches: 4,
   match: null, // {x,y,lit,burn,held}
   stroke: {len: 0, t: 0}, vel: new THREE.Vector3(), joy: null, gust: null, nextGust: 14,
-  litCount: 0, t: 0, msgT: 0, reveal: 0, flare: 0, tries: 0
+  litCount: 0, t: 0, msgT: 0, reveal: 0, flare: 0, tries: 0,
+  mv: {s: 0, th: 0, skid: 0}, gait: 0, idleT: 0, flick: 0, breath: 0, shiver: 0, strikeNeed: .9,
+  taught: {strike: false, wick: false, move: false}, keys: {}
 };
 const ui = {box: $('box'), striker: $('striker'), match: $('match'), joy: $('joy'), msg: $('msg'), hud: $('hud')};
 function say(t, dur = 2.6){ ui.msg.textContent = t; ui.msg.classList.add('on'); S.msgT = dur; }
+// no HUD: the flame is the meter, his height is the wax, the box shows the matches left
 function hud(){
-  $('flameBar').firstChild.style.width = (S.flame * 100) + '%';
-  $('waxBar').firstChild.style.width = (S.wax * 100) + '%';
-  $('matchCt').textContent = '🔥×' + S.matches;
-  $('candleCt').textContent = '🕯 ' + S.litCount + '/' + candles.length;
+  const h = $('heads'); if (h.childElementCount !== 4) h.innerHTML = '<i></i><i></i><i></i><i></i>';
+  [...h.children].forEach((e, i) => e.classList.toggle('gone', i >= S.matches));
 }
 
 function reset(){
   S.flame = 0; S.wax = 1; S.lit = false; S.matches = 4; S.litCount = 0; S.gust = null; S.nextGust = 14; S.reveal = 0;
   kid.position.set(0, 0, 0); kid.rotation.y = 0; S.vel.set(0, 0, 0);
-  for (const c of candles){ c.lit = false; c.f.visible = c.gl.visible = false; c.L.intensity = 0; }
   $('over').style.display = $('win').style.display = 'none';
-  ui.hud.style.display = 'flex';
+  S.mv.s = 0; S.mv.th = 0; S.mv.skid = 0; S.idleT = 0; trail.length = 0; clearDrips();
+  for (const c of candles) c.reset();
   toStrike();
 }
 function toStrike(){
   S.mode = 'strike'; S.lit = false; S.flame = 0;
+  S.mv.s = 0; S.mv.skid = 0; S.vel.set(0, 0, 0);
   ui.box.classList.remove('away');
   S.match = null;
   setTimeout(newMatch, 500);
-  say(S.tries++ ? 'Your flame went out… strike another match' : 'Pick up a match and swipe it across the striker', 3.5);
+  S.tries++;
 }
 function newMatch(){
-  if (S.matches <= 0){ return gameOver('Out of matches', 'The dark wins this time.'); }
+  if (S.matches <= 0){ return gameOver('Out of matches', 'The dark wins this round. Lumi will want a rematch.'); }
   const r = ui.box.getBoundingClientRect();
   S.match = {x: r.left + r.width / 2 - 50, y: r.top - 30, ang: -90, lit: false, burn: 0, held: false, rest: true};
   ui.match.style.display = 'block'; ui.match.classList.remove('lit');
@@ -369,7 +511,6 @@ uiEl.addEventListener('pointerdown', e => {
       grabOff = {x: -18, y: -95}; // match head sits above-left of the finger
       m.x = e.clientX + grabOff.x; m.y = e.clientY + grabOff.y;
       last = {x: m.x, y: m.y, t: performance.now()};
-      if (!m.lit) say('Now swipe it fast across the striker!', 2.5);
     }
   } else if (S.mode === 'play'){
     pid = e.pointerId; S.joy = {ox: e.clientX, oy: e.clientY, dx: 0, dy: 0};
@@ -392,6 +533,8 @@ addEventListener('pointermove', e => {
     ui.joy.firstChild.style.transform = `translate(${dx}px,${dy}px)`;
   }
 });
+addEventListener('keydown', e => { S.keys[e.key.toLowerCase()] = true; audio(); });
+addEventListener('keyup', e => { S.keys[e.key.toLowerCase()] = false; });
 function up(e){
   if (e.pointerId !== pid) return; pid = null;
   if (S.match) S.match.held = false;
@@ -413,9 +556,12 @@ function strikeCheck(m, dx, dy, dt){
   if (S.stroke.len > 70){
     const avg = S.stroke.len / S.stroke.t; // px per ms
     S.stroke.len = 0; S.stroke.t = 0;
-    if (avg > .9){ ignite(m, hx, hy); }
-    else if (avg > .4){ say('Almost! Faster!', 1.4); noise(.12, 2600, 1500, .4, 2); }
-    else say('Too slow — swipe it fast', 1.6);
+    if (avg > S.strikeNeed){ ignite(m, hx, hy); }
+    else {
+      // a miss: the box jolts, and each miss makes the next strike a little easier
+      noise(.12, 2600, 1500, .4, 2); ui.box.animate([{transform: 'translateX(-5px)'}, {transform: 'translateX(5px)'}, {transform: 'translateX(0)'}], {duration: 160});
+      S.strikeNeed = Math.max(.42, S.strikeNeed - .12);
+    }
   }
 }
 function ignite(m, x, y){
@@ -423,8 +569,7 @@ function ignite(m, x, y){
   ui.striker.classList.remove('hot');
   for (let i = 0; i < 40; i++) sparks(x, y, 1, Math.random() < .5 ? 1 : -1, true);
   noise(.5, 3000, 300, .7, .7);
-  S.flare = 1;
-  say('Quick — bring the flame to his wick!', 3);
+  S.flare = 1; S.taught.strike = true;
 }
 
 // ---------- particles ----------
@@ -484,42 +629,62 @@ function update(dt){
   // --- movement ---
   let moving = S.fakeMove || 0;
   if (S.mode === 'play'){
-    const j = S.joy;
-    const want = new THREE.Vector3(j ? j.dx : 0, 0, j ? j.dy : 0);
-    const mag = Math.min(1, want.length());
-    S.vel.lerp(want.multiplyScalar(2.6), Math.min(1, dt * 8));
-    moving = S.vel.length() / 2.6;
+    // analog stick: a light push tiptoes, a full push runs; momentum carries him past the stop
+    const j = S.joy, K = S.keys; let ix = j ? j.dx : 0, iz = j ? j.dy : 0;
+    const kx = (K.arrowright || K.d ? 1 : 0) - (K.arrowleft || K.a ? 1 : 0), kz = (K.arrowdown || K.s ? 1 : 0) - (K.arrowup || K.w ? 1 : 0);
+    if (kx || kz){ const l = Math.hypot(kx, kz), k = K.shift ? .3 : 1; ix = kx / l * k; iz = kz / l * k; }
+    let mag = Math.min(1, Math.hypot(ix, iz)); if (mag < .12) mag = 0;
+    const MAXS = 3.4, mv = S.mv, targetS = MAXS * Math.pow(mag, 1.5);
+    if (mag > 0){
+      S.taught.move = true; S.idleT = 0;
+      const ta = Math.atan2(ix, iz);
+      const d = Math.atan2(Math.sin(ta - mv.th), Math.cos(ta - mv.th));
+      if (!mv.skid && Math.abs(d) > 2.2 && mv.s > 1.7){ mv.skid = 1; mv.skidTo = ta; noise(.25, 900, 500, .25, 1.5); puff(kid.position, 6); }
+      if (mv.skid){
+        mv.s = Math.max(0, mv.s - 10 * dt);
+        if (mv.s < .3){ mv.skid = 0; mv.th = mv.skidTo; }
+      } else {
+        const turn = (14 - 8 * mv.s / MAXS) * dt;
+        mv.th += THREE.MathUtils.clamp(d, -turn, turn);
+        const want = targetS * Math.max(0, Math.cos(d));
+        mv.s += THREE.MathUtils.clamp(want - mv.s, -7 * dt, 5.5 * dt);
+      }
+    } else { mv.skid = 0; mv.s = Math.max(0, mv.s - 5.5 * dt); }
+    S.vel.set(Math.sin(mv.th) * mv.s, 0, Math.cos(mv.th) * mv.s);
+    moving = mv.s / MAXS;
+    S.gait += dt * (mv.s * 2.8 + (mv.s > .05 ? 3.5 : 0));
     kid.position.addScaledVector(S.vel, dt);
     for (const o of obstacles){
+      if (!o.r) continue;
       const dx = kid.position.x - o.x, dz = kid.position.z - o.z, d = Math.hypot(dx, dz), m = o.r + .45;
       if (d < m && d > 1e-4){ kid.position.x = o.x + dx / d * m; kid.position.z = o.z + dz / d * m; }
     }
     kid.position.x = THREE.MathUtils.clamp(kid.position.x, -ROOM, ROOM);
     kid.position.z = THREE.MathUtils.clamp(kid.position.z, -ROOM, ROOM);
-    if (mag > .1){
-      const target = Math.atan2(S.vel.x, S.vel.z);
-      let d = target - kid.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
-      kid.rotation.y += d * Math.min(1, dt * 10);
-    }
+    if (!mv.skid){ const d = Math.atan2(Math.sin(mv.th - kid.rotation.y), Math.cos(mv.th - kid.rotation.y)); kid.rotation.y += d * Math.min(1, dt * 14); }
+    if (mv.s < .05) S.idleT += dt;
+    pushTrail();
     // gusts
     S.nextGust -= dt;
-    if (!S.gust && S.nextGust <= 0){ S.gust = {t: 3.2, dir: Math.random() < .5 ? -1 : 1}; say('Wind! Stand still to shelter your flame', 2.8); noise(3, 400, 250, .35, .5); }
-    if (S.gust){ S.gust.t -= dt; if (S.gust.t <= 0){ S.gust = null; S.nextGust = 10 + Math.random() * 10; } }
+    if (!S.gust && S.nextGust < 1.3 && !S.gustDir){ S.gustDir = Math.random() < .5 ? -1 : 1; noise(1.3, 250, 380, .18, .5); }
+    if (!S.gust && S.nextGust <= 0){ S.gust = {t: 3.2, dir: S.gustDir || 1}; noise(3, 400, 250, .35, .5); }
+    if (S.gust){ S.gust.t -= dt; if (S.gust.t <= 0){ S.gust = null; S.gustDir = 0; S.shiver = 1; S.nextGust = 10 + Math.random() * 10; } }
     // flame + wax
-    let drain = .012 + moving * .02;
-    if (S.gust) drain += .03 + moving * .17;
+    let drain = .006 + .035 * moving * moving;
+    if (S.gust) drain += (.02 + .2 * (moving * moving + .1)) * (1 - shelter());
     S.flame = Math.max(0, S.flame - drain * dt);
+    // resting beside friends warms him back up (no pickups)
+    const near = friendsNear(1.8);
+    if (S.mv.s < .15 && near && !S.gust){ S.flame = Math.min(1, S.flame + .06 * Math.sqrt(near) * dt); S.resting = true; } else S.resting = false;
     S.wax = Math.max(0, S.wax - dt * (.004 + .01 * S.flame));
     // candles
     for (const c of candles){
-      if (!c.lit && Math.hypot(kid.position.x - c.x, kid.position.z - c.z) < 1.0){
-        c.lit = true; c.f.visible = c.gl.visible = true; S.litCount++;
-        S.flame = 1; S.flare = .8; noise(.4, 1500, 400, .5, .8);
-        say(S.litCount < candles.length ? 'Candle lit! Flame restored' : 'Every candle is lit!', 2);
+      if (!c.lit && Math.hypot(kid.position.x - c.pos.x, kid.position.z - c.pos.z) < 1.0){
+        c.wake(S.litCount++); S.flame = Math.min(1, S.flame + .35); S.flare = .8; noise(.4, 1500, 400, .5, .8);
       }
     }
-    if (S.litCount === candles.length){ S.mode = 'won'; ui.box.classList.add('away'); setTimeout(() => { $('winP').textContent = `You found all ${candles.length} candles with ${Math.round(S.wax * 100)}% wax left.`; $('win').style.display = 'flex'; }, 1800); }
-    else if (S.wax <= 0) gameOver('Melted away', 'Your wax ran out. A brighter flame burns faster!');
+    if (S.litCount === candles.length){ S.mode = 'won'; ui.box.classList.add('away'); setTimeout(() => { $('winP').textContent = `All ${candles.length} candles are up, and the room is lit. Lumi still has ${Math.round(S.wax * 100)}% of his wax.`; $('win').style.display = 'flex'; }, 1800); }
+    else if (S.wax <= 0) gameOver('Melted away', 'Lumi ran out of wax. Running burns hot, so tiptoe when you can and rest by your friends.');
     else if (S.flame <= .02){ S.flame = 0; S.lit = false; noise(.6, 600, 150, .4, .6); toStrike(); }
   }
   if (S.mode === 'won') S.reveal = Math.min(1, S.reveal + dt * .4);
@@ -536,9 +701,9 @@ function update(dt){
         S.lit = true; S.flame = .15; S.mode = 'play'; S.flare = 1;
         S.matches--; ui.match.style.display = 'none'; S.match = null; ui.box.classList.add('away');
         noise(.7, 900, 200, .6, .6);
-        say(S.tries > 1 ? 'Lit again! Keep going' : 'He’s lit! Drag anywhere to walk. Find the other candles.', 3.5);
+        S.taught.wick = true;
       } else if (m.burn >= 1){
-        S.matches--; say('Ouch! The match burned out', 2); S.match = null; ui.match.style.display = 'none';
+        S.matches--; noise(.3, 500, 200, .3, 1); S.match = null; ui.match.style.display = 'none';
         setTimeout(() => { if (S.mode === 'strike') newMatch(); }, 600);
       }
     }
@@ -551,6 +716,9 @@ function update(dt){
   }
   if (S.lit && S.mode === 'play') S.flame = Math.min(1, S.flame + dt * (S.flame < .9 && S.flare > 0 ? 1.6 : 0)); // initial grow-in
 
+  updateFriends(dt);
+  updateDrips(dt);
+  idleMoments(dt);
   // --- animate kid ---
   if (!S.poseHold) animateRig(dt, t, moving);
   const ws = .62 + .38 * S.wax; applyMelt(ws);
@@ -558,10 +726,11 @@ function update(dt){
   // flame shape
   const f = S.lit ? S.flame : 0;
   flame.visible = f > 0; glow.visible = f > 0 && !S.studio;
-  const flick = .9 + .1 * Math.sin(t * 23) * Math.sin(t * 7.3) + (S.gust ? .15 * Math.sin(t * 40) : 0);
-  const fs = (.4 + .6 * f) * (1 + S.flare * .4);
+  const run = Math.max(0, moving - .55) / .45;
+  const flick = .9 + .1 * Math.sin(t * 23) * Math.sin(t * 7.3) + (S.gust ? .15 * Math.sin(t * 40) : 0) - run * .25 * Math.abs(Math.sin(t * 31) * Math.sin(t * 13));
+  const fs = (.4 + .6 * f) * (1 + S.flare * .4) * (1 + breathCurve() * .25) * (S.resting ? 1 + .05 * Math.sin(t * 3) : 1);
   flame.scale.set(fs, fs * flick, fs);
-  const lean = new THREE.Vector3(-S.vel.x * .12 + (S.gust ? S.gust.dir * .5 : 0), 0, -S.vel.z * .12);
+  const lean = new THREE.Vector3(-S.vel.x * .16 + (S.gust ? S.gust.dir * .5 * (1 - shelter() * .7) : 0), 0, -S.vel.z * .16);
   lean.applyAxisAngle(new THREE.Vector3(0, 1, 0), -kid.rotation.y);
   flame.rotation.z = THREE.MathUtils.lerp(flame.rotation.z, -lean.x, .2);
   flame.rotation.x = THREE.MathUtils.lerp(flame.rotation.x, lean.z, .2);
@@ -576,9 +745,6 @@ function update(dt){
   kidLight.distance = 2.5 + f * 4.5;
   fill.intensity = S.studioLight ? 1.6 : .35 + f * 1.6;
   fill.position.copy(kid.position).add(tmp.set(0, 3, 4)); fill.target.position.copy(kid.position);
-  for (const c of candles){
-    if (c.lit){ c.t += dt; const k = .9 + .1 * Math.sin(c.t * 19) * Math.sin(c.t * 5.7); c.f.scale.set(1, k, 1); c.gl.scale.setScalar(.9 * k); c.L.intensity = 3.5 * k; }
-  }
   if (!S.studio) amb.intensity = S.cam ? .9 : .25 + S.reveal * 1.2;
 
   // --- camera follow ---
@@ -608,8 +774,8 @@ function render(dt){
     lights.push({x: ks.x, y: ks.y, r: R, a: 1});
   } else lights.push({x: ks.x, y: ks.y, r: worldRadiusPx(kp, 1.1), a: .28});
   for (const c of candles) if (c.lit){
-    const p = new THREE.Vector3(c.x, .5, c.z), s = toScreen(p);
-    if (s.z < 1) lights.push({x: s.x, y: s.y, r: worldRadiusPx(p, 1.9) * (.95 + .05 * Math.sin(c.t * 13)), a: .95});
+    const p = new THREE.Vector3(c.pos.x, .5, c.pos.z), s = toScreen(p);
+    if (s.z < 1) lights.push({x: s.x, y: s.y, r: worldRadiusPx(p, 1.35 + (S.resting ? .15 : 0)) * (.95 + .05 * Math.sin(c.t * 13)), a: .9});
   }
   if (S.match && S.match.lit){
     lights.push({x: S.match.x + 8, y: S.match.y - 14, r: (150 + 30 * S.flare) * flick * (1 - S.match.burn * .4), a: .95});
@@ -639,12 +805,14 @@ function render(dt){
     fctx.beginPath(); fctx.arc(p.x, p.y, p.s, 0, 6.3); fctx.fill();
   }
   fctx.globalCompositeOperation = 'source-over';
-  if (S.gust){
-    if (Math.random() < .6) wind.push({x: S.gust.dir > 0 ? -100 : W + 100, y: Math.random() * H, l: 60 + Math.random() * 120, v: 900 + Math.random() * 600});
+  drawHints();
+  if (S.gust || (S.gustDir && Math.random() < .25)){
+    const gd = S.gust ? S.gust.dir : S.gustDir;
+    if (Math.random() < (S.gust ? .6 : .5)) wind.push({x: gd > 0 ? -100 : W + 100, y: Math.random() * H, l: 60 + Math.random() * 120, v: 900 + Math.random() * 600});
   }
   fctx.strokeStyle = 'rgba(220,230,255,.35)'; fctx.lineWidth = 2; fctx.lineCap = 'round';
   for (let i = wind.length - 1; i >= 0; i--){
-    const w = wind[i], d = S.gust ? S.gust.dir : (w.v > 0 ? 1 : -1);
+    const w = wind[i], d = S.gust ? S.gust.dir : (S.gustDir || 1);
     w.x += d * w.v * dt;
     if (w.x < -300 || w.x > W + 300){ wind.splice(i, 1); continue; }
     fctx.beginPath(); fctx.moveTo(w.x, w.y); fctx.quadraticCurveTo(w.x - d * w.l / 2, w.y - 6, w.x - d * w.l, w.y); fctx.stroke();
