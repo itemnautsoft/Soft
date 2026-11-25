@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#7fc4ef">
 <title>Sid Dash</title>
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
 <style>
@@ -968,13 +971,31 @@ function drawMenuSid(time) {
   mctx.clearRect(0, 0, mc.width, mc.height);
   drawSid(mctx, 170, 360 - Math.abs(Math.sin(time * 3)) * 12, 150, { view:'front', run:time * 6, char:save.char, cap:save.cap, poo:save.poo });
 }
-// app icon (from the drawing: Sid on a blue square)
+// app icon: a close-up of Sid's and Scott's faces filling the square
+function drawIcon(x, n) {
+  const k = n / 512;
+  const bg = x.createLinearGradient(0, 0, 0, n);
+  bg.addColorStop(0, '#8fd6ff'); bg.addColorStop(1, '#4fa6e6');
+  x.fillStyle = bg; x.fillRect(0, 0, n, n);
+  // light rays behind the heads
+  x.save(); x.translate(n / 2, n * 0.55); x.fillStyle = 'rgba(255,255,255,.16)';
+  for (let i = 0; i < 12; i++) { x.rotate(Math.PI / 6); x.beginPath(); x.moveTo(0, 0); x.lineTo(-n * 0.09, -n); x.lineTo(n * 0.09, -n); x.closePath(); x.fill(); }
+  x.restore();
+  // Scott behind on the right (poo hat, crazy eyes), Sid in front on the left
+  const s = 360 * k;
+  drawSid(x, 372 * k, (318 + 1.42 * 360) * k, s, { view:'front', run:0, char:'scott', poo:'brown' });
+  // Sid is mirrored so his cap's brim points out of the picture instead of over Scott's eye
+  x.save(); x.translate(140 * k, 0); x.scale(-1, 1);
+  drawSid(x, 0, (352 + 1.42 * 360) * k, s, { view:'front', run:0, char:'sid', cap:'black' });
+  x.restore();
+}
 try {
-  const ic = document.createElement('canvas'); ic.width = ic.height = 128; const ix = ic.getContext('2d');
-  ix.fillStyle = '#8fd0f5'; ix.beginPath(); ix.roundRect ? ix.roundRect(0, 0, 128, 128, 26) : ix.rect(0, 0, 128, 128); ix.fill();
-  drawSid(ix, 64, 120, 55, { view:'front', char:'sid', cap:'black' });
-  const link = document.createElement('link'); link.rel = 'icon'; link.href = ic.toDataURL(); document.head.appendChild(link);
-  const link2 = document.createElement('link'); link2.rel = 'apple-touch-icon'; link2.href = ic.toDataURL(); document.head.appendChild(link2);
+  const ic = document.createElement('canvas'); ic.width = ic.height = 180; drawIcon(ic.getContext('2d'), 180);
+  const url = ic.toDataURL();
+  for (const rel of ['icon', 'apple-touch-icon']) {
+    if (document.querySelector(`link[rel="${rel}"]`)) continue;
+    const link = document.createElement('link'); link.rel = rel; link.href = url; document.head.appendChild(link);
+  }
 } catch (e) {}
 
 // ---------------- Main loop ----------------
@@ -993,7 +1014,7 @@ newGame(1, true); updateMenuText();
 requestAnimationFrame(frame);
 
 // test hook
-window.__sid = { get G() { return G; }, get state() { return state; }, startGame, move, jump, save:() => save, setStage:(n) => { startGame(n); } };
+window.__sid = { drawIcon, get G() { return G; }, get state() { return state; }, startGame, move, jump, save:() => save, setStage:(n) => { startGame(n); } };
 })();
 </script>
 </body>
