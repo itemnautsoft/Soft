@@ -330,11 +330,20 @@ function applyFilter(img,f){const w=img.naturalWidth,h=img.naturalHeight,c=mkCan
 function imgSrc(a){const im=S.images[a.img];if(!im||!im.el||!im.el.complete||!im.el.naturalWidth)return null;const f=a.filter||'none';if(f==='none')return im.el;const key=a.img+'|'+f;if(!S.fcache[key])S.fcache[key]=applyFilter(im.el,f);return S.fcache[key]}
 
 /* ============ rendering ============ */
+const isPartial=a=>a.clip&&Array.isArray(a.open)&&a.open.length>0;
+/* clip region when some edges are opened: intersect half-planes of the CLOSED edges (inset by half the border) */
+function openClipPath(p,a){const pts=p.pts,n=pts.length,open=new Set(a.open||[]),half=(p.bw||0)/2;let area=0;for(let i=0;i<n;i++){const q=pts[i],r=pts[(i+1)%n];area+=q.x*r.y-r.x*q.y}const sg=area>=0?1:-1;
+  let poly=[{x:-1e5,y:-1e5},{x:1e5,y:-1e5},{x:1e5,y:1e5},{x:-1e5,y:1e5}];
+  for(let i=0;i<n&&poly.length;i++){if(open.has(i))continue;const A=pts[i],B=pts[(i+1)%n],ex=B.x-A.x,ey=B.y-A.y,L=Math.hypot(ex,ey);if(!L)continue;const nx=-ey/L*sg,ny=ex/L*sg,ox=A.x+nx*half,oy=A.y+ny*half;
+    const f=q=>(q.x-ox)*nx+(q.y-oy)*ny,out=[];for(let j=0;j<poly.length;j++){const c=poly[j],d=poly[(j+1)%poly.length],fc=f(c),fd=f(d);if(fc>=0)out.push(c);if((fc>=0)!==(fd>=0)){const t=fc/(fc-fd);out.push({x:c.x+(d.x-c.x)*t,y:c.y+(d.y-c.y)*t})}}poly=out}
+  const path=new Path2D();poly.forEach((q,i)=>i?path.lineTo(q.x,q.y):path.moveTo(q.x,q.y));path.closePath();return path}
+function remapOpenInsert(p,i){p.assets.forEach(a=>{if(a.open&&a.open.length)a.open=[...new Set(a.open.flatMap(j=>j<i?[j]:j===i?[j,j+1]:[j+1]))]})}
+function remapOpenDelete(p,v){const n=p.pts.length,pm=k=>k<v?k:k-1,pv=(v-1+n)%n;p.assets.forEach(a=>{if(a.open&&a.open.length)a.open=[...new Set(a.open.map(j=>(j===v||j===pv)?pm(pv):pm(j)))]})}
 function renderDoc(ctx){const P=doc.page;ctx.fillStyle=P.bg;ctx.fillRect(0,0,pageW(),pageH());
   for(const p of doc.panels){if(p.pts.length<3)continue;const path=panelPath(p);if(p.fill&&p.fill!=='none'){ctx.fillStyle=p.fill;ctx.fill(path)}
-    ctx.save();ctx.clip(path);for(const a of p.assets)if(a.clip&&!a.hidden)drawAsset(ctx,a);ctx.restore();
+    ctx.save();ctx.clip(path);for(const a of p.assets)if(a.clip&&!a.hidden&&!isPartial(a))drawAsset(ctx,a);ctx.restore();
     if(p.bw>0){ctx.lineWidth=p.bw;ctx.strokeStyle=p.bc;ctx.lineJoin='miter';ctx.miterLimit=10;ctx.stroke(path)}}
-  for(const p of doc.panels)for(const a of p.assets)if(!a.clip&&!a.hidden)drawAsset(ctx,a);
+  for(const p of doc.panels)for(const a of p.assets){if(a.hidden)continue;if(!a.clip)drawAsset(ctx,a);else if(isPartial(a)){ctx.save();ctx.clip(openClipPath(p,a));drawAsset(ctx,a);ctx.restore()}}
   for(const a of doc.free)if(!a.hidden)drawAsset(ctx,a)}
 function drawAsset(ctx,a){ctx.save();ctx.translate(a.x,a.y);ctx.rotate(a.rot||0);
   if(a.type==='image'){ctx.scale(a.s,a.s);if(a.flip)ctx.scale(-1,1);const src=imgSrc(a);if(src){ctx.globalAlpha=a.op??1;ctx.drawImage(src,-a.w/2,-a.h/2,a.w,a.h)}}
@@ -463,12 +472,17 @@ function drawOverlays(c,px){
       pts.forEach((v,i)=>dot(c,v.x,v.y,(i===0?10:6)*px,i===0?'rgba(255,212,59,.35)':'#ffd43b','#ffd43b',1.5*px))}
   }else{
     const p=selPanel();if(p){c.setLineDash([5*px,4*px]);c.strokeStyle='rgba(255,212,59,.8)';c.lineWidth=1.5*px;c.stroke(panelPath(p));c.setLineDash([])}
+    if(S.edgeEdit){const ea=findAsset(S.edgeEdit),ep=ea&&containerOf(ea);if(ep){const n=ep.pts.length;c.save();c.lineCap='round';
+      for(let i=0;i<n;i++){const A=ep.pts[i],B=ep.pts[(i+1)%n],op=!ea.clip||(ea.open||[]).includes(i);c.strokeStyle=op?'#ff2bd6':'#ffd43b';c.lineWidth=(op?4:6)*px;c.setLineDash(op?[8*px,7*px]:[]);
+        c.shadowColor=op?'#ff2bd6':'#ffd43b';c.shadowBlur=10*px;c.beginPath();c.moveTo(A.x,A.y);c.lineTo(B.x,B.y);c.stroke()}
+      c.setLineDash([]);c.shadowBlur=0;for(let i=0;i<n;i++){const m=mid(ep.pts[i],ep.pts[(i+1)%n]),op=!ea.clip||(ea.open||[]).includes(i);dot(c,m.x,m.y,13*px,'rgba(20,20,26,.9)',op?'#ff2bd6':'#ffd43b',2*px);
+        c.font=`${13*px}px sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillStyle='#fff';c.fillText(op?'🔓':'🔒',m.x,m.y+.5*px)}c.restore()}}
     const a=selAsset();if(a){const b=halfBox(a);c.save();c.translate(a.x,a.y);c.rotate(a.rot);c.strokeStyle='#3fa9ff';c.lineWidth=1.5*px;c.setLineDash([5*px,4*px]);c.strokeRect(-b.hw,-b.hh,b.hw*2,b.hh*2);c.setLineDash([]);
       const ry=-b.hh-28*px;c.beginPath();c.moveTo(0,-b.hh);c.lineTo(0,ry);c.stroke();dot(c,0,ry,9*px,'#fff','#3fa9ff',2*px);
       c.font=`${12*px}px sans-serif`;c.fillStyle='#3fa9ff';c.textAlign='center';c.textBaseline='middle';c.fillText('⟳',0,ry);
       c.fillStyle='#fff';c.strokeStyle='#3fa9ff';c.lineWidth=2*px;c.fillRect(b.hw-8*px,b.hh-8*px,16*px,16*px);c.strokeRect(b.hw-8*px,b.hh-8*px,16*px,16*px);
       if(a.type==='bubble'&&BSTYLES[a.style]?.tail&&a.tailOn){c.beginPath();c.moveTo(0,0);c.lineTo(a.tx,a.ty);c.setLineDash([3*px,3*px]);c.strokeStyle='rgba(255,212,59,.8)';c.stroke();c.setLineDash([]);dot(c,a.tx,a.ty,9*px,'#ffd43b','#111',2*px)}
-      if(!a.clip){c.font=`bold ${10*px}px sans-serif`;c.fillStyle='#ff2bd6';c.textAlign='left';c.fillText('⇱ breaks out',-b.hw,-b.hh-8*px)}
+      if(!a.clip||isPartial(a)){c.font=`bold ${10*px}px sans-serif`;c.fillStyle='#ff2bd6';c.textAlign='left';c.fillText(!a.clip?'⇱ breaks out':'◫ partly out',-b.hw,-b.hh-8*px)}
       c.restore()}}}
 
 /* ============ input ============ */
@@ -493,9 +507,11 @@ function startGesture(p,P){const g={s0p:p,ox0:S.view.ox,oy0:S.view.oy,moved:fals
     const sp_=selPanel();
     if(sp_){const ic=cornerIcons(sp_);for(let i=0;i<ic.length;i++)if(dist(ic[i],P)<15/S.view.s){pan();g.up=()=>{if(!g.moved)cornerTap(sp_,i)};return g}
       for(let i=0;i<sp_.pts.length;i++)if(dist(sp_.pts[i],P)<tol){S.sel.vi=i;refreshUI();return vertexG(g,sp_,i)}
-      const eh=edgeHit(sp_,P,tol);if(eh){sp_.pts.splice(eh.i+1,0,{x:eh.x,y:eh.y,rd:false});S.sel.vi=eh.i+1;g.changed=true;hint('Point added — drag to bend the edge');refreshUI();return vertexG(g,sp_,eh.i+1)}}
+      const eh=edgeHit(sp_,P,tol);if(eh){remapOpenInsert(sp_,eh.i);sp_.pts.splice(eh.i+1,0,{x:eh.x,y:eh.y,rd:false});S.sel.vi=eh.i+1;g.changed=true;hint('Point added — drag to bend the edge');refreshUI();return vertexG(g,sp_,eh.i+1)}}
     const hp=panelAt(P);if(hp)return pressPanelG(g,hp,P);
     pan();g.up=()=>{if(!g.moved){S.sel={pid:null,aid:null,vi:-1}}};return g}
+  if(S.edgeEdit){const ea=findAsset(S.edgeEdit),ep=ea&&containerOf(ea);if(ep){const n=ep.pts.length,r=24/S.view.s,near=ep.pts.some((A,i)=>dist(mid(A,ep.pts[(i+1)%n]),P)<r)||edgeHit(ep,P,16/S.view.s);
+    if(near){pan();g.up=(q,Q)=>{if(!g.moved)edgeEditTap(Q)};return g}}}
   const a=selAsset();if(a){const hd=handleHit(a,P);if(hd)return handleG(g,a,hd,P)}
   const hit=assetAt(P);
   if(hit){const now=Date.now(),dbl=lastTap.id===hit.id&&now-lastTap.t<350;if(S.sel.aid!==hit.id)closeEditorIfOther(hit.id);S.sel.aid=hit.id;const c=containerOf(hit);if(c)S.sel.pid=c.id;refreshUI();
@@ -527,8 +543,8 @@ function handleG(g,a,hd,P){const c={x:a.x,y:a.y},d0=dist(P,c)||1,s0=a.s;
     else if(hd==='rot'){let r=Math.atan2(Q.y-a.y,Q.x-a.x)+Math.PI/2;const st=Math.PI/12,n=Math.round(r/st)*st;if(Math.abs(r-n)<.05)r=n;a.rot=r}
     else if(a.type==='bubble'){const l=toLocal(a,Q),m=6*K();a.w=Math.max(m*3,Math.abs(l.x)*2);a.h=Math.max(m*2,Math.abs(l.y)*2)}
     else a.s=Math.max(.01,s0*dist(Q,c)/d0)};return g}
-function assetAt(P){const L=[];doc.panels.forEach(p=>p.assets.forEach(a=>{if(a.clip)L.push([a,p])}));doc.panels.forEach(p=>p.assets.forEach(a=>{if(!a.clip)L.push([a,null])}));doc.free.forEach(a=>L.push([a,null]));
-  for(let i=L.length-1;i>=0;i--){const[a,p]=L[i];if(a.hidden||a.locked)continue;if(!inAsset(a,P))continue;if(p&&!inPanel(p,P))continue;return a}return null}
+function assetAt(P){const L=[];doc.panels.forEach(p=>p.assets.forEach(a=>{if(a.clip&&!isPartial(a))L.push([a,p,0])}));doc.panels.forEach(p=>p.assets.forEach(a=>{if(!a.clip)L.push([a,null,0]);else if(isPartial(a))L.push([a,p,1])}));doc.free.forEach(a=>L.push([a,null,0]));
+  for(let i=L.length-1;i>=0;i--){const[a,p,part]=L[i];if(a.hidden||a.locked)continue;if(!inAsset(a,P))continue;if(p&&(part?!hitCtx.isPointInPath(openClipPath(p,a),P.x,P.y):!inPanel(p,P)))continue;return a}return null}
 function reparent(a){const cur=containerOf(a),t=panelAt(a);if(t&&t!==cur){removeAsset(a);t.assets.push(a);S.sel.pid=t.id;toast(`Moved into panel ${doc.panels.indexOf(t)+1}`)}}
 function addDrawPoint(Q){const pts=S.drawing.pts;if(pts.length>=3&&dist(pts[0],Q)<18/S.view.s){finishDrawing();return}const s=snapPt(Q.x,Q.y,null,-1);pts.push({x:s.x,y:s.y});S.snap=null;refreshUI()}
 function finishDrawing(){const pts=S.drawing.pts;S.drawing=null;if(pts.length>=3){const p=newPanel(pts);doc.panels.push(p);S.sel={pid:p.id,aid:null,vi:-1};commit();toast('Panel created')}refreshUI();req()}
@@ -561,12 +577,15 @@ function refreshUI(){if(!doc)return;if(S.sel.pid&&!selPanel())S.sel.pid=null;if(
     if(p){hint(S.sel.vi>=0?'Drag point · tap edge to add points':'Tap edge → add point · hold inside → move');
       add(tb('◐','Frame style',openPanelStyle),tb('◜','Round all',()=>{const all=p.pts.every(v=>v.rd);p.pts.forEach(v=>v.rd=!all);if(p.radius<=0)p.radius=12*K();commit();req()}),
         tb('⧉','Duplicate',dupPanel),tb('⬆','Forward',()=>movePanelZ(1)),tb('⬇','Back',()=>movePanelZ(-1)));
-      if(S.sel.vi>=0)add(tb('•','Del point',()=>{if(p.pts.length<=3){toast('A panel needs at least 3 corners');return}p.pts.splice(S.sel.vi,1);S.sel.vi=-1;commit();req()},{dis:p.pts.length<=3}));
+      if(S.sel.vi>=0)add(tb('•','Del point',()=>{if(p.pts.length<=3){toast('A panel needs at least 3 corners');return}remapOpenDelete(p,S.sel.vi);p.pts.splice(S.sel.vi,1);S.sel.vi=-1;commit();req()},{dis:p.pts.length<=3}));
       add(tb('🗑','Delete',()=>{doc.panels.splice(doc.panels.indexOf(p),1);S.sel={pid:null,aid:null,vi:-1};commit();req()},{warn:1}))}
     else hint(doc.panels.length?'Tap a panel to edit · hold & drag to move':'Pick a layout or draw a panel')}
   else{const a=selAsset();
+    if(S.edgeEdit&&S.edgeEdit!==a.id)S.edgeEdit=null;
+    if(a&&S.edgeEdit===a.id){const p=containerOf(a),n=p?p.pts.length:0;hint('Tap a glowing edge to open it — the picture can spill past open edges');
+      add(tb('🔓','Open all',()=>{a.clip=true;a.open=[...Array(n).keys()];commit();req();refreshUI()}),tb('🔒','Close all',()=>{a.clip=true;a.open=[];commit();req();refreshUI()}),tb('✓','Done',()=>{S.edgeEdit=null;refreshUI();req()},{on:1}));return}
     if(a){hint('Drag to move · double-tap to edit');
-      add(tb('✎','Edit',()=>openEditor(a)),tb(a.clip?'⊡':'⇱',a.clip?'In frame':'Breaks out',()=>{a.clip=!a.clip;commit();req();toast(a.clip?'Clipped to its panel':'Breaks out of the panel')},{on:!a.clip}),tb('▤','Layers',openLayers),
+      add(tb('✎','Edit',()=>openEditor(a)),tb(!a.clip?'⇱':isPartial(a)?'◫':'⊡',!a.clip?'Breaks out':isPartial(a)?'Partly out':'In frame',()=>enterEdgeEdit(a),{on:!a.clip||isPartial(a)}),tb('▤','Layers',openLayers),
         tb('⬆','Up',()=>moveZ(a,1)),tb('⬇','Down',()=>moveZ(a,-1)));
       if(a.type==='image')add(tb('⤢','Fill frame',()=>{fillFrame(a,'cover');commit();req()}),tb('⇋','Flip',()=>{a.flip=!a.flip;commit();req()}));
       add(tb('⧉','Duplicate',()=>dupAsset(a)),tb('🗑','Delete',()=>{removeAsset(a);S.sel.aid=null;closeEditorIfOther(null);commit();req()},{warn:1}))}
@@ -604,8 +623,8 @@ function openMenu(){openSheet('menu','Menu',B=>{const it=(icon,label,fn,sub)=>h(
     it('🧊','3D reference scene',()=>{closeSheet();open3D()},'Pose mannequins & shapes, pick a lens, drop the view into a panel'),it('🖨','Export image',openExport,'PNG · JPEG · TIFF at print resolution'),it('?','How to use',openHelp))})}
 function openHelp(){openSheet('help','How to use',B=>{B.append(h('div',{class:'note',html:`
 <b>Frames mode</b> — build your panel layout.<br>• <b>Layouts</b> drops in a ready-made grid; <b>Draw panel</b> lets you tap corners one by one (tap the first point to close).<br>• Tap a panel to select it. Drag the white dots to move corners. <b>Tap any edge</b> to add a new point there, then drag it.<br>• The yellow badges just inside each corner round that corner. <b>Double-tap a badge</b> to round (or square) every corner at once.<br>• <b>Press and hold inside a panel</b>, then drag to move the whole panel with its contents.<br>• Points snap to the grid, margins, trim, bleed and other panels' corners.<br><br>
-<b>Content mode</b> — fill the panels.<br>• Tap a panel to target it, then add a photo, bubble, SFX or caption.<br>• Drag to move. Square handle = resize, round handle = rotate, yellow dot = bubble tail.<br>• <b>Double-tap</b> anything to edit it. Drop an item into another panel to move it there.<br>• <b>In frame / Breaks out</b> chooses whether an item is clipped by its panel or pops over the border.<br>• <b>Layers</b> reorders everything inside a panel.<br><br>
-<b>3D R (3D reference)</b> — opens a 3D stage. Add people, creatures and shapes. Drag a limb to pose it like a drawing mannequin; drag empty space to orbit, two fingers to zoom/pan. <b>📷 Photo pose</b> copies a pose — body and fingers — from a picture of a real person onto the selected figure. Tap a hand or finger to get hand presets (fist, point, peace…) and per-finger curl sliders. <b>Mod</b> focuses one figure so you can tap parts and make them bigger, smaller, wider or thinner — tap ✓ to go back. <b>Lens</b> has focal lengths, fisheye and tilt-shift. <b>Place ▸</b> asks which panel to drop the view into. The scene is saved with your page, so it’s waiting just as you left it next time.<br><br><b>Anywhere</b> — pinch to zoom, drag empty space to pan. ◫ toggles guides (red = trim/bleed, blue = safe area & grid).<br><br>
+<b>Content mode</b> — fill the panels.<br>• Tap a panel to target it, then add a photo, bubble, SFX or caption.<br>• Drag to move. Square handle = resize, round handle = rotate, yellow dot = bubble tail.<br>• <b>Double-tap</b> anything to edit it. Drop an item into another panel to move it there.<br>• <b>In frame</b> lights up the panel's edges with 🔒 badges. Tap an edge to unlock it and the item can extend past that edge only (e.g. a character bursting out the top). <b>Open all</b> lets it break out completely.<br>• <b>Layers</b> reorders everything inside a panel.<br><br>
+<b>3D R (3D reference)</b> — opens a 3D stage. Add people, creatures and shapes. Drag a limb to pose it like a drawing mannequin; drag empty space to orbit, two fingers to zoom/pan. <b>📷 Photo pose</b> copies a pose — body and fingers — from a picture of a real person onto the selected figure. Tap a hand or finger to get hand presets (fist, point, peace…) and per-finger curl sliders. <b>Mod</b> focuses one figure so you can tap parts and make them bigger, smaller, wider or thinner — tap ✓ to go back. <b>Lens</b> has focal lengths, fisheye and tilt-shift. <b>Place ▸</b> asks which panel to drop the view into; by default the background is transparent and the floor grid plus faint perspective lines come along as drawing guides (change this under Look). The scene is saved with your page, so it’s waiting just as you left it next time.<br><br><b>Anywhere</b> — pinch to zoom, drag empty space to pan. ◫ toggles guides (red = trim/bleed, blue = safe area & grid).<br><br>
 Your page autosaves on this device. Use <b>Save project file</b> to keep a backup you can reopen anywhere.`}))})}
 
 /* new page / setup */
@@ -664,7 +683,14 @@ function openSFXPicker(){openSheet('spick','Add sound effect',B=>{B.append(h('di
 /* editors */
 function openEditor(a){S.sel.aid=a.id;const c=containerOf(a);if(c)S.sel.pid=c.id;refreshUI();focusAsset(a);
   if(a.type==='bubble')bubbleEditor(a);else if(a.type==='sfx')sfxEditor(a);else imageEditor(a);S.sheetFor=a.id}
-function clipRow(a){return cToggle('Break out of frame',{get v(){return!a.clip},set v(x){a.clip=!x}},'v',{on:refreshUI})}
+function clipRow(a){return cToggle('Break out of frame',{get v(){return!a.clip},set v(x){a.clip=!x;if(!x)a.open=[]}},'v',{on:refreshUI})}
+function enterEdgeEdit(a){const p=containerOf(a);if(!p){toast('Drop it into a panel first, then choose which edges it can cross',2600);return}
+  if(!a.clip){a.clip=true;a.open=[...Array(p.pts.length).keys()]}a.open=a.open||[];S.edgeEdit=a.id;closeEditorIfOther(null);refreshUI();req()}
+function edgeEditTap(P){const a=findAsset(S.edgeEdit),p=a&&containerOf(a);if(!p)return false;const n=p.pts.length,r=24/S.view.s;let best=-1,bd=1e9;
+  for(let i=0;i<n;i++){const A=p.pts[i],B=p.pts[(i+1)%n],m=mid(A,B),dm=dist(m,P);if(dm<r&&dm<bd){bd=dm;best=i}}
+  if(best<0){const eh=edgeHit(p,P,16/S.view.s);if(eh)best=eh.i}if(best<0)return false;
+  a.open=a.open||[];const k=a.open.indexOf(best);if(k>=0)a.open.splice(k,1);else a.open.push(best);commit();req();refreshUI();
+  toast(k>=0?'Edge closed — the picture stops here':'Edge opened — the picture can extend past it',1600);return true}
 function bubbleEditor(a){const k=K();openSheet('editor',(BSTYLES[a.style]?.n||'Bubble')+' bubble',B=>{
   const ta=h('textarea',{value:a.text,placeholder:'Type dialogue…'});ta.oninput=()=>{a.text=ta.value;req();document.fonts.load(fontStr(a),a.text).then(req).catch(()=>{})};ta.onchange=()=>commit();
   const styles=h('div',{class:'chips'},Object.entries(BSTYLES).map(([s,v])=>h('button',{class:'chip'+(s===a.style?' on':''),onclick:()=>{a.style=s;if(['vertical','flash','spiky','soft'].includes(s)&&!a.vertical){a.vertical=true;autoFit(a)}if(['caption','ecaption','text'].includes(s))a.tailOn=false;else if(BSTYLES[s].tail)a.tailOn=true;commit();req();bubbleEditor(a)}},v.n)));
@@ -710,7 +736,7 @@ function openLayers(){const curA=selAsset();let cont=curA?containerOf(curA):selP
       B.append(h('div',{class:'lay'+(sel?' on':'')},
         h('button',{class:'sm',onclick:()=>moveZ(a,1)},'▲'),h('button',{class:'sm',onclick:()=>moveZ(a,-1)},'▼'),
         h('button',{class:'nm',style:{textAlign:'left',opacity:a.hidden?.4:1},onclick:()=>{S.sel.aid=a.id;refreshUI();req();openLayers()}},assetLabel(a)),
-        h('button',{class:'sm'+(a.clip?'':' on'),onclick:()=>{a.clip=!a.clip;commit();req();openLayers()}},a.clip?'In':'Out'),
+        h('button',{class:'sm'+(a.clip&&!isPartial(a)?'':' on'),onclick:()=>{a.clip=!a.clip;a.open=[];commit();req();openLayers()}},!a.clip?'Out':isPartial(a)?'Part':'In'),
         h('button',{class:'sm',onclick:()=>{a.hidden=!a.hidden;commit();req();openLayers()}},a.hidden?'◌':'👁'),mv,
         h('button',{class:'sm',style:{color:'#ff7a7a'},onclick:()=>{removeAsset(a);if(S.sel.aid===a.id)S.sel.aid=null;commit();req();refreshUI();openLayers()}},'✕')))})})}
 
@@ -799,7 +825,7 @@ function makeZip(files){const enc=new TextEncoder(),parts=[],cds=[];let off=0,cd
 $('#bMenu').onclick=openMenu;$('#bUndo').onclick=undo;$('#bRedo').onclick=redo;$('#bFit').onclick=fitView;
 $('#bGuides').onclick=()=>{S.guides=!S.guides;refreshUI();req()};
 $('#title').onclick=async()=>{const n=await ask('Name this page',{ok:'Rename',input:doc.name});if(n&&n.trim()){doc.name=n.trim();commit()}};
-$('#mFrames').onclick=()=>{S.mode='frames';S.sel.aid=null;if(S.sheet==='editor')closeSheet();refreshUI();req()};
+$('#mFrames').onclick=()=>{S.edgeEdit=null;S.mode='frames';S.sel.aid=null;if(S.sheet==='editor')closeSheet();refreshUI();req()};
 $('#mContent').onclick=()=>{S.mode='content';S.drawing=null;S.sel.vi=-1;refreshUI();req()};
 new ResizeObserver(resize).observe($('#stage'));
 document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea,select'))return;if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo()}
@@ -951,7 +977,7 @@ const pretty3=n=>{if(!n)return'';const fm=/^(thumb|index|middle|ring|pinky)(\d)\
 const S3={open:false,mode:'pose',sel:null,bone:null,part:null,mirror:true,replace:true,prevCam:null,hist:[],hi:-1,pick:[],fr:null,C:null,dpr:1};
 const sc3=()=>doc.scene3d;
 function default3D(){return{v:1,objs:[newObj3('adult')],cam:{tgt:[0,.95,0],yaw:.55,pitch:.1,dist:3.6,roll:0,lens:'std',focal:35,fish:.6,tsY:.5,tsW:.12,tsBlur:6,frame:null},
-  look:{style:'toon',outline:2,bg:'#e9e4d8',transparent:false,ground:true,grid:true,shadow:true,lightAz:35,lightEl:50}}}
+  look:{style:'toon',outline:2,bg:'#e9e4d8',transparent:true,placeGrid:true,persp:true,v2:1,ground:true,grid:true,shadow:true,lightAz:35,lightEl:50}}}
 function newObj3(kind){const c=CHARS3[kind]||PRIMS3[kind]||PRIMS3.box,n=(doc.scene3d&&doc.scene3d.objs.length)||0;
   const o={id:uid(),kind,name:c.n,type:c.type||'prim',shape:c.shape||null,pos:[0,0,0],rot:[0,0,0],scale:c.scale||1,ground:true,color:c.color||PAL3[n%PAL3.length],prop:{...(c.prop||{})},parts:{},pose:{},dim:c.dim?[...c.dim]:null};
   if(o.type==='human'){o.pose=JSON.parse(JSON.stringify(POSES3.human.stand.p));['.L','.R'].forEach(S=>setHandCurl(o,S,HANDP.relaxed.c,HANDP.relaxed.s))}return o}
@@ -1090,6 +1116,22 @@ function render3(){const st=$('#r3Stage'),W=st.clientWidth,H=st.clientHeight,dpr
   else{const k=lensNow()==='fish'?1.6:1,A=fbo('scr',Math.round(px.w*k),Math.round(px.h*k));gl.bindFramebuffer(gl.FRAMEBUFFER,A.fb);gl.viewport(0,0,A.w,A.h);drawScene(C.VP,{w:A.w,h:A.h,s:dpr*k});
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(px.x,px.y,px.w,px.h);gl.enable(gl.SCISSOR_TEST);gl.scissor(px.x,px.y,px.w,px.h);post(A,px.w,px.h,dpr);gl.disable(gl.SCISSOR_TEST)}
   drawOverlay3()}
+/* floor grid + perspective guides drawn as crisp 2D lines (under the figures in placed renders) */
+function drawGuides3(x,C,X0,Y0,w,h,sc,opt){const L=sc3().look,cam=sc3().cam,fish=lensNow()==='fish',asp=w/h,V=C.V,M=C.P,near=.06;
+  const pr=v=>{let nx=M[0]*v[0]/(-v[2]),ny=M[5]*v[1]/(-v[2]);if(fish)[nx,ny]=fishFwd(nx,ny,asp);return[X0+(nx+1)/2*w,Y0+(1-ny)/2*h]};
+  const line=(a,b,n)=>{let pen=false;const pts=[];for(let i=0;i<=n;i++){const t=i/n,q=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];pts.push(m4.pt(V,q))}
+    for(let i=0;i<n;i++){let p=pts[i],q=pts[i+1];const pi=p[2]<=-near,qi=q[2]<=-near;if(!pi&&!qi){pen=false;continue}
+      if(!pi){const t=(-near-p[2])/(q[2]-p[2]);p=[p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t,-near];pen=false}
+      if(!qi){const t=(-near-p[2])/(q[2]-p[2]);q=[p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t,-near]}
+      const A=pr(p),B=pr(q);if(!pen)x.moveTo(A[0],A[1]);x.lineTo(B[0],B[1]);pen=qi}};
+  x.save();x.beginPath();x.rect(X0,Y0,w,h);x.clip();x.lineCap='round';const tint=opt.tint||'0,0,0';
+  if(opt.persp&&L.persp){const fan=(d)=>{const a=Math.abs(d[1])<.9?[0,1,0]:[1,0,0],u=v3.norm(v3.cross(d,a)),v=v3.cross(d,u),R=2.5;
+      for(let i=0;i<20;i++){const t=i/20*TAU,b=v3.add(cam.tgt,v3.add(v3.sc(u,Math.cos(t)*R),v3.sc(v,Math.sin(t)*R)));line(v3.sub(b,v3.sc(d,260)),v3.add(b,v3.sc(d,260)),fish?160:24)}};
+    x.beginPath();fan([1,0,0]);fan([0,0,1]);if(Math.abs(cam.pitch)>.3)fan([0,1,0]);x.strokeStyle=`rgba(${tint},${.12*(opt.a||1)})`;x.lineWidth=.7*sc;x.stroke();
+    x.beginPath();const e=C.eye,hz=[];for(let i=0;i<=96;i++){const t=i/96*TAU;hz.push([e[0]+Math.cos(t)*240,e[1],e[2]+Math.sin(t)*240])}for(let i=0;i<96;i++)line(hz[i],hz[i+1],fish?6:1);
+    x.strokeStyle=`rgba(${tint},${.32*(opt.a||1)})`;x.lineWidth=1.1*sc;x.stroke()}
+  if(opt.grid&&L.placeGrid){x.beginPath();for(let k=-20;k<=20;k++){line([k,0,-20],[k,0,20],fish?60:20);line([-20,0,k],[20,0,k],fish?60:20)}x.strokeStyle=`rgba(${tint},${.3*(opt.a||1)})`;x.lineWidth=.9*sc;x.stroke()}
+  x.restore()}
 function render3Export(w,h){const max=Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE),gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),4096);let ss=2;while((w*ss>max||h*ss>max)&&ss>1)ss-=.25;
   if(w*ss>max||h*ss>max){const f=max/Math.max(w*ss,h*ss);w=Math.floor(w*f);h=Math.floor(h*f)}
   const W=Math.round(w*ss),H=Math.round(h*ss),lens=sc3().cam.lens,k=lens==='fish'?1.4:1,C=camMats(W/H),sPx=H/(S3.fr?S3.fr.h:H/ss/2);
@@ -1098,7 +1140,7 @@ function render3Export(w,h){const max=Math.min(gl.getParameter(gl.MAX_TEXTURE_SI
   const B=fbo('exB',W,H);gl.bindFramebuffer(gl.FRAMEBUFFER,B.fb);gl.viewport(0,0,W,H);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);post(A,W,H,sPx);
   const px=new Uint8Array(W*H*4);gl.readPixels(0,0,W,H,gl.RGBA,gl.UNSIGNED_BYTE,px);gl.bindFramebuffer(gl.FRAMEBUFFER,null);freeFbo('exA');freeFbo('exB');
   const c=mkCanvas(W,H),x=c.getContext('2d'),id=x.createImageData(W,H);for(let y=0;y<H;y++)id.data.set(px.subarray((H-1-y)*W*4,(H-y)*W*4),y*W*4);x.putImageData(id,0,0);
-  const out=mkCanvas(w,h),ox=out.getContext('2d');ox.imageSmoothingEnabled=true;ox.imageSmoothingQuality='high';ox.drawImage(c,0,0,w,h);c.width=c.height=1;req3();return out}
+  const out=mkCanvas(w,h),ox=out.getContext('2d'),LK=sc3().look;if(LK.transparent)drawGuides3(ox,camMats(w/h),0,0,w,h,Math.max(1,h/700),{grid:true,persp:true});ox.imageSmoothingEnabled=true;ox.imageSmoothingQuality='high';ox.drawImage(c,0,0,w,h);c.width=c.height=1;req3();return out}
 
 /* ---------- projection / picking ---------- */
 function fishFwd(nx,ny,asp){const c=sc3().cam,th=fishTh(c),L=Math.hypot(asp,1),rs=Math.hypot(nx*asp,ny)/L;if(rs<1e-5)return[nx,ny];const r=Math.atan(rs*Math.tan(th))/th;return[nx*r/rs,ny*r/rs]}
@@ -1127,6 +1169,7 @@ function drawOverlay3(){const o=ovc(),x=o.getContext('2d'),dpr=S3.dpr,F=S3.fr;x.
   x.strokeStyle='#ffd43b';x.lineWidth=1.5;x.strokeRect(F.x-.75,F.y-.75,F.w+1.5,F.h+1.5);
   const c=sc3().cam,lens=lensNow();x.font='600 12px system-ui,sans-serif';x.fillStyle='#ffd43b';x.textBaseline='bottom';
   x.fillText(`${frameName()} · ${lens==='fish'?'Fisheye':lens==='tilt'?'Tilt-shift '+c.focal+'mm':(S3.mode==='mod'?35:c.focal)+'mm'}${c.roll&&S3.mode!=='mod'?' · dutch '+c.roll+'°':''}`,F.x,F.y-5);
+  {const LK=sc3().look;if(LK.transparent&&LK.persp&&S3.mode!=='mod')drawGuides3(x,S3.C,F.x,F.y,F.w,F.h,1,{persp:true,a:1.2})}
   const sel=selObj3();if(!sel)return;const ev=S3.pick.find(k=>k.o===sel)?.ev;if(!ev)return;
   if(sel.type==='prim'){const p=proj3(ev.center);if(p){x.strokeStyle='#3fa9ff';x.lineWidth=2;x.beginPath();x.arc(p.x,p.y,10,0,TAU);x.stroke()}return}
   ev.joints.forEach(j=>{const a=proj3(j.j),b=proj3(j.e);if(!a||!b)return;const on=S3.mode==='mod'?j.n===S3.part:j.n===S3.bone;
@@ -1171,7 +1214,7 @@ function bind3(){const o=ovc();
 /* ---------- open / close / toolbar ---------- */
 function open3D(){let ok=false;try{ok=init3GL()}catch(e){console.error(e);gl=null}if(!ok){toast('3D needs WebGL, which this browser has turned off',3000);return}
   if(!doc.scene3d)doc.scene3d=default3D();const c=sc3().cam;if(c.frame!=='page'&&!doc.panels.some(p=>p.id===c.frame))c.frame=(selPanel()||doc.panels[0]||{}).id||null;
-  closeSheet();S3.open=true;S3.mode='pose';S3.hist=[JSON.stringify(sc3())];S3.hi=0;$('#r3d').classList.add('open');refresh3();req3()}
+  {const L=sc3().look;if(!L.v2){L.transparent=true;L.placeGrid=true;L.persp=true;L.v2=1}}closeSheet();S3.open=true;S3.mode='pose';S3.hist=[JSON.stringify(sc3())];S3.hi=0;$('#r3d').classList.add('open');refresh3();req3()}
 function close3(){if(S3.mode==='mod')exitMod();closeSheet();S3.open=false;$('#r3d').classList.remove('open');commit();refreshUI();req()}
 function refresh3(){const T=$('#r3Tools');T.innerHTML='';const o=selObj3(),add=(...b)=>b.forEach(x=>T.append(x));
   if(S3.mode==='mod'){$('#r3Hint').textContent=S3.part?pretty3(S3.part)+' — use the sliders':'Tap a part of the figure to reshape it';$('#r3Check').classList.add('on');
@@ -1248,13 +1291,13 @@ function camSheet(){const c=sc3().cam;sheet3('cam','Camera',B=>{const o=selObj3(
 function lookSheet(){const L=sc3().look;sheet3('look','Look',B=>{B.append(sec('Render style'),chips([['toon','Toon'],['clay','Clay'],['ink','Ink lines']],L.style,v=>{L.style=v;push3();req3();lookSheet()}));
   if(L.style!=='clay')B.append(r3Range('Outline',L,'outline',.5,6,.25));
   B.append(sec('Light'),r3Range('Direction',L,'lightAz',0,360,1,v=>v+'°'),r3Range('Height',L,'lightEl',5,89,1,v=>v+'°'),
-    sec('Stage'),h('div',{class:'colors'},r3Color('Background',L,'bg')),r3Toggle('Floor',L,'ground'),r3Toggle('Floor grid',L,'grid'),r3Toggle('Contact shadows',L,'shadow'),r3Toggle('Transparent background when placed',L,'transparent'))})}
+    sec('Stage'),h('div',{class:'colors'},r3Color('Background',L,'bg')),r3Toggle('Floor',L,'ground'),r3Toggle('Floor grid',L,'grid'),r3Toggle('Contact shadows',L,'shadow'),sec('When placed in a panel'),r3Toggle('Transparent background',L,'transparent'),r3Toggle('Keep the floor grid',L,'placeGrid'),r3Toggle('Perspective lines',L,'persp'),h('div',{class:'note'},'With a transparent background the panel shows through. The floor grid and faint perspective lines (horizon + lines toward the vanishing points) are drawn underneath the figures as drawing guides.'))})}
 function placeSheet(){if(S3.mode==='mod')exitMod();sheet3('place','Place this view in…',B=>{B.append(h('div',{class:'note'},'Pick a panel. The render matches the yellow frame; choosing a different-shaped panel reframes it around the same centre.'));
   const g=h('div',{class:'thumbs'});const thumb=hl=>{const t=trimRect(),s=56/Math.max(pageW(),pageH()),c=mkCanvas(Math.round(pageW()*s*2),Math.round(pageH()*s*2)),x=c.getContext('2d');x.scale(s*2,s*2);x.fillStyle='#fff';x.fillRect(0,0,pageW(),pageH());
     doc.panels.forEach(p=>{const pa=panelPath(p);x.fillStyle=p.id===hl?'#ffd43b':'#e8e4da';x.fill(pa);x.lineWidth=2/s;x.strokeStyle='#111';x.stroke(pa)});if(hl==='page'){x.strokeStyle='#ffd43b';x.lineWidth=6/s;x.strokeRect(t.x,t.y,t.w,t.h)}c.style.width=(c.width/2)+'px';c.style.height=(c.height/2)+'px';return c};
   doc.panels.forEach((p,i)=>g.append(h('button',{class:'thumb'+(p.id===sc3().cam.frame?' on':''),onclick:()=>doPlace(p.id)},thumb(p.id),`Panel ${i+1}`)));
   g.append(h('button',{class:'thumb'+(sc3().cam.frame==='page'?' on':''),onclick:()=>doPlace('page')},thumb('page'),'Whole page'));
-  B.append(g,r3Toggle('Replace the earlier 3D render there',S3,'replace'),r3Toggle('Transparent background',sc3().look,'transparent'))})}
+  B.append(g,r3Toggle('Replace the earlier 3D render there',S3,'replace'),r3Toggle('Transparent background',sc3().look,'transparent'),r3Toggle('Keep the floor grid',sc3().look,'placeGrid'),r3Toggle('Perspective lines',sc3().look,'persp'))})}
 async function doPlace(pid){busy(true);await new Promise(r=>setTimeout(r,40));try{const p=pid==='page'?null:doc.panels.find(x=>x.id===pid),bb=p?bbox(p.pts):trimRect(),asp=bb.w/bb.h;
   const long=clamp(Math.round(Math.max(bb.w,bb.h)*doc.dpi/72),600,2400),w=asp>=1?long:Math.round(long*asp),hh=asp>=1?Math.round(long/asp):long;
   sc3().cam.frame=p?p.id:'page';render3();const cnv=render3Export(w,hh),src=cnv.toDataURL('image/png'),img=await loadImg(src),id=uid();S.images[id]={src,el:img};
