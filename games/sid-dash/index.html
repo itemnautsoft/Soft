@@ -18,9 +18,6 @@
     user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
   canvas#game, canvas#game3d { position:fixed; inset:0; width:100%; height:100%; display:block; }
   canvas#game3d { display:none; }
-  #modeBtn { pointer-events:auto; width:46px; height:46px; border-radius:50%; border:3px solid var(--ink); background:#fff;
-    color:var(--ink); font-size:15px; font-weight:800; display:grid; place-items:center; box-shadow:0 3px 0 rgba(0,0,0,.35); padding:0; margin-left:6px; }
-  #modeBtn.on { background:#8a4fd1; color:#fff; }
   #fade { position:fixed; inset:0; background:#1d1d24; opacity:0; pointer-events:none; }
   button { font-family:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent; }
 
@@ -104,7 +101,7 @@
 
 <div id="hud">
   <div class="row">
-    <div style="display:flex"><button id="pauseBtn" aria-label="Pause">❚❚</button><button id="modeBtn" aria-label="Switch 2D / 3D">3D</button></div>
+    <button id="pauseBtn" aria-label="Pause">❚❚</button>
     <div id="hearts"></div>
     <div id="pointsBox"><small data-t="points">Points</small><span id="points">0</span></div>
   </div>
@@ -903,7 +900,7 @@ function updateMenuText() {
   for (const id of ['musicBtn', 'musicBtn2']) $(id).textContent = save.music ? t('musicOn') : t('musicOff');
   $('langBtn').textContent = t('lang');
   for (const id of ['mode3dBtn', 'mode3dBtn2']) $(id).textContent = save.mode3d ? t('mode3d') : t('mode2d');
-  $('modeBtn').textContent = save.mode3d ? '3D' : '2D'; $('modeBtn').classList.toggle('on', !!save.mode3d);
+
   $('walletMenu').textContent = save.coins; $('walletShop').textContent = save.coins;
   $('bestLine').textContent = save.bestScore > 0 ? t('best', { s:save.bestScore, n:save.bestStage }) : '';
   document.documentElement.lang = save.lang;
@@ -974,8 +971,6 @@ $('langBtn').onclick = () => { save.lang = save.lang === 'en' ? 'es' : 'en'; per
 $('pauseBtn').onclick = e => { e.stopPropagation(); if (state === 'play') pauseGame(); else if (state === 'paused') resumeGame(); };
 $('pauseBtn').addEventListener('pointerdown', e => e.stopPropagation());
 $('resumeBtn').onclick = resumeGame;
-$('modeBtn').onclick = e => { e.stopPropagation(); setMode3D(!save.mode3d); };
-$('modeBtn').addEventListener('pointerdown', e => e.stopPropagation());
 $('mode3dBtn').onclick = () => setMode3D(!save.mode3d);
 $('mode3dBtn2').onclick = () => setMode3D(!save.mode3d);
 $('restartBtn').onclick = () => startGame(G.stage);
