@@ -9,6 +9,6 @@
     "creative",
     "photo"
   ],
-  "controls": "Frames: tap edges to add points, tap corner badges to round, hold inside a panel to move it. Content: drag, double-tap to edit. 3D R: drag limbs to pose or use Photo pose, Mod to reshape, Place to drop the view into a panel",
+  "controls": "Frames: tap edges to add points, tap corner badges to round, hold inside a panel to move it. Content: drag, double-tap to edit. 3D R: drag limbs to pose or use Photo pose (tracks fingers too), tap a hand for finger presets, Mod to reshape, Place to drop the view into a panel",
   "artifact": "https://claude.ai/artifact/CXfM1VpdmHjYjNP4715G63"
 }
