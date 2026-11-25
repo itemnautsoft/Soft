@@ -113,6 +113,9 @@ input[type=color]{width:44px;height:32px;border:1px solid var(--line);border-rad
 #r3Hint{position:absolute;left:10px;right:80px;top:7px;font-size:12px;color:var(--mut);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #r3Check{position:absolute;right:14px;top:56px;width:56px;height:56px;border-radius:50%;background:var(--acc);color:#111;font-size:28px;font-weight:800;display:none;place-items:center;box-shadow:0 6px 20px #0009;z-index:2}
 #r3Check.on{display:grid}
+#r3Ref{position:absolute;left:10px;top:52px;display:none;z-index:2;background:#000;border:2px solid var(--acc);border-radius:8px;overflow:hidden;box-shadow:0 4px 14px #0008}
+#r3Ref.on{display:block}#r3Ref img{display:block;width:84px;height:auto;max-height:120px;object-fit:contain}#r3Ref.big img{width:200px;max-height:300px}
+#r3Ref .x{position:absolute;right:0;top:0;width:24px;height:24px;background:#000a;color:#fff;font-size:14px;display:grid;place-items:center}
 </style>
 </head>
 <body>
@@ -135,7 +138,7 @@ input[type=color]{width:44px;height:32px;border:1px solid var(--line);border-rad
 </div>
 <div id="r3d">
   <header><button class="ib" id="r3Back" title="Back to page">‹</button><span class="ttl">3D Reference</span><button class="ib" id="r3Undo" title="Undo">↶</button><button class="ib" id="r3Redo" title="Redo">↷</button><button class="btn pri" id="r3Place">Place ▸</button></header>
-  <div id="r3Stage"><canvas id="gl"></canvas><canvas id="r3Ov"></canvas><div id="r3Hint"></div><button id="r3Check" title="Done reshaping">✓</button></div>
+  <div id="r3Stage"><canvas id="gl"></canvas><canvas id="r3Ov"></canvas><div id="r3Hint"></div><button id="r3Check" title="Done reshaping">✓</button><div id="r3Ref" title="Reference photo — tap to enlarge"><img alt="Reference photo"><span class="x">✕</span></div></div>
   <nav id="r3Tools"></nav>
 </div>
 <div id="sheet"><div class="sh-head"><b id="shTitle"></b><button class="ib" id="shClose">✕</button></div><div id="shBody"></div></div>
@@ -145,6 +148,8 @@ input[type=color]{width:44px;height:32px;border:1px solid var(--line);border-rad
 <div id="busy">Inking…</div>
 <input type="file" id="fImg" accept="image/*" multiple hidden>
 <input type="file" id="fCam" accept="image/*" capture="environment" hidden>
+<input type="file" id="fPose" accept="image/*" hidden>
+<input type="file" id="fPoseCam" accept="image/*" capture="user" hidden>
 <input type="file" id="fProj" accept=".json,application/json" hidden>
 <script>
 'use strict';
@@ -600,7 +605,7 @@ function openMenu(){openSheet('menu','Menu',B=>{const it=(icon,label,fn,sub)=>h(
 function openHelp(){openSheet('help','How to use',B=>{B.append(h('div',{class:'note',html:`
 <b>Frames mode</b> — build your panel layout.<br>• <b>Layouts</b> drops in a ready-made grid; <b>Draw panel</b> lets you tap corners one by one (tap the first point to close).<br>• Tap a panel to select it. Drag the white dots to move corners. <b>Tap any edge</b> to add a new point there, then drag it.<br>• The yellow badges just inside each corner round that corner. <b>Double-tap a badge</b> to round (or square) every corner at once.<br>• <b>Press and hold inside a panel</b>, then drag to move the whole panel with its contents.<br>• Points snap to the grid, margins, trim, bleed and other panels' corners.<br><br>
 <b>Content mode</b> — fill the panels.<br>• Tap a panel to target it, then add a photo, bubble, SFX or caption.<br>• Drag to move. Square handle = resize, round handle = rotate, yellow dot = bubble tail.<br>• <b>Double-tap</b> anything to edit it. Drop an item into another panel to move it there.<br>• <b>In frame / Breaks out</b> chooses whether an item is clipped by its panel or pops over the border.<br>• <b>Layers</b> reorders everything inside a panel.<br><br>
-<b>3D R (3D reference)</b> — opens a 3D stage. Add people, creatures and shapes. Drag a limb to pose it like a drawing mannequin; drag empty space to orbit, two fingers to zoom/pan. <b>Mod</b> focuses one figure so you can tap parts and make them bigger, smaller, wider or thinner — tap ✓ to go back. <b>Lens</b> has focal lengths, fisheye and tilt-shift. <b>Place ▸</b> asks which panel to drop the view into. The scene is saved with your page, so it’s waiting just as you left it next time.<br><br><b>Anywhere</b> — pinch to zoom, drag empty space to pan. ◫ toggles guides (red = trim/bleed, blue = safe area & grid).<br><br>
+<b>3D R (3D reference)</b> — opens a 3D stage. Add people, creatures and shapes. Drag a limb to pose it like a drawing mannequin; drag empty space to orbit, two fingers to zoom/pan. <b>📷 Photo pose</b> copies a pose from a picture of a real person onto the selected figure. <b>Mod</b> focuses one figure so you can tap parts and make them bigger, smaller, wider or thinner — tap ✓ to go back. <b>Lens</b> has focal lengths, fisheye and tilt-shift. <b>Place ▸</b> asks which panel to drop the view into. The scene is saved with your page, so it’s waiting just as you left it next time.<br><br><b>Anywhere</b> — pinch to zoom, drag empty space to pan. ◫ toggles guides (red = trim/bleed, blue = safe area & grid).<br><br>
 Your page autosaves on this device. Use <b>Save project file</b> to keep a backup you can reopen anywhere.`}))})}
 
 /* new page / setup */
@@ -1150,7 +1155,7 @@ function refresh3(){const T=$('#r3Tools');T.innerHTML='';const o=selObj3(),add=(
     add(tb('◧','Reshape',modSheet),tb('↺','Reset shape',()=>{if(!o)return;o.parts={};o.prop={...((CHARS3[o.kind]||{}).prop||{})};if(o.dim)o.dim=[...(PRIMS3[o.kind]||PRIMS3.box).dim];push3();req3();modSheet()}),tb('✓','Done',exitMod,{on:1}))}
   else{$('#r3Check').classList.remove('on');const R=o&&RIG[o.type];
     $('#r3Hint').textContent=!o?'Drag to orbit · two fingers to zoom & pan · tap a figure':R&&S3.bone&&S3.bone!==R.root?'Drag the limb to pose it · '+pretty3(S3.bone):'Drag to move it around the floor';
-    add(tb('＋','Add',addSheet3),tb('⚒','Mod',enterMod,{dis:!o}),tb('🕺','Pose',poseSheet,{dis:!o}),tb('◎','Lens',lensSheet),tb('🎥','Camera',camSheet),tb('☀','Look',lookSheet),
+    add(tb('＋','Add',addSheet3),tb('⚒','Mod',enterMod,{dis:!o}),tb('🕺','Pose',poseSheet,{dis:!o}),...(o&&o.type==='human'?[tb('📷','Photo pose',()=>$('#fPoseCam').click())]:[]),tb('◎','Lens',lensSheet),tb('🎥','Camera',camSheet),tb('☀','Look',lookSheet),
       tb('⧉','Duplicate',dup3,{dis:!o}),tb('🗑','Delete',del3,{dis:!o,warn:1}))}
   $('#r3Undo').disabled=S3.hi<=0;$('#r3Redo').disabled=S3.hi>=S3.hist.length-1}
 function add3(kind){const o=newObj3(kind),c=sc3().cam,n=sc3().objs.length,a=n*1.3;o.pos=[c.tgt[0]+(n?Math.cos(a)*.8:0),0,c.tgt[2]+(n?Math.sin(a)*.5:0)];o.rot=[0,Math.round(c.yaw/D2R/15)*15,0];
@@ -1174,6 +1179,7 @@ function addSheet3(){sheet3('add','Add to scene',B=>{const grp=(t,items,src)=>{B
   grp('People',[['adult','🧍'],['hero','🦸'],['slim','🚶'],['child','🧒']],CHARS3);grp('Creatures',[['dog','🐕'],['cat','🐈'],['horse','🐎']],CHARS3);
   grp('Shapes',[['box','⬛'],['sphere','⚪'],['cylinder','🥫'],['cone','🔺'],['pyramid','△'],['torus','⭕'],['ramp','◺'],['wall','▬'],['floor','▭'],['pillar','┃']],PRIMS3)})}
 function poseSheet(){const o=selObj3();if(!o)return;const R=RIG[o.type];sheet3('pose',o.name,B=>{
+  if(o.type==='human')B.append(sec('Copy a pose from a photo'),h('div',{class:'btns'},bt('📷 Take photo',()=>$('#fPoseCam').click(),'pri'),bt('🖼 Choose photo',()=>$('#fPose').click())),h('div',{class:'note'},'Snap someone striking a pose and the figure copies it. Works best with the whole body in frame.'));
   if(R){B.append(sec('Pose presets'),chips(Object.entries(POSES3[o.type]).map(([k,v])=>[k,v.n]),null,k=>{o.pose=JSON.parse(JSON.stringify(POSES3[o.type][k].p));push3();req3()}),
       h('div',{class:'btns'},bt('⇋ Mirror pose',()=>{const np={};for(const k in o.pose){const t=k.endsWith('.L')?k.slice(0,-2)+'.R':k.endsWith('.R')?k.slice(0,-2)+'.L':k;const e=o.pose[k];np[t]=[e[0],-e[1],-e[2]]}o.pose=np;push3();req3();poseSheet()}),bt('Reset pose',()=>{o.pose={};push3();req3();poseSheet()})));
     const b=S3.bone&&R.map[S3.bone];
@@ -1229,6 +1235,74 @@ async function doPlace(pid){busy(true);await new Promise(r=>setTimeout(r,40));tr
   catch(e){console.error(e);toast('Could not render: '+(e.message||e))}finally{busy(false)}}
 $('#r3Back').onclick=close3;$('#r3Undo').onclick=undo3;$('#r3Redo').onclick=redo3;$('#r3Place').onclick=placeSheet;$('#r3Check').onclick=exitMod;
 bind3();
+/* ---------- pose from photo ---------- */
+m4.tr=m=>{const o=m4.id();for(let c=0;c<3;c++)for(let r=0;r<3;r++)o[c*4+r]=m[r*4+c];return o};
+function matToEuler(m){const m13=clamp(m[8],-1,1),y=Math.asin(m13);let x,z;if(Math.abs(m13)<.9999){x=Math.atan2(-m[9],m[10]);z=Math.atan2(-m[4],m[0])}else{x=Math.atan2(m[6],m[5]);z=0}return[x/D2R,y/D2R,z/D2R]}
+function frame2(u,v){u=v3.norm(u);v=v3.norm(v3.sub(v,v3.sc(u,v3.dot(v,u))));return m4.basis(u,v,v3.cross(u,v))}
+/* rotation R with R*au = bu and R*av as close to bv as possible */
+const rot2=(au,av,bu,bv)=>m4.mul(frame2(bu,bv),m4.tr(frame2(au,av)));
+const MP_NAMES={0:'nose',7:'lEar',8:'rEar',11:'lShoulder',12:'rShoulder',13:'lElbow',14:'rElbow',15:'lWrist',16:'rWrist',17:'lPinky',18:'rPinky',19:'lIndex',20:'rIndex',
+  23:'lHip',24:'rHip',25:'lKnee',26:'rKnee',27:'lAnkle',28:'rAnkle',29:'lHeel',30:'rHeel',31:'lToe',32:'rToe'};
+/* P: named 3D points in "camera space": +x image right, +y up, +z toward the camera; l/r = the person's own left/right */
+function retargetHuman(o,P){const ok=k=>Array.isArray(P[k])&&P[k].length===3&&P[k].every(Number.isFinite);
+  if(!['lHip','rHip','lShoulder','rShoulder'].every(ok))throw new Error('Could not see the hips and shoulders clearly');
+  const M=(a,b)=>v3.sc(v3.add(P[a],P[b]),.5),D=(a,b)=>ok(a)&&ok(b)?v3.sub(P[b],P[a]):null,big=v=>v&&v3.len(v)>1e-4;
+  const hipC=M('lHip','rHip'),shC=M('lShoulder','rShoulder'),spine=v3.sub(shC,hipC),hipX=D('rHip','lHip'),shX=D('rShoulder','lShoulder');
+  const earC=ok('lEar')&&ok('rEar')?M('lEar','rEar'):null;
+  const T={pelvis:{u:spine,x:hipX},abdomen:{u:spine},chest:{u:spine,x:shX},neck:{u:earC?v3.sub(earC,shC):spine}};
+  if(earC&&ok('nose')){const X=v3.norm(D('rEar','lEar'));let F=v3.sub(P.nose,earC);F=v3.norm(v3.sub(F,v3.sc(X,v3.dot(F,X))));let Y=v3.cross(F,X);
+    const a=12*D2R;F=v3.add(v3.sc(F,Math.cos(a)),v3.sc(Y,Math.sin(a)));Y=v3.cross(F,X);T.head={u:Y,z:F}}
+  for(const s of['l','r']){const S=s==='l'?'.L':'.R';
+    const up=D(s+'Shoulder',s+'Elbow'),fo=D(s+'Elbow',s+'Wrist'),ax=up&&fo?v3.cross(fo,up):null;T['upperArm'+S]={u:up,x:ax&&v3.len(ax)>.15*v3.len(up)*v3.len(fo)?ax:null};T['foreArm'+S]={u:fo};
+    if(ok(s+'Index')&&ok(s+'Pinky')&&ok(s+'Wrist')){const tip=M(s+'Index',s+'Pinky');T['hand'+S]={u:v3.sub(tip,P[s+'Wrist']),z:D(s+'Pinky',s+'Index')}}
+    const th=D(s+'Hip',s+'Knee'),sh=D(s+'Knee',s+'Ankle'),lx=th&&sh?v3.cross(th,sh):null;T['thigh'+S]={u:th,x:lx&&v3.len(lx)>.15*v3.len(th)*v3.len(sh)?lx:null};T['shin'+S]={u:sh};
+    const ft=ok(s+'Heel')?D(s+'Heel',s+'Toe'):D(s+'Ankle',s+'Toe');if(big(ft))T['foot'+S]={u:ft}}
+  const R=RIG.human,Wr={},pose={};
+  for(const b of R.bones){const Rp=b.p?Wr[b.p]:m4.id(),t=T[b.n];let Rw=Rp;
+    if(t&&big(t.u)){const u=v3.norm(t.u);
+      if(big(t.x))Rw=rot2(b.dir,[1,0,0],u,t.x);else if(big(t.z))Rw=rot2(b.dir,[0,0,1],u,t.z);
+      else{const cur=v3.norm(m4.dir(Rp,b.dir));Rw=m4.mul(m4.Q(qt.fromTo(cur,u)),Rp)}}
+    Wr[b.n]=Rw;const e=matToEuler(m4.mul(m4.tr(Rp),Rw)).map(v=>Math.round(v*10)/10);if(e.some(v=>Math.abs(v)>.05))pose[b.n]=e}
+  o.pose=pose;o.rot=[0,Math.round(sc3().cam.yaw/D2R*10)/10,0];o.ground=true}
+/* -- detectors -- */
+let MPL=null;const MPV='0.10.14';
+async function mediapipePose(cnv){if(!MPL){const v=await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MPV}/vision_bundle.mjs`);
+    const fs=await v.FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MPV}/wasm`);
+    const mk=d=>v.PoseLandmarker.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',delegate:d},runningMode:'IMAGE',numPoses:1});
+    try{MPL=await mk('GPU')}catch(_){MPL=await mk('CPU')}}
+  const r=MPL.detect(cnv),w=r&&r.worldLandmarks&&r.worldLandmarks[0];if(!w||!w.length)return null;
+  const P={};for(const i in MP_NAMES){const l=w[i];if(l&&(l.visibility==null||l.visibility>.15))P[MP_NAMES[i]]=[l.x,-l.y,-l.z]}return P}
+const POSE_PROMPT=`You are a precise 3D human pose estimator. Look at the main person in the attached photo and estimate the 3D positions of their joints.
+Coordinate system (relative to the camera): units are metres; the origin is the midpoint between the two hip joints; +x points to the IMAGE's right, +y points up, +z points toward the camera (out of the photo).
+"l"/"r" mean the PERSON's own left/right side (for someone facing the camera, their left side appears on the image's right).
+Infer depth (z) from foreshortening, overlap, shading and perspective: a limb reaching toward the camera has larger z. Use realistic adult proportions (upper arm 0.29, forearm 0.26, thigh 0.44, shin 0.42, shoulder width 0.38, hip width 0.19, shoulders about 0.5 above the hips).
+Reply with ONLY this JSON (numbers rounded to 3 decimals):
+{"found":true,"points":{"nose":[x,y,z],"lEar":[],"rEar":[],"lShoulder":[],"rShoulder":[],"lElbow":[],"rElbow":[],"lWrist":[],"rWrist":[],"lIndex":[],"rIndex":[],"lPinky":[],"rPinky":[],"lHip":[],"rHip":[],"lKnee":[],"rKnee":[],"lAnkle":[],"rAnkle":[],"lHeel":[],"rHeel":[],"lToe":[],"rToe":[]}}
+Fill every array with [x,y,z]; if a joint is hidden, give your best guess. If there is no person in the photo reply {"found":false}.`;
+let SAMPLE=null;(async()=>{try{if(window.claude&&typeof window.claude.use==='function')SAMPLE=await window.claude.use('sample')}catch(_){SAMPLE=null}})();
+async function claudePose(cnv){if(!SAMPLE)throw new Error('unavailable');const lim=await SAMPLE.limits().catch(()=>null);if(!lim||!lim.images)throw new Error('unavailable');
+  const blob=await new Promise(r=>cnv.toBlob(r,'image/jpeg',.9));const j=await SAMPLE.json(POSE_PROMPT,{images:[blob],modelTier:'default'});
+  if(!j||j.found===false)return null;return j.points||null}
+function photoCanvas(img){const s=Math.min(1,1280/Math.max(img.naturalWidth,img.naturalHeight)),c=mkCanvas(Math.round(img.naturalWidth*s),Math.round(img.naturalHeight*s));c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c}
+async function poseFromPhoto(file){const o=selObj3();if(!o||o.type!=='human'){toast('Select a person figure first');return}
+  $('#busy').textContent='Reading the pose…';busy(true);let P=null,how='';
+  try{const img=await loadImg(await readURL(file)),cnv=photoCanvas(img);showRef(cnv.toDataURL('image/jpeg',.8));
+    const inClaude=!!SAMPLE;
+    const tryMP=async()=>{P=await Promise.race([mediapipePose(cnv),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),45000))]);how='on-device'};
+    const tryClaude=async()=>{$('#busy').textContent='Asking Claude to read the pose…';P=await claudePose(cnv);how='Claude'};
+    try{if(inClaude)await tryClaude();else await tryMP()}
+    catch(e1){console.warn('first detector failed',e1);if(e1&&['not_granted','rate_limited','refused','image_rejected'].includes(e1.code))throw e1;
+      try{if(inClaude)await tryMP();else await tryClaude()}catch(e2){console.warn('second detector failed',e2);throw e1}}
+    if(!P){toast('No person found in that photo',2600);return}
+    retargetHuman(o,P);push3();req3();if(S3.sheet3==='pose')poseSheet();toast(`Pose copied from photo (${how}) — fine-tune by dragging limbs`,3200)}
+  catch(e){console.error(e);const c=e&&e.code;toast(c==='not_granted'?'Photo posing needs permission to ask Claude':c==='rate_limited'?'Too many requests — try again in a bit':
+    e&&e.message&&!/unavailable|timeout|fetch|import|Failed/i.test(e.message)?e.message:'Could not load the pose reader here — check your connection and try again',3600)}
+  finally{busy(false);$('#busy').textContent='Inking…'}}
+function showRef(src){const r=$('#r3Ref');r.querySelector('img').src=src;r.classList.add('on')}
+$('#r3Ref').onclick=e=>{const r=$('#r3Ref');if(e.target.closest('.x')){r.classList.remove('on');return}r.classList.toggle('big')};
+$('#fPose').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)poseFromPhoto(f)};
+$('#fPoseCam').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)poseFromPhoto(f)};
+
 const _closeSheet2D=closeSheet;closeSheet=function(){_closeSheet2D();S3.sheet3=null;if(S3.open)setTimeout(req3,260)};$('#shClose').onclick=()=>closeSheet();
 
 </script>
