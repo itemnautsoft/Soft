@@ -67,7 +67,13 @@
   .btn.small { font-size:17px; padding:7px 10px; }
   .toggles { display:flex; gap:8px; margin-top:9px; }
   .toggles .btn { margin:0; font-size:15px; padding:6px 8px; background:#fff; color:var(--ink); }
-  #menuSid { width:170px; height:190px; display:block; margin:4px auto 0; }
+  #menuSid { height:min(190px, 22vh); width:auto; display:block; margin:4px auto 0; }
+  #modePick { display:flex; margin-top:8px; border:4px solid var(--ink); border-radius:16px; overflow:hidden; box-shadow:0 4px 0 var(--ink); }
+  #modePick button { border:0; padding:6px 26px; font-size:22px; font-weight:800; background:#fff; color:var(--ink); }
+  #modePick button + button { border-left:4px solid var(--ink); }
+  #modePick button.on { background:#8a4fd1; color:#fff; }
+  .screen { overflow-y:auto; justify-content:safe center; touch-action:pan-y; }
+  .screen > * { flex-shrink:0; }
   .wallet { display:inline-flex; align-items:center; gap:6px; font-weight:800; font-size:18px; margin-top:4px; }
   .muted { opacity:.75; font-size:15px; margin:4px 0 0; }
 
@@ -118,6 +124,7 @@
 <div class="screen show" id="menu">
   <h1 class="logo">Sid <span>Dash</span></h1>
   <p class="by" data-t="by">a Trouble Makers game</p>
+  <div id="modePick" role="group" aria-label="2D or 3D"><button id="pick2d">2D</button><button id="pick3d">3D</button></div>
   <canvas id="menuSid" width="340" height="380"></canvas>
   <div class="card">
     <div class="wallet"><span class="coinIcon"></span><span id="walletMenu">0</span></div>
@@ -128,7 +135,6 @@
       <button class="btn" id="musicBtn">♪ Music: On</button>
       <button class="btn" id="langBtn">Español</button>
     </div>
-    <div class="toggles"><button class="btn" id="mode3dBtn">🧊 3D: Off</button></div>
     <p class="muted" id="bestLine"></p>
   </div>
 </div>
@@ -899,7 +905,8 @@ function updateMenuText() {
   $('contBtn').style.display = save.lastStage > 1 ? 'block' : 'none';
   for (const id of ['musicBtn', 'musicBtn2']) $(id).textContent = save.music ? t('musicOn') : t('musicOff');
   $('langBtn').textContent = t('lang');
-  for (const id of ['mode3dBtn', 'mode3dBtn2']) $(id).textContent = save.mode3d ? t('mode3d') : t('mode2d');
+  $('pick2d').classList.toggle('on', !save.mode3d); $('pick3d').classList.toggle('on', !!save.mode3d);
+  for (const id of ['mode3dBtn2']) $(id).textContent = save.mode3d ? t('mode3d') : t('mode2d');
 
   $('walletMenu').textContent = save.coins; $('walletShop').textContent = save.coins;
   $('bestLine').textContent = save.bestScore > 0 ? t('best', { s:save.bestScore, n:save.bestStage }) : '';
@@ -971,7 +978,8 @@ $('langBtn').onclick = () => { save.lang = save.lang === 'en' ? 'es' : 'en'; per
 $('pauseBtn').onclick = e => { e.stopPropagation(); if (state === 'play') pauseGame(); else if (state === 'paused') resumeGame(); };
 $('pauseBtn').addEventListener('pointerdown', e => e.stopPropagation());
 $('resumeBtn').onclick = resumeGame;
-$('mode3dBtn').onclick = () => setMode3D(!save.mode3d);
+$('pick2d').onclick = () => { if (save.mode3d) setMode3D(false); };
+$('pick3d').onclick = () => { if (!save.mode3d) setMode3D(true); };
 $('mode3dBtn2').onclick = () => setMode3D(!save.mode3d);
 $('restartBtn').onclick = () => startGame(G.stage);
 $('menuBtn').onclick = toMenu; $('menuBtn2').onclick = toMenu;

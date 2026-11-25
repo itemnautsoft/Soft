@@ -8,6 +8,6 @@
     "3d",
     "runner"
   ],
-  "controls": "Swipe left or right to change lanes, swipe up to hop, tap the red button to pause. Switch between 2D and 3D from the menu or the pause screen. Arrow keys work too.",
+  "controls": "Pick 2D or 3D on the start screen. Swipe left or right to change lanes, swipe up to hop, tap the red button to pause. Arrow keys work too.",
   "artifact": "https://claude.ai/artifact/CM9jr337A5MoxUgEBnTH5U"
 }
