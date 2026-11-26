@@ -40,6 +40,8 @@ their own Apps section, and they deploy to `https://itemnautsoft.github.io/Soft/
 For home-screen installs, give an app `manifest.webmanifest` plus `icon-180/192/512.png`.
 
 ## Notes
+- **Renaming:** move the folder, then leave a redirect at the old path (an `index.html` that forwards,
+  plus a `game.json`/`app.json` of `{"redirect": "<new-slug>"}` so the front page skips it). Old links keep working.
 - Sid Dash (`games/sid-dash/`) is a **Trouble Makers** game that itemnaut made with a friend. Credit it to
   Trouble Makers rather than to itemnaut alone.
 - Large binaries: keep single files under about 50 MB. Prefer compressed audio (ogg/mp3).

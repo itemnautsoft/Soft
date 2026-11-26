@@ -1,8 +1,9 @@
-# Retopo Studio
+# Polygo
 
 Touch-first low-poly modelling and retopology in the browser (three.js). Live at
-https://itemnautsoft.github.io/Soft/apps/retopo-studio/ and kept in sync with the claude.ai
-artifact https://claude.ai/artifact/9r6kfueP1DJ5TWi8ZPS6yf.
+https://itemnautsoft.github.io/Soft/apps/polygo/ and kept in sync with the claude.ai
+artifact https://claude.ai/artifact/9r6kfueP1DJ5TWi8ZPS6yf. It was called Retopo Studio until 2026-11-26;
+the old address `apps/retopo-studio/` redirects here.
 
 ## Modes
 - **Retopology:** import a sculpt (BLEND, OBJ, GLB/glTF, STL, PLY, FBX, Collada) and build a separate

@@ -20,6 +20,7 @@ function collect(kind, metaFile) {
     let meta = {};
     try { meta = JSON.parse(readFileSync(join(dir, metaFile), "utf8")); }
     catch { console.warn(`! ${kind}/${slug}: missing or bad ${metaFile}, using defaults`); }
+    if (meta.redirect) continue;   // an old address that forwards to a renamed folder
     items.push({
       slug, kind,
       title: meta.title || slug,
