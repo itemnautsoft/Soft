@@ -1,0 +1,9 @@
+{
+  "title": "Fort Builder Test",
+  "blurb": "Build a pig castle on a grid with traps, guards and straw, sticks or brick walls, then sneak through it as the wolf to reach THE HOUSE. You have to clear your own castle before you can publish it.",
+  "date": "2026-11-26",
+  "updated": "2026-11-26",
+  "tags": ["mobile", "3d", "stealth", "level-editor"],
+  "controls": "BUILD: drag parts up from the belt (or tap a part, then a tile), tap a part to set it up. INVADE: stick to move, drag the right side to look, SNEAK, HUFF, EAT",
+  "artifact": "https://claude.ai/artifact/AginSQTzQwjhmcfJMayehc"
+}
