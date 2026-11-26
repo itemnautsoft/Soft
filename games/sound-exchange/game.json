@@ -1,6 +1,6 @@
 {
   "title": "Sound Exchange",
-  "blurb": "Press a playlist into a battle creature. The title shapes its body; every song adds a part, stats, a move and a sound. Fight rivals in 3D rhythm-timed JRPG battles with wireframe move effects while the music follows your genre mix.",
+  "blurb": "Press a playlist into a battle creature. The title shapes its body; every song adds a part, stats and a move named after the song. Creatures brawl on their own in 3D, shouting their moves like comic sound effects. Fill your hype, hit S, and tap to the beat for a special.",
   "date": "2026-11-25",
   "updated": "2026-11-26",
   "tags": [
@@ -10,6 +10,6 @@
     "rhythm",
     "3d"
   ],
-  "controls": "Type an artist or song and pick a suggestion (or tap a sample), then press. In battle pick a move, then tap (or Space) on the beat to power it up; when the foe attacks, tap on the beat to guard. 3D button toggles 3D; drag the 3D card model to spin it.",
+  "controls": "Type an artist or song and pick a suggestion (or tap a sample), then press. Battles play out on their own. When hype hits 100, press S (or the S key), then tap the screen (or Space) on every beat. The 3D button toggles 3D; drag the 3D card model to spin it.",
   "artifact": "https://claude.ai/artifact/CEjeSQnL6RLrhKZgqqUsPx"
 }

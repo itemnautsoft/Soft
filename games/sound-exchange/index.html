@@ -159,12 +159,31 @@ textarea.in{min-height:110px}
 canvas.c3{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;z-index:0}
 .vt{position:absolute;top:10px;right:10px;z-index:7;border:3px solid var(--ink);border-radius:999px;background:#fff;font-weight:800;padding:4px 14px;min-height:40px;box-shadow:0 3px 0 var(--ink);font-size:14px}
 .vt[aria-pressed=true]{background:var(--VOLT)}
-.arena .vt{top:auto;bottom:8px;right:auto;left:8px}
+.arena .vt{top:8px;right:8px}
 .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:3}
 .flash.go{animation:flash .4s ease-out}
 @keyframes flash{0%{opacity:.9}100%{opacity:0}}
 .arena.d3 .fighter,.arena.d3 svg.field{display:none}
 .hint3{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font:400 12px "DotGothic16",monospace;background:rgba(255,255,255,.85);border:2px solid var(--ink);border-radius:8px;padding:2px 8px;z-index:6;pointer-events:none;white-space:nowrap}
+.shout{position:absolute;z-index:5;pointer-events:none;font:400 clamp(24px,6.2vw,36px)/1 "Bangers",Impact,sans-serif;letter-spacing:.03em;color:var(--c);-webkit-text-stroke:2.5px var(--ink);paint-order:stroke fill;text-shadow:3px 3px 0 var(--ink);transform:rotate(var(--r)) skewX(-8deg);animation:shout 1.3s forwards;white-space:nowrap;padding:16px 24px}
+.shout span{position:relative;z-index:1}
+.shout::before,.shout::after{content:"";position:absolute;clip-path:polygon(0 18%,9% 0,22% 14%,37% 2%,52% 16%,67% 0,82% 13%,100% 5%,93% 38%,100% 62%,90% 82%,98% 100%,74% 88%,58% 100%,42% 86%,24% 100%,12% 84%,0 94%,6% 60%,0 40%)}
+.shout::before{inset:-5px;background:var(--ink)}.shout::after{inset:0;background:#fff}
+@keyframes shout{0%{transform:rotate(var(--r)) skewX(-8deg) scale(.2)}16%{transform:rotate(var(--r)) skewX(-8deg) scale(1.18)}28%{transform:rotate(var(--r)) skewX(-8deg) scale(1)}80%{opacity:1}100%{opacity:0;transform:rotate(var(--r)) skewX(-8deg) scale(1.04) translateY(-12px)}}
+.shout.big{left:50%;top:34%;translate:-50% -50%;font-size:clamp(34px,9vw,58px);white-space:normal;text-align:center;width:max-content;max-width:94%;animation-duration:2s;z-index:7}
+.arena.big{height:clamp(340px,92vw,470px)}
+.ctrl{display:flex;gap:14px;align-items:center;padding:12px 14px 16px}
+.hypebox{flex:1}.hypebox b{font-size:14px}
+.hbar{height:18px;border:3px solid var(--ink);border-radius:999px;background:#eee;overflow:hidden;margin:4px 0}.hbar i{display:block;height:100%;background:#ff5fa2;transition:width .2s}
+.hypebox small{font-size:13px;opacity:.85;display:block;min-height:1.3em}
+.sbtn{width:84px;height:84px;border-radius:50%;border:4px solid var(--ink);background:#d9d4c4;font:400 44px/1 "Dela Gothic One",sans-serif;color:#fff;-webkit-text-stroke:2px var(--ink);box-shadow:0 6px 0 var(--ink);flex:none}
+.sbtn.ready{background:var(--red);animation:sready .55s infinite alternate}
+.sbtn:disabled{opacity:.6;cursor:not-allowed}
+.sbtn:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 var(--ink)}
+@keyframes sready{to{transform:scale(1.07);box-shadow:0 6px 0 var(--ink),0 0 0 9px rgba(255,212,0,.65)}}
+.rhythm.sp{background:rgba(20,20,20,.1);place-items:end center;padding-bottom:42px}
+.rhythm.sp .ringbox{width:100px;height:100px}
+.rhythm.sp .lbl{top:auto;bottom:10px}.rhythm.sp .judge{top:auto;bottom:156px}
 @media (prefers-reduced-motion:reduce){.bob,.spin,.press svg{animation:none}}
 </style>
 </head>
@@ -260,6 +279,12 @@ function mixOf(tracks){
   const c={};tracks.forEach(t=>c[t.tone]=(c[t.tone]||0)+1);
   return TK.filter(k=>c[k]).map(k=>({k,w:c[k]/tracks.length})).sort((a,b)=>b.w-a.w);
 }
+const STOPW=new Set("a an the of to in on my your me you i and is it its for at be we our with from that this feat ft im i'm dont don't no so oh up".split(' '));
+const SHOUT={STRIKE:['{W} SMASH!','{W} PUNCH!','{W} SLAM!'],FLURRY:['{w}-{w}-{W}!','{W} RUSH!','{W} BARRAGE!'],DRAIN:['{W} SIPHON!','{W} SAMPLE!','{W} STEAL!'],CRESCENDO:['{W} RISING!','{W} BUILD-UP!','{W} AMPED!'],DISSONANCE:['{W} DETUNE!','{W} SCRATCH!','{W} FEEDBACK!'],ENCORE:['{W} ENCORE!','{W} REPRISE!','ONE MORE {W}!'],OFFBEAT:['{W} BLAST!','{W} KICK!','OFF-BEAT {W}!']};
+function shoutName(title,kind,h){const words=((title||'').match(/[\p{L}\p{N}'&]+/gu)||['NOISE']).map(w=>w.toUpperCase());
+  if(kind==='FINALE'){let t=words.join(' ');if(t.length>26)t=words.slice(0,3).join(' ');return t+'!!!'}
+  const score=w=>(/\p{L}/u.test(w)?10:0)+Math.min(w.length,9),pool=words.filter(w=>!STOPW.has(w.toLowerCase())),ws=(pool.length?pool:words).slice().sort((a,b)=>score(b)-score(a)),W=ws[(ws.length>1&&score(ws[1])>=13)?(h>>>3)%2:0];
+  return SHOUT[kind][(h>>>18)%3].replace(/\{W\}/g,W).replace(/\{w\}/g,W.length>5?W.slice(0,3):W)}
 function makeCreature(pl,lvl=1){
   const tracks=cleanTracks(pl);
   if(!tracks.length)return null;
@@ -282,7 +307,7 @@ function makeCreature(pl,lvl=1){
   aura=aura||AURA_FALL[dom];
   // skills
   const mk=(i,role)=>{const t=tracks[i],h=hs[i],kind=role==='closer'?'FINALE':KLIST[(h>>>8)%7];const K=KINDS[kind];
-    const name=TONES[t.tone].adj[(h>>>12)%5]+' '+K.n[(h>>>16)%3];
+    const name=shoutName(t.t,kind,h);
     let pw=kind==='FINALE'?K.p:Math.round(K.p*(0.9+((h>>>20)&15)/50));if(role==='opener'&&kind!=='ENCORE')pw=Math.round(pw*1.15);
     return {name,kind,tone:t.tone,pw,role,src:t,motif:motif(t)}};
   const skills=[];const used=Math.min(n,4);
@@ -788,240 +813,264 @@ async function mountCard3D(stage,c,cry){
   LIVE3D=()=>{sh.kill();note.remove()};
 }
 
-/* ---------- 3D battle stage ---------- */
-async function stage3D(arena,me,foe){
+/* ---------- 3D battle renderer ---------- */
+const ARENA_R=4.3;
+async function renderer3D(arena,onTick){
   await load3D();if(!arena.isConnected)throw new Error('gone');
   const {THREE}=T3,kit=toonKit();
-  const sh=make3D(arena,{fov:46,ground:'#2c6b35',tick:(dt,t)=>tick(dt,t)}),{scene,cam}=sh;
-  scene.background=new THREE.Color('#123f22');scene.fog=new THREE.Fog('#123f22',11,30);
-  const flat=new THREE.Mesh(new THREE.CircleGeometry(30,48),kit.m('#2c9a3e'));flat.rotation.x=-Math.PI/2;flat.material.userData.outlineParameters=NOLINE;scene.add(flat);
-  const grid=new THREE.GridHelper(40,40,'#ffffff','#ffffff');grid.material.transparent=true;grid.material.opacity=.32;grid.position.y=.01;grid.material.userData.outlineParameters=NOLINE;scene.add(grid);
+  let onT=onTick;const sh=make3D(arena,{fov:46,ground:'#2c6b35',tick:(dt,t)=>{onT(dt);frame(dt,t)}}),{scene,cam}=sh;
+  scene.background=new THREE.Color('#123f22');scene.fog=new THREE.Fog('#123f22',12,32);
+  const floor=new THREE.Mesh(new THREE.CircleGeometry(30,48),kit.m('#2c9a3e'));floor.rotation.x=-Math.PI/2;floor.material.userData.outlineParameters=NOLINE;scene.add(floor);
+  const grid=new THREE.GridHelper(40,40,'#ffffff','#ffffff');grid.material.transparent=true;grid.material.opacity=.3;grid.position.y=.01;grid.material.userData.outlineParameters=NOLINE;scene.add(grid);
   const LM=(col,op=1)=>{const m=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false});m.userData.outlineParameters=NOLINE;return m};
-  const PM=(col,size=.1)=>{const m=new THREE.PointsMaterial({color:col,size,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});m.userData.outlineParameters=NOLINE;return m};
+  const PM=(col,size=.12)=>{const m=new THREE.PointsMaterial({color:col,size,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});m.userData.outlineParameters=NOLINE;return m};
   const edges=(geo,col,op)=>new THREE.LineSegments(new THREE.EdgesGeometry(geo),LM(col,op)),wire=(geo,col,op)=>new THREE.LineSegments(new THREE.WireframeGeometry(geo),LM(col,op));
   const SH={BEAT:()=>new THREE.BoxGeometry(.3,.3,.3),VOLT:()=>new THREE.TetrahedronGeometry(.27),ROAR:()=>new THREE.ConeGeometry(.16,.46,5),BLOOM:()=>new THREE.OctahedronGeometry(.24),SOUL:()=>new THREE.TorusGeometry(.18,.06,6,14),DRIFT:()=>new THREE.IcosahedronGeometry(.23,0)};
-  // drifting wireframe sky shapes
-  const amb=[];const tones=[...new Set([...me.mix.map(m=>m.k),...foe.mix.map(m=>m.k)])];
-  for(let i=0;i<14;i++){const tk=tones[i%tones.length],o=wire(new THREE.IcosahedronGeometry(.6+Math.random()*1.1,i%2),TONES[tk].c,.45),a=i/14*Math.PI*2;o.position.set(Math.cos(a)*(11+Math.random()*5),2+Math.random()*6,Math.sin(a)*(11+Math.random()*5));o.userData.sp=(Math.random()-.5)*.6;scene.add(o);amb.push(o)}
-  const horizon=wire(new THREE.SphereGeometry(24,24,10,0,Math.PI*2,0,Math.PI/2),'#5fe08a',.12);scene.add(horizon);
-  // fighters
-  const F={};const place=(side,c,pos)=>{const k2=toonKit(),cr=build3D(c,k2,2.1);cr.root.position.copy(pos);scene.add(cr.root);
-    const pad=edges(new THREE.RingGeometry(1.05,1.15,40),'#ffffff',.9);pad.rotation.x=-Math.PI/2;pad.position.copy(pos).setY(.03);scene.add(pad);
-    const glow=new THREE.Mesh(new THREE.CircleGeometry(1.0,32),new THREE.MeshBasicMaterial({color:TONES[c.dom].c,transparent:true,opacity:.28,depthWrite:false}));glow.material.userData.outlineParameters=NOLINE;glow.rotation.x=-Math.PI/2;glow.position.copy(pos).setY(.02);scene.add(glow);
-    F[side]={...cr,c,home:pos.clone(),pos:pos.clone(),yaw:0,yawT:0,off:new THREE.Vector3(),hit:0,jit:0,flash:0,ko:0,guard:null,dizzy:null}};
-  place('me',me,new THREE.Vector3(-1.8,0,1.35));place('foe',foe,new THREE.Vector3(1.8,0,-1.35));
-  const other=s=>s==='me'?'foe':'me',up=new THREE.Vector3(0,1,0);
-  const mid=new THREE.Vector3(),lineDir=F.foe.home.clone().sub(F.me.home).normalize(),perp=new THREE.Vector3(-lineDir.z,0,lineDir.x);if(perp.z<0)perp.negate();
-  const idleCam=()=>mid.clone().addScaledVector(perp,6.8).addScaledVector(lineDir,-1.6).setY(3.0);
-  const faceYaw=(from,to)=>Math.atan2(to.x-from.x,to.z-from.z);
-  const restYaw=s=>{const f=F[s],o=F[other(s)],cp=idleCam(),tgt=o.home.clone().multiplyScalar(.5).add(cp.clone().multiplyScalar(.5));return faceYaw(f.home,tgt)};
-  for(const s of['me','foe']){F[s].yaw=F[s].yawT=restYaw(s)}
-  // camera director
-  const CAM={pos:idleCam(),look:new THREE.Vector3(0,1,0),tp:idleCam(),tl:new THREE.Vector3(0,1,0),k:3,shake:0,mode:'idle',orb:null,pump:0};
-  const shoulder=s=>{const a=F[s].home,b=F[other(s)].home,d=b.clone().sub(a).normalize(),p=new THREE.Vector3(-d.z,0,d.x);if(p.dot(perp)<0)p.negate();CAM.mode='aim';CAM.tp=a.clone().addScaledVector(d,-2.6).addScaledVector(p,1.5).setY(2.2);CAM.tl=a.clone().lerp(b,.72).setY(1.1);CAM.k=4};
-  const closeOn=s=>{const a=F[s].home,d=a.clone().sub(F[other(s)].home).normalize(),p=new THREE.Vector3(-d.z,0,d.x);if(p.dot(perp)<0)p.negate();CAM.mode='close';CAM.tp=a.clone().addScaledVector(p,3.0).addScaledVector(d,-1.2).setY(1.5);CAM.tl=a.clone().setY(1.05);CAM.k=6};
-  const settle=()=>{CAM.mode='idle';CAM.k=2.2};
-  // FX pool
+  const ring0=edges(new THREE.RingGeometry(ARENA_R+.3,ARENA_R+.45,64),'#ffffff',.6);ring0.rotation.x=-Math.PI/2;ring0.position.y=.02;scene.add(ring0);
+  const amb=[],tones=[...new Set([...B.me.mix.map(m=>m.k),...B.foe.mix.map(m=>m.k)])];
+  for(let i=0;i<14;i++){const tk=tones[i%tones.length],o=wire(new THREE.IcosahedronGeometry(.6+Math.random()*1.1,i%2),TONES[tk].c,.45),a=i/14*Math.PI*2;o.position.set(Math.cos(a)*(12+Math.random()*5),2+Math.random()*6,Math.sin(a)*(12+Math.random()*5));o.userData.sp=(Math.random()-.5)*.6;scene.add(o);amb.push(o)}
+  const horizon=wire(new THREE.SphereGeometry(25,24,10,0,Math.PI*2,0,Math.PI/2),'#5fe08a',.12);scene.add(horizon);
+  const V={};
+  for(const s of['me','foe']){const f=B[s],cr=build3D(f,toonKit(),2.0);cr.model.rotation.order='YXZ';scene.add(cr.root);
+    const pad=edges(new THREE.RingGeometry(.75,.82,36),'#ffffff',.8);pad.rotation.x=-Math.PI/2;scene.add(pad);
+    const glow=new THREE.Mesh(new THREE.CircleGeometry(.72,28),new THREE.MeshBasicMaterial({color:TONES[f.dom].c,transparent:true,opacity:.3,depthWrite:false}));glow.material.userData.outlineParameters=NOLINE;glow.rotation.x=-Math.PI/2;scene.add(glow);
+    V[s]={cr,pad,glow,guard:null,dizzy:null}}
   const FX=[];const addFX=(obj,life,upd,onEnd)=>{if(obj)scene.add(obj);FX.push({obj,t:0,life,upd,onEnd})};
-  const head=s=>F[s].pos.clone().add(F[s].off).setY(F[s].headY*.85+.2),chest=s=>F[s].pos.clone().add(F[s].off).setY(1.0);
-  const col=s=>TONES[s.tone].c;
-  const burst=(p,c,size=2.4,life=.55,detail=1)=>{const o=wire(new THREE.IcosahedronGeometry(.3,detail),c);o.position.copy(p);addFX(o,life,(k,o)=>{o.scale.setScalar(1+k*size*3);o.rotation.y+=.08;o.rotation.x+=.05;o.material.opacity=1-k})};
-  const ringFX=(p,c,max=3.2,life=.5,flatR=true,tilt=0)=>{const o=edges(new THREE.TorusGeometry(1,.02,3,56),c);o.position.copy(p);if(flatR)o.rotation.x=Math.PI/2;o.rotation.y=tilt;addFX(o,life,(k,o)=>{o.scale.setScalar(.2+k*max);o.material.opacity=1-k*k})};
-  const shards=(p,c,tone,n=9,spd=4)=>{for(let i=0;i<n;i++){const o=edges(SH[tone](),c);o.position.copy(p);const v3=new THREE.Vector3(Math.random()-.5,Math.random()*.9+.2,Math.random()-.5).normalize().multiplyScalar(spd*(.6+Math.random()*.6));
-    addFX(o,.75+Math.random()*.3,(k,o,dt)=>{v3.y-=9*dt;o.position.addScaledVector(v3,dt);o.rotation.x+=dt*8;o.rotation.y+=dt*6;o.material.opacity=1-k})}};
+  const W3=(f,y)=>new THREE.Vector3(f.p.x+f.off.x,y,f.p.z+f.off.z);
+  const chest=f=>W3(f,f.y+f.airY+.95),headP=f=>W3(f,f.y+f.airY+V[f.side].cr.headY*.9),col=sk=>TONES[sk.tone].c;
+  const burst=(p,c,size=2.2,life=.5,detail=1)=>{const o=wire(new THREE.IcosahedronGeometry(.28,detail),c);o.position.copy(p);addFX(o,life,(k,o)=>{o.scale.setScalar(1+k*size*3);o.rotation.y+=.08;o.rotation.x+=.05;o.material.opacity=1-k})};
+  const ringFX=(p,c,max=3,life=.5,flatR=true,tilt=0)=>{const o=edges(new THREE.TorusGeometry(1,.02,3,56),c);o.position.copy(p);if(flatR)o.rotation.x=Math.PI/2;else o.rotation.y=tilt;addFX(o,life,(k,o)=>{o.scale.setScalar(.2+k*max);o.material.opacity=1-k*k})};
+  const shards=(p,c,tone,n=8,spd=4)=>{for(let i=0;i<n;i++){const o=edges(SH[tone](),c);o.position.copy(p);const v3=new THREE.Vector3(Math.random()-.5,Math.random()*.9+.2,Math.random()-.5).normalize().multiplyScalar(spd*(.6+Math.random()*.6));
+    addFX(o,.7+Math.random()*.3,(k,o,dt)=>{v3.y-=9*dt;o.position.addScaledVector(v3,dt);o.rotation.x+=dt*8;o.rotation.y+=dt*6;o.material.opacity=1-k})}};
   const bolt=(a,b,c,life=.4)=>{const n=14,g=new THREE.BufferGeometry(),arr=new Float32Array(n*3);g.setAttribute('position',new THREE.BufferAttribute(arr,3));const o=new THREE.Line(g,LM(c));
     addFX(o,life,(k,o)=>{for(let i=0;i<n;i++){const t=i/(n-1),p=a.clone().lerp(b,t);if(i&&i<n-1)p.add(new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(.6*Math.sin(t*Math.PI)));arr.set([p.x,p.y,p.z],i*3)}g.attributes.position.needsUpdate=true;o.material.opacity=Math.random()<.3?.3:1-k*.6})};
-  const spikes=(p,c)=>{for(let i=0;i<8;i++){const a=i/8*Math.PI*2,o=edges(new THREE.ConeGeometry(.22,1.6,4),c);o.position.set(p.x+Math.cos(a)*.95,0,p.z+Math.sin(a)*.95);o.rotation.z=Math.cos(a)*.35;o.rotation.x=-Math.sin(a)*.35;addFX(o,.7,(k,o)=>{const e=k<.25?k/.25:1-(k-.25)/.75;o.scale.set(1,Math.max(.01,e),1);o.position.y=.8*e;o.material.opacity=e})}};
-  const eq=(p,c,life=1.1)=>{const bars=[];for(let i=0;i<12;i++){const a=i/12*Math.PI*2,o=edges(new THREE.BoxGeometry(.18,1,.18),c);o.position.set(p.x+Math.cos(a)*1.1,0,p.z+Math.sin(a)*1.1);bars.push(o);
-    addFX(o,life,(k,o)=>{const hgt=.05+(Math.abs(Math.sin(k*9+i))*1.8+.4)*Math.sin(k*Math.PI);o.scale.y=hgt;o.position.y=hgt/2;o.material.opacity=1-k*.5})}};
-  const spiral=(from,to,c,life=.9)=>new Promise(res=>{const n=46,g=new THREE.BufferGeometry(),arr=new Float32Array(n*3);g.setAttribute('position',new THREE.BufferAttribute(arr,3));const o=new THREE.Points(g,PM(c,.13));
-    addFX(o,life,(k,o)=>{for(let i=0;i<n;i++){const t=clamp(k*1.6-i/n*.6,0,1),p=from.clone().lerp(to,t),a=t*14+i;p.x+=Math.cos(a)*.35*(1-t);p.z+=Math.sin(a)*.35*(1-t);p.y+=Math.sin(t*Math.PI)*.8;arr.set([p.x,p.y,p.z],i*3)}g.attributes.position.needsUpdate=true;o.material.opacity=1-Math.max(0,k-.8)*5},res)});
-  const shoot=(a,b,c,tone,dur=.32,arc=.9)=>new Promise(res=>{const o=edges(SH[tone](),c);o.scale.setScalar(1.5);const n=16,tg=new THREE.BufferGeometry(),ta=new Float32Array(n*3);tg.setAttribute('position',new THREE.BufferAttribute(ta,3));const tr=new THREE.Line(tg,LM(c,.8));scene.add(tr);
-    for(let i=0;i<n;i++)ta.set([a.x,a.y,a.z],i*3);
-    addFX(o,dur,(k,o)=>{const p=a.clone().lerp(b,k);p.y+=Math.sin(k*Math.PI)*arc;o.position.copy(p);o.rotation.x+=.3;o.rotation.y+=.2;ta.copyWithin(3,0,(n-1)*3);ta.set([p.x,p.y,p.z],0);tg.attributes.position.needsUpdate=true},()=>{addFX(tr,.25,(k,t)=>{t.material.opacity=.8*(1-k)});res()})});
-  const pulse=(s,c)=>{const p=chest(s);const o=wire(new THREE.IcosahedronGeometry(1,2),c,.8);o.position.copy(p);addFX(o,.9,(k,o)=>{o.scale.setScalar(.5+k*1.3);o.rotation.y+=.03;o.material.opacity=.8*(1-k)});
-    for(let i=0;i<7;i++){const n=edges(new THREE.OctahedronGeometry(.13),c),a=i/7*Math.PI*2;n.position.set(p.x+Math.cos(a)*.9,.2,p.z+Math.sin(a)*.9);addFX(n,1.2,(k,n)=>{n.position.y=.2+k*2.6;n.rotation.y+=.1;n.material.opacity=1-k})}};
-  const dizzy=s=>{const g=new THREE.Group();for(let i=0;i<3;i++){const o=edges(new THREE.OctahedronGeometry(.12),'#ffd400');o.position.set(Math.cos(i*2.1)*.5,0,Math.sin(i*2.1)*.5);g.add(o)}F[s].dizzy=g;scene.add(g)};
-  const flashEl=document.createElement('div');flashEl.className='flash';arena.appendChild(flashEl);
-  const flash=()=>{flashEl.classList.remove('go');void flashEl.offsetWidth;flashEl.classList.add('go')};
-  const wireFlash=s=>{F[s].flash=1};
-  // per-frame
-  function tick(dt,t){
-    const ph=beatPh(),bb=Math.abs(Math.sin(ph*Math.PI));CAM.pump=Math.max(CAM.pump,ph<.08?1:0);CAM.pump*=Math.pow(.02,dt);
-    for(const s of['me','foe']){const f=F[s];f.yaw+=(f.yawT-f.yaw)*Math.min(1,dt*8);f.root.rotation.y=f.yaw;
-      const jit=f.jit>0?new THREE.Vector3((Math.random()-.5)*.25,0,(Math.random()-.5)*.25):new THREE.Vector3();f.jit=Math.max(0,f.jit-dt);
-      f.root.position.copy(f.pos).add(f.off).add(jit);f.off.multiplyScalar(Math.pow(.004,dt));
-      if(f.ko<1){f.model.parent.position.y=bb*.07;f.root.scale.set(1+(1-bb)*.025,1-(1-bb)*.035,1+(1-bb)*.025)}
-      else{f.root.rotation.x=Math.min(Math.PI/2.2,f.root.rotation.x+dt*4)}
-      if(f.spin)f.spin.rotation.z-=dt*2.4;
-      f.flash=Math.max(0,f.flash-dt*1.4);f.wireMat.opacity=Math.min(1,f.flash*1.2+(f.ko?.25:0));
-      f.hit=Math.max(0,f.hit-dt*3);for(const m of f.mats)m.emissive?.setScalar(f.hit*.9);
-      if(f.guard){f.guard.rotation.y+=dt*1.5;f.guard.position.copy(f.pos).setY(1.0);f.guard.material.opacity=.55+.25*Math.sin(t*8)}
-      if(f.dizzy){f.dizzy.position.copy(head(s)).setY(F[s].headY+.45);f.dizzy.rotation.y+=dt*5}}
-    for(const o of amb){o.rotation.y+=o.userData.sp*dt;o.rotation.x+=o.userData.sp*dt*.5}
-    horizon.rotation.y+=dt*.02;
-    for(let i=FX.length-1;i>=0;i--){const e=FX[i];e.t+=dt;const k=Math.min(1,e.t/e.life);e.upd&&e.upd(k,e.obj,dt);if(k>=1){FX.splice(i,1);if(e.obj){scene.remove(e.obj);e.obj.geometry?.dispose();e.obj.material?.dispose()}e.onEnd&&e.onEnd()}}
-    if(CAM.mode==='idle'){const a=Math.sin(t*.25)*.32,base=idleCam().sub(mid);base.applyAxisAngle(up,a);CAM.tp=mid.clone().add(base).setY(3.0+Math.sin(t*.4)*.35);CAM.tl=new THREE.Vector3(0,.95,0)}
-    if(CAM.mode==='orbit'){CAM.orb.a+=dt*CAM.orb.sp;const c0=CAM.orb.c;CAM.tp=c0.clone().add(new THREE.Vector3(Math.cos(CAM.orb.a)*CAM.orb.r,0,Math.sin(CAM.orb.a)*CAM.orb.r)).setY(CAM.orb.y);CAM.tl=c0.clone().setY(1.4)}
-    const k=1-Math.exp(-dt*CAM.k);CAM.pos.lerp(CAM.tp,k);CAM.look.lerp(CAM.tl,k);CAM.shake*=Math.pow(.01,dt);
-    cam.position.copy(CAM.pos).add(new THREE.Vector3((Math.random()-.5)*CAM.shake,(Math.random()-.5)*CAM.shake,(Math.random()-.5)*CAM.shake));cam.lookAt(CAM.look);
-    cam.fov=46-CAM.pump*1.6;cam.updateProjectionMatrix();
-  }
-  const face=(s,toFoe)=>{F[s].yawT=toFoe?faceYaw(F[s].home,F[other(s)].home):restYaw(s)};
-  const ST={
-    async cast(s,sk){face(s,true);shoulder(s);wireFlash(s);ringFX(F[s].home.clone().setY(.05),col(sk),2.2,.6);await sleep(260)},
-    async deliver(a,d,sk,h){const c2=col(sk),tn=sk.tone;
-      if(sk.kind==='FLURRY'||sk.kind==='DRAIN'||sk.kind==='OFFBEAT'||sk.kind==='DISSONANCE'){if(h===0){closeOn(d);CAM.k=3}await shoot(chest(a),chest(d),c2,tn,.3,sk.kind==='FLURRY'?.4+h*.4:1);return}
-      const f=F[a],dir=F[d].home.clone().sub(f.home);f.off.addScaledVector(dir,.42);wireFlash(a);
-      if(tn==='VOLT')bolt(chest(a),chest(d),c2,.35);await sleep(140);closeOn(d)},
-    impact(d,sk,h,mult){const p=chest(d),c2=col(sk),f=F[d],dir=f.home.clone().sub(F[other(d)].home).normalize();
-      f.hit=1;f.off.addScaledVector(dir,.35);CAM.shake=Math.max(CAM.shake,sk.kind==='FLURRY'?.12:.24);
-      burst(p,c2,sk.kind==='FLURRY'?1.2:2.2);ringFX(p,c2,2.6,.45,false,Math.random()*3);shards(p,c2,sk.tone,sk.kind==='FLURRY'?4:9);
-      if(sk.tone==='ROAR'&&h===0)spikes(f.home,c2);if(sk.tone==='BEAT'&&h===0)ringFX(f.home.clone().setY(.05),c2,3.4,.6);
-      if(sk.tone==='VOLT')bolt(p.clone().setY(7),p,c2,.3);if(mult>1){flash();burst(p,'#ffffff',3,.6,0)}},
-    async heal(s,sk){face(s,false);closeOn(s);pulse(s,col(sk));wireFlash(s);await sleep(700)},
-    async drain(from,to,sk){shoulder(to);await spiral(chest(from),chest(to),col(sk));pulse(to,col(sk))},
-    buff(s,sk){eq(F[s].home,col(sk));wireFlash(s);ringFX(chest(s),col(sk),1.8,.6)},
-    debuff(s,sk){F[s].jit=.45;for(let i=0;i<3;i++)bolt(head(s).add(new THREE.Vector3(-.8,i*.3,0)),head(s).add(new THREE.Vector3(.8,-i*.3,0)),col(sk),.45);ringFX(head(s),col(sk),1.6,.5,false,1)},
-    stun(s){dizzy(s)},
-    unstun(s){if(F[s].dizzy){scene.remove(F[s].dizzy);F[s].dizzy=null}},
-    guard(s,on){if(on&&!F[s].guard){const g=wire(new THREE.IcosahedronGeometry(1.35,1),'#7fd3ff',.7);F[s].guard=g;scene.add(g)}if(!on&&F[s].guard){scene.remove(F[s].guard);F[s].guard=null}},
-    async finale(a,d,sk){const c2=col(sk),A=F[a].home,D=F[d].home;face(a,true);wireFlash(a);CAM.mode='orbit';CAM.orb={c:A.clone().lerp(D,.35),a:Math.atan2(perp.z,perp.x),r:7.5,y:4.2,sp:1.6};CAM.k=3;
-      const disc=new THREE.Group(),r1=edges(new THREE.RingGeometry(.4,3,64,6),c2),r2=wire(new THREE.CircleGeometry(.4,24),'#ffffff');disc.add(r1,r2);disc.rotation.x=-Math.PI/2;disc.position.copy(A).setY(6);scene.add(disc);
-      eq(A,c2,1.6);for(let i=0;i<6;i++)setTimeout(()=>ringFX(A.clone().setY(.1+i*.5),c2,2.5,.5),i*120);
-      await new Promise(res=>addFX(null,1.4,k=>{disc.rotation.z+=.25;const e=k<.55?0:(k-.55)/.45;disc.position.copy(A.clone().lerp(D,Math.min(1,k*1.6))).setY(6-e*e*5.8);disc.scale.setScalar(1+Math.sin(k*20)*.04)},res));
-      scene.remove(disc);flash();CAM.shake=.6;closeOn(d);for(let i=0;i<3;i++)burst(chest(d),i?c2:'#ffffff',3+i,.8,i);ringFX(D.clone().setY(.05),c2,6,.8);ringFX(D.clone().setY(.05),'#ffffff',4.5,.6);shards(chest(d),c2,sk.tone,18,6);spikes(D,c2);
-      for(let i=0;i<6;i++){const x=D.clone().add(new THREE.Vector3((Math.random()-.5)*2,0,(Math.random()-.5)*2));bolt(x.clone().setY(9),x,c2,.5)}},
-    ko(s){F[s].ko=1;CAM.shake=.3;burst(chest(s),'#ffffff',2.5,.7,0)},
-    settle(){for(const s of['me','foe'])face(s,false);settle()},
-    anchor(s){const p=head(s).project(cam),w=arena.clientWidth,h=arena.clientHeight,x=(p.x+1)/2*w,y=(1-p.y)/2*h;return {x:x-60,y:y-40,w:120,h:120}},
-    kill(){sh.kill();flashEl.remove()},
-    F,CAM
+  const spikes=(p,c)=>{for(let i=0;i<8;i++){const a=i/8*Math.PI*2,o=edges(new THREE.ConeGeometry(.2,1.5,4),c);o.position.set(p.x+Math.cos(a)*.9,0,p.z+Math.sin(a)*.9);o.rotation.z=Math.cos(a)*.35;o.rotation.x=-Math.sin(a)*.35;addFX(o,.7,(k,o)=>{const e=k<.25?k/.25:1-(k-.25)/.75;o.scale.set(1,Math.max(.01,e),1);o.position.y=.75*e;o.material.opacity=e})}};
+  const eq=(p,c,life=1.1)=>{for(let i=0;i<12;i++){const a=i/12*Math.PI*2,o=edges(new THREE.BoxGeometry(.16,1,.16),c);o.position.set(p.x+Math.cos(a)*1.0,0,p.z+Math.sin(a)*1.0);
+    addFX(o,life,(k,o)=>{const hgt=.05+(Math.abs(Math.sin(k*9+i))*1.7+.4)*Math.sin(k*Math.PI);o.scale.y=hgt;o.position.y=hgt/2;o.material.opacity=1-k*.5})}};
+  const dust=(f)=>{const p=W3(f,.04);for(let i=0;i<2;i++){const o=edges(new THREE.TorusGeometry(.3,.02,3,20),'#ffffff',.7);o.position.copy(p);o.rotation.x=Math.PI/2;addFX(o,.4,(k,o)=>{o.scale.setScalar(1+k*2+i);o.material.opacity=.7*(1-k)})}};
+  const R={
+    shoot(a,b,sk,arc=.6){return new Promise(res=>{const A=chest(a),c=col(sk),o=edges(SH[sk.tone](),c);o.scale.setScalar(1.6);const n=16,tg=new THREE.BufferGeometry(),ta=new Float32Array(n*3);tg.setAttribute('position',new THREE.BufferAttribute(ta,3));const tr=new THREE.Line(tg,LM(c,.85));scene.add(tr);for(let i=0;i<n;i++)ta.set([A.x,A.y,A.z],i*3);
+      addFX(o,.3,(k,o)=>{const p=A.clone().lerp(chest(b),k);p.y+=Math.sin(k*Math.PI)*arc;o.position.copy(p);o.rotation.x+=.3;o.rotation.y+=.2;ta.copyWithin(3,0,(n-1)*3);ta.set([p.x,p.y,p.z],0);tg.attributes.position.needsUpdate=true},()=>{addFX(tr,.25,(k,t)=>{t.material.opacity=.85*(1-k)});res()})})},
+    beam(a,b,sk){bolt(chest(a),chest(b),col(sk),.35);bolt(chest(a),chest(b),'#ffffff',.2)},
+    impact(d,sk,mult,small){const p=chest(d),c=col(sk);burst(p,c,small?1.1:2,small?.35:.5);ringFX(p,c,small?1.6:2.6,.45,false,Math.random()*3);shards(p,c,sk.tone,small?3:8);
+      if(!small){if(sk.tone==='ROAR')spikes(W3(d,0),c);if(sk.tone==='BEAT')ringFX(W3(d,.05),c,3.2,.6);if(sk.tone==='VOLT')bolt(p.clone().setY(7),p,c,.3)}
+      if(mult>1){R.flash();burst(p,'#ffffff',2.6,.5,0)}CAM.shake=Math.max(CAM.shake,small?.1:.22);CAM.focus=d;CAM.focusT=.45},
+    kickArc(f,sk){const o=edges(new THREE.TorusGeometry(.9,.03,3,40,Math.PI*1.4),col(sk));o.position.copy(chest(f));o.rotation.x=Math.PI/2;addFX(o,.3,(k,o)=>{o.position.copy(chest(f));o.rotation.z+=.5;o.material.opacity=1-k})},
+    punchFx(f,sk){const o=wire(new THREE.SphereGeometry(.22,8,6),col(sk));addFX(o,.22,(k,o)=>{const a=chest(f),dir=new THREE.Vector3(Math.sin(f.yaw),0,Math.cos(f.yaw));o.position.copy(a).addScaledVector(dir,.5+k*.6);o.scale.setScalar(1+k*1.5);o.material.opacity=1-k})},
+    dust,
+    pound(f,sk){ringFX(W3(f,.05),col(sk),4,.6);ringFX(W3(f,.05),'#ffffff',2.6,.4);eq(W3(f,0),col(sk),.8);CAM.shake=.3},
+    heal(f,sk){const p=chest(f),c=col(sk);const o=wire(new THREE.IcosahedronGeometry(1,2),c,.8);o.position.copy(p);addFX(o,.9,(k,o)=>{o.scale.setScalar(.5+k*1.3);o.rotation.y+=.03;o.material.opacity=.8*(1-k)});
+      for(let i=0;i<7;i++){const n=edges(new THREE.OctahedronGeometry(.13),c),a=i/7*Math.PI*2;n.position.set(p.x+Math.cos(a)*.8,.2,p.z+Math.sin(a)*.8);addFX(n,1.1,(k,n)=>{n.position.y=.2+k*2.4;n.rotation.y+=.1;n.material.opacity=1-k})}},
+    drain(from,to,sk){const n=46,g=new THREE.BufferGeometry(),arr=new Float32Array(n*3);g.setAttribute('position',new THREE.BufferAttribute(arr,3));const o=new THREE.Points(g,PM(col(sk),.13));
+      addFX(o,.9,(k,o)=>{const A=chest(from),Bp=chest(to);for(let i=0;i<n;i++){const t=clamp(k*1.6-i/n*.6,0,1),p=A.clone().lerp(Bp,t),a=t*14+i;p.x+=Math.cos(a)*.35*(1-t);p.z+=Math.sin(a)*.35*(1-t);p.y+=Math.sin(t*Math.PI)*.8;arr.set([p.x,p.y,p.z],i*3)}g.attributes.position.needsUpdate=true;o.material.opacity=1-Math.max(0,k-.8)*5})},
+    buff(f,sk){eq(W3(f,0),col(sk));ringFX(chest(f),col(sk),1.8,.6)},
+    glitch(f,sk){for(let i=0;i<3;i++)bolt(headP(f).add(new THREE.Vector3(-.8,i*.3,0)),headP(f).add(new THREE.Vector3(.8,-i*.3,0)),col(sk),.45);ringFX(headP(f),col(sk),1.6,.5,false,1)},
+    stun(f,on){const v=V[f.side];if(on&&!v.dizzy){const g=new THREE.Group();for(let i=0;i<3;i++){const o=edges(new THREE.OctahedronGeometry(.11),'#ffd400');o.position.set(Math.cos(i*2.1)*.45,0,Math.sin(i*2.1)*.45);g.add(o)}v.dizzy=g;scene.add(g)}if(!on&&v.dizzy){scene.remove(v.dizzy);v.dizzy=null}},
+    aura(f,sk){ringFX(W3(f,.05),col(sk),2.2,.55)},
+    vinyl(a,d,sk){return new Promise(res=>{const c=col(sk),disc=new THREE.Group();disc.add(edges(new THREE.RingGeometry(.4,2.8,64,6),c),wire(new THREE.CircleGeometry(.4,24),'#ffffff'));disc.rotation.x=-Math.PI/2;scene.add(disc);
+      addFX(null,1.3,k=>{disc.rotation.z+=.25;const e=k<.5?0:(k-.5)/.5,A=W3(a,0),D=W3(d,0);disc.position.copy(A.lerp(D,Math.min(1,k*1.7))).setY(6-e*e*5.8)},()=>{scene.remove(disc);R.flash();CAM.shake=.6;const p=chest(d);for(let i=0;i<3;i++)burst(p,i?c:'#ffffff',3+i,.8,i);ringFX(W3(d,.05),c,6,.8);ringFX(W3(d,.05),'#ffffff',4.4,.6);shards(p,c,sk.tone,18,6);spikes(W3(d,0),c);for(let i=0;i<5;i++){const x=W3(d,0).add(new THREE.Vector3((Math.random()-.5)*2,0,(Math.random()-.5)*2));bolt(x.clone().setY(9),x,c,.5)}res()})})},
+    flash(){fl.classList.remove('go');void fl.offsetWidth;fl.classList.add('go')},
+    cam:{special(a,o){CAM.mode='orbit';CAM.orb={a:Math.atan2(CAM.pos.z,CAM.pos.x),r:6.2,y:3.4,sp:.55}},auto(){CAM.mode='auto'}},
+    anchor(s){const p=headP(B[s]).project(cam),w=arena.clientWidth,h=arena.clientHeight;return {x:(p.x+1)/2*w-60,y:(1-p.y)/2*h-40,w:120,h:120}},
+    kill(){sh.kill();fl.remove()},setTick(fn){onT=fn}
   };
-  return ST;
+  const fl=document.createElement('div');fl.className='flash';arena.appendChild(fl);
+  const CAM={pos:new THREE.Vector3(0,3.2,8),look:new THREE.Vector3(0,1,0),side:new THREE.Vector3(0,0,1),shake:0,pump:0,mode:'auto',focus:null,focusT:0,orb:null};
+  function frame(dt,t){
+    const ph=beatPh(),bb=Math.abs(Math.sin(ph*Math.PI));CAM.pump=Math.max(CAM.pump,ph<.08?1:0);CAM.pump*=Math.pow(.02,dt);
+    for(const s of['me','foe']){const f=B[s],v=V[s],root=v.cr.root,m=v.cr.model;
+      root.position.set(f.p.x+f.off.x,f.y+f.airY,f.p.z+f.off.z);root.rotation.set(0,f.yaw+f.spin,0);
+      m.rotation.x=f.ko?-1.35*Math.min(1,f.koT*3):f.lean;m.rotation.z=f.roll;
+      const idle=!f.moving&&f.airY<.01&&!f.ko,b=idle?bb:0,sq=f.sq;
+      root.scale.set(1+(1-b)*.02*(idle?1:0)+sq*.25,1-(idle?(1-b)*.03:0)-sq*.3,1+sq*.25);if(idle)root.position.y+=b*.05;
+      if(v.cr.spin)v.cr.spin.rotation.z-=dt*2.4;v.cr.wireMat.opacity=Math.min(1,f.flash);
+      for(const mt of v.cr.mats)mt.emissive?.setScalar(f.hitT*.85);
+      v.pad.position.set(f.p.x,.03,f.p.z);v.glow.position.set(f.p.x,.02,f.p.z);
+      if(v.dizzy){v.dizzy.position.copy(headP(f)).setY(f.y+v.cr.headY+.4);v.dizzy.rotation.y+=dt*5}}
+    for(const o of amb){o.rotation.y+=o.userData.sp*dt;o.rotation.x+=o.userData.sp*dt*.5}horizon.rotation.y+=dt*.02;
+    for(let i=FX.length-1;i>=0;i--){const e=FX[i];e.t+=dt;const k=Math.min(1,e.t/e.life);e.upd&&e.upd(k,e.obj,dt);if(k>=1){FX.splice(i,1);if(e.obj){scene.remove(e.obj);e.obj.geometry?.dispose();e.obj.material?.dispose()}e.onEnd&&e.onEnd()}}
+    const a=B.me.p,b2=B.foe.p,mid=new THREE.Vector3((a.x+b2.x)/2,0,(a.z+b2.z)/2),sep=Math.hypot(a.x-b2.x,a.z-b2.z);
+    let tp,tl,kk=2.4;
+    if(CAM.mode==='orbit'){CAM.orb.a+=dt*CAM.orb.sp;tp=mid.clone().add(new THREE.Vector3(Math.cos(CAM.orb.a)*CAM.orb.r,CAM.orb.y,Math.sin(CAM.orb.a)*CAM.orb.r));tl=mid.clone().setY(1.1);kk=3}
+    else{const ln=new THREE.Vector3(b2.x-a.x,0,b2.z-a.z).normalize(),pp=new THREE.Vector3(-ln.z,0,ln.x);if(pp.dot(CAM.side)<0)pp.negate();CAM.side.lerp(pp,Math.min(1,dt*1.2)).normalize();
+      const dir=CAM.side.clone().applyAxisAngle(new THREE.Vector3(0,1,0),Math.sin(t*.22)*.45-.25);const dist=5.3+sep*.95;
+      tp=mid.clone().addScaledVector(dir,dist).setY(1.9+sep*.28+Math.sin(t*.37)*.3);tl=mid.clone().setY(1.0);
+      if(CAM.focusT>0&&CAM.focus){CAM.focusT-=dt;const fp=new THREE.Vector3(CAM.focus.p.x,0,CAM.focus.p.z);tp=tp.clone().lerp(fp.clone().addScaledVector(dir,4.2).setY(1.7),.35);tl=tl.clone().lerp(fp.setY(1.0),.45);kk=4}}
+    const k=1-Math.exp(-dt*kk);CAM.pos.lerp(tp,k);CAM.look.lerp(tl,k);CAM.shake*=Math.pow(.01,dt);
+    cam.position.copy(CAM.pos).add(new THREE.Vector3((Math.random()-.5)*CAM.shake,(Math.random()-.5)*CAM.shake,(Math.random()-.5)*CAM.shake));cam.lookAt(CAM.look);cam.fov=46-CAM.pump*1.5;cam.updateProjectionMatrix();
+  }
+  return R;
+}
+/* 2D fallback renderer: same fighters, flat stage */
+function renderer2D(arena,onTick){
+  const el=s=>$('#f'+s);let raf=0,last=performance.now(),alive=true;
+  const place=()=>{const W=arena.clientWidth,H=arena.clientHeight;for(const s of['me','foe']){const f=B[s],e=el(s),x=f.p.x+f.off.x,z=f.p.z+f.off.z,sc=1+z*.07;
+    e.style.left=(W/2+x*W*.1-e.offsetWidth/2)+'px';e.style.top=(H*.55+z*H*.07-(f.y+f.airY)*H*.12-e.offsetHeight*.75)+'px';e.style.right='auto';e.style.bottom='auto';
+    e.style.transform=`scale(${sc.toFixed(3)}) rotate(${(f.roll*-40+f.spin*57).toFixed(1)}deg) ${Math.sin(f.yaw)<0?'scaleX(-1)':''}`;e.style.opacity=f.ko?.35:1;e.style.zIndex=Math.round(10+z*2);e.style.filter=f.hitT>.2?'brightness(2)':''}};
+  const loop=n=>{if(!alive)return;const dt=Math.min(.05,(n-last)/1000);last=n;onTick(dt);place();raf=requestAnimationFrame(loop)};raf=requestAnimationFrame(loop);
+  const nop=()=>{},R={two:true,shoot:()=>sleep(250),beam:nop,impact:(d)=>fx(el(d.side),'hit'),kickArc:nop,punchFx:nop,dust:nop,pound:nop,heal:nop,drain:nop,buff:nop,glitch:nop,stun:nop,aura:nop,
+    vinyl:()=>sleep(900),flash(){},cam:{special:nop,auto:nop},
+    anchor(s){const r=el(s).getBoundingClientRect(),a=arena.getBoundingClientRect();return {x:r.left-a.left,y:r.top-a.top,w:r.width,h:r.height}},kill(){alive=false;cancelAnimationFrame(raf)}};
+  return R;
 }
 
-/* ---------- battle ---------- */
-let B=null,ST=null;
+/* ---------- auto battle ---------- */
+let B=null,RD=null;
+const DMG=.18;
 const fieldSVG=`<svg class="field" viewBox="0 0 400 300" preserveAspectRatio="none"><rect width="400" height="300" fill="#2c9a3e"/><g stroke="#fff" stroke-opacity=".55" stroke-width="1.5" fill="none">${[110,150,200,260].map(y=>`<path d="M0 ${y}H400"/>`).join('')}${[-300,-100,100,300,500,700].map(x=>`<path d="M200 60L${x} 300"/>`).join('')}</g><path d="M0 60H400" stroke="#fff" stroke-width="2.5"/><rect width="400" height="60" fill="#1f7a30"/></svg>`;
-function fighter(c,lvl,side){const st={...c,lvl,side,hp:c.maxhp,atk:0,def:0,spd:0,hype:0,stun:0,guard:0};if(c.aura==='Tempo Up')st.spd=1;if(c.aura==='Headliner')st.hype=35;return st}
+function fighter(c,lvl,side){const st={...c,lvl,side,hp:c.maxhp,atk:0,def:0,spd:0,hype:0,stun:0,
+  p:side==='me'?{x:-2.2,z:1.0}:{x:2.2,z:-1.0},off:{x:0,z:0},kb:{x:0,z:0},y:0,air:null,airY:0,yaw:side==='me'?1.2:-1.9,yawT:0,spin:0,lean:0,roll:0,sq:0,flash:0,hitT:0,stunT:0,tw:[],moving:false,want:false,ko:false,koT:0};
+  st.yawT=st.yaw;if(c.aura==='Tempo Up')st.spd=1;if(c.aura==='Headliner')st.hype=35;return st}
 const stage=v=>1+.25*clamp(v,-3,3)*(v<0?.67:1);
-function stage2D(){const el=s=>$('#f'+s),ar=()=>$('#arena');
-  return {two:true,async cast(){},async deliver(a){const e=el(a);e.classList.add(a==='me'?'lunge-r':'lunge-l');await sleep(170);e.classList.remove('lunge-r','lunge-l')},
-    impact(d){fx(el(d),'hit')},async heal(){await sleep(250)},async drain(){await sleep(250)},buff(){},debuff(){},stun(){},unstun(){},guard(){},
-    async finale(a,d,s){await this.deliver(a)},ko(s){el(s).style.opacity=.35},settle(){},kill(){},
-    anchor(s){const r=el(s).getBoundingClientRect(),a=ar().getBoundingClientRect();return {x:r.left-a.left,y:r.top-a.top,w:r.width,h:r.height}}}}
+const other=f=>f.side==='me'?B.foe:B.me;
+const eo=k=>1-(1-k)**3,eio=k=>k<.5?4*k*k*k:1-((-2*k+2)**3)/2;
+const tween=(f,dur,upd)=>new Promise(res=>f.tw.push({t:0,dur:Math.max(.001,dur),upd,res}));
+const waitT=(f,s)=>tween(f,s);
+const waitClock=(f,T)=>new Promise(res=>f.tw.push({clock:T,res}));
+function beatLead(f,lead=.1,div=1){const {t0,spb}=Music.grid(),u=spb/div,now=Music.now();let t=u-((((now-t0)/u)%1+1)%1)*u-lead;while(t<.02)t+=u;return waitT(f,t)}
+const faceTo=(f,o)=>{f.yawT=Math.atan2(o.p.x-f.p.x,o.p.z-f.p.z)};
+const clampP=p=>{const r=Math.hypot(p.x,p.z);if(r>ARENA_R){p.x*=ARENA_R/r;p.z*=ARENA_R/r}return p};
+function simTick(dt){
+  if(!B)return;
+  for(const s of['me','foe']){const f=B[s],frozen=B.frozen===s;
+    if(!frozen)for(let i=0;i<f.tw.length;i++){const w=f.tw[i];if(w.clock!=null){if(Music.now()>=w.clock){f.tw.splice(i--,1);w.res()}continue}
+      w.t+=dt;const k=Math.min(1,w.t/w.dur);w.upd&&w.upd(k);if(k>=1){f.tw.splice(i--,1);w.res()}}
+    f.p.x+=f.kb.x*dt;f.p.z+=f.kb.z*dt;const dmp=Math.pow(.002,dt);f.kb.x*=dmp;f.kb.z*=dmp;clampP(f.p);
+    if(f.air){f.air.t+=dt;const k=Math.min(1,f.air.t/f.air.d);f.airY=4*f.air.h*k*(1-k);f.roll=f.air.roll*Math.sin(k*Math.PI);if(k>=1){f.air=null;f.airY=0;f.roll=0;f.sq=.3}}
+    let d=f.yawT-f.yaw;d=Math.atan2(Math.sin(d),Math.cos(d));f.yaw+=d*Math.min(1,dt*10);
+    f.sq*=Math.pow(.001,dt);f.flash=Math.max(0,f.flash-dt*1.5);f.hitT=Math.max(0,f.hitT-dt*3);if(f.ko)f.koT+=dt;
+    if(!B.over&&!B.special&&!f.ko)f.hype=Math.min(100,f.hype+dt*1.8)}
+  const a=B.me.p,b=B.foe.p,dx=b.x-a.x,dz=b.z-a.z,dd=Math.hypot(dx,dz);if(dd<.85&&dd>0){const push=(.85-dd)/2;a.x-=dx/dd*push;a.z-=dz/dd*push;b.x+=dx/dd*push;b.z+=dz/dd*push}
+  if(B.hudT===undefined||(B.hudT-=dt)<0){B.hudT=.2;hud()}
+}
+/* movement + attacks */
+async function runTo(f,to,mul=1){clampP(to);const fr={...f.p},d=Math.hypot(to.x-fr.x,to.z-fr.z);if(d<.05)return;const sp=(3.4+f.stats.spd/45)*mul,dur=Math.max(.15,d/sp);
+  f.yawT=Math.atan2(to.x-fr.x,to.z-fr.z);f.moving=true;RD.dust(f);
+  await tween(f,dur,k=>{const e=eio(k);f.p.x=fr.x+(to.x-fr.x)*e;f.p.z=fr.z+(to.z-fr.z)*e;f.y=Math.abs(Math.sin(k*dur*15))*.13;f.lean=.28*Math.sin(k*Math.PI)});f.y=0;f.lean=0;f.moving=false;faceTo(f,other(f))}
+async function hopTo(f,to,h,dur,spins=0){clampP(to);const fr={...f.p};f.moving=true;f.sq=-.2;
+  await tween(f,dur,k=>{f.p.x=fr.x+(to.x-fr.x)*k;f.p.z=fr.z+(to.z-fr.z)*k;f.y=4*h*k*(1-k);f.spin=spins*Math.PI*2*eio(k);f.lean=-.25*Math.sin(k*Math.PI)});f.y=0;f.spin=0;f.lean=0;f.sq=.35;f.moving=false;RD.dust(f)}
+async function slideTo(f,to){clampP(to);const fr={...f.p};f.moving=true;f.yawT=Math.atan2(to.x-fr.x,to.z-fr.z);RD.dust(f);
+  await tween(f,.32,k=>{const e=eo(k);f.p.x=fr.x+(to.x-fr.x)*e;f.p.z=fr.z+(to.z-fr.z)*e;f.lean=-.55*Math.sin(Math.min(1,k*1.3)*Math.PI);f.y=0});f.lean=0;f.moving=false;RD.dust(f)}
+const nearPt=(f,o,r)=>{const dx=f.p.x-o.p.x,dz=f.p.z-o.p.z,d=Math.hypot(dx,dz)||1,j=(Math.random()-.5)*.6;return {x:o.p.x+dx/d*r-dz/d*j,z:o.p.z+dz/d*r+dx/d*j}};
+async function approach(f,o,r=1.15){const t=nearPt(f,o,r),d=Math.hypot(t.x-f.p.x,t.z-f.p.z);if(d<.3)return;if(d>2.6&&Math.random()<.35)await hopTo(f,t,.9,.5);else await runTo(f,t)}
+async function strikeAnim(f,o,sk,type,onHit){faceTo(f,o);const dx=o.p.x-f.p.x,dz=o.p.z-f.p.z,d=Math.hypot(dx,dz)||1,ux=dx/d,uz=dz/d;
+  if(type==='kick'){RD.kickArc(f,sk);await tween(f,.26,k=>{f.spin=Math.PI*2*eo(k);f.y=.4*Math.sin(k*Math.PI);f.off.x=ux*.45*Math.sin(k*Math.PI);f.off.z=uz*.45*Math.sin(k*Math.PI)});f.spin=0;f.y=0;onHit();return}
+  if(type==='upper'){await tween(f,.22,k=>{f.y=.9*Math.sin(k*Math.PI);f.lean=-.5*Math.sin(k*Math.PI);f.off.x=ux*.4*k;f.off.z=uz*.4*k});onHit();await tween(f,.15,k=>{f.off.x=ux*.4*(1-k);f.off.z=uz*.4*(1-k)});f.y=0;f.lean=0;return}
+  await tween(f,.09,k=>{f.lean=-.18*k;f.sq=-.12*k});RD.punchFx(f,sk);
+  await tween(f,.09,k=>{f.lean=-.18+.6*k;f.off.x=ux*.5*eo(k);f.off.z=uz*.5*eo(k)});onHit();
+  await tween(f,.18,k=>{f.lean=.42*(1-k);f.off.x=ux*.5*(1-k);f.off.z=uz*.5*(1-k)});f.off.x=f.off.z=0;f.lean=0}
+async function blastAnim(f,o,sk){faceTo(f,o);await tween(f,.1,k=>{f.lean=-.3*k;f.sq=-.15*k});const p=RD.shoot(f,o,sk);await tween(f,.15,k=>{f.lean=-.3*(1-k)});await p}
+function dodgeChance(a,d){return clamp(.1+(d.stats.spd*stage(d.spd)-a.stats.spd*stage(a.spd))/260,.05,.24)}
+function dodge(d,a){const dx=d.p.x-a.p.x,dz=d.p.z-a.p.z,n=Math.hypot(dx,dz)||1,s=Math.random()<.5?1:-1;d.kb.x+=(-dz/n*s*.8+dx/n*.3)*9;d.kb.z+=(dx/n*s*.8+dz/n*.3)*9;d.air={t:0,d:.38,h:.55,roll:s*.5};RD.dust(d)}
+function hitF(a,d,sk,o={}){
+  if(B.over||d.hp<=0)return 0;
+  if(o.canDodge!==false&&!d.stunT&&B.frozen!==d.side&&Math.random()<dodgeChance(a,d)){dodge(d,a);pop(d.side,'DODGE!','#7fd3ff');return 0}
+  const useFx=['DRAIN','DISSONANCE','OFFBEAT'].includes(sk.kind),aStat=sk.kind==='FINALE'?Math.max(a.stats.atk,a.stats.fx):useFx?a.stats.fx:a.stats.atk;
+  const fxB=a.aura==='Nocturne'&&a.hp<a.maxhp/2&&useFx?1.25:1,od=a.aura==='Overdrive'?1.12:1,mult=typeMult(sk.tone,d.dom),pw=o.pw??sk.pw;
+  let dmg=pw*(aStat*stage(a.atk)*fxB)/(d.stats.def*stage(d.def))*DMG*mult*od*(o.tm||1)*(.9+Math.random()*.2);dmg=Math.max(1,Math.round(dmg));
+  d.hp=Math.max(0,d.hp-dmg);Music.thud();RD.impact(d,sk,mult,o.small);d.hitT=1;
+  const dx=d.p.x-a.p.x,dz=d.p.z-a.p.z,n=Math.hypot(dx,dz)||1,kbs=o.kb??3.2;d.kb.x+=dx/n*kbs;d.kb.z+=dz/n*kbs;if(!d.air&&!o.small)d.air={t:0,d:.25,h:.18,roll:0};
+  pop(d.side,String(dmg),null,'dmg');if(!o.small&&Math.random()<.5)pop(d.side,TONES[sk.tone].boom[(Math.random()*3)|0],TONES[sk.tone].c);
+  if(!B.special){a.hype=Math.min(100,a.hype+6);d.hype=Math.min(100,d.hype+5)}
+  if(d.hp<=0)ko(d);return dmg}
+function ko(d){d.ko=true;B.over=true;d.tw.length=0;RD.stun(d,false);setTimeout(()=>end(d.side==='foe'),1500)}
+async function act(f,o,sk){
+  shout(f,sk);f.flash=1;RD.aura(f,sk);if(f.side==='foe')B.heard.add(sk.src.t);
+  const k=sk.kind;
+  if(k==='ENCORE'){await hopTo(f,{...f.p},1.0,.55,1);const amt=Math.round(f.maxhp*.22*(f.stats.fx/62));f.hp=Math.min(f.maxhp,f.hp+amt);RD.heal(f,sk);pop(f.side,'+'+amt,null,'dmg');return}
+  if(k==='OFFBEAT'||k==='DRAIN'){if(Math.hypot(f.p.x-o.p.x,f.p.z-o.p.z)<2.4)await hopTo(f,nearPt(f,o,3.2),.6,.42);await beatLead(f,.25);if(B.over)return;
+    if(k==='DRAIN'){RD.beam(f,o,sk);const dmg=hitF(f,o,sk,{kb:1.5});if(dmg){RD.drain(o,f,sk);await waitT(f,.6);const hl=Math.round(dmg*.5);f.hp=Math.min(f.maxhp,f.hp+hl);pop(f.side,'+'+hl,null,'dmg')}return}
+    await blastAnim(f,o,sk);const dmg=hitF(f,o,sk);if(dmg&&o.hp>0&&Math.random()<.3){o.stunT=1.6;RD.stun(o,true);setTimeout(()=>RD.stun(o,false),1600)}return}
+  if(k==='DISSONANCE'){await slideTo(f,nearPt(f,o,1.0));await beatLead(f,.12);if(B.over)return;await strikeAnim(f,o,sk,'upper',()=>{if(hitF(f,o,sk)&&o.def>-3){o.def--;RD.glitch(o,sk)}});return}
+  if(k==='CRESCENDO'){await approach(f,o,2.4);await beatLead(f,.42);if(B.over)return;await hopTo(f,nearPt(f,o,.95),1.7,.42);RD.pound(f,sk);hitF(f,o,sk,{kb:5});if(f.atk<3){f.atk++;RD.buff(f,sk)}return}
+  if(k==='FLURRY'){await approach(f,o,1.1);for(let i=0;i<3&&!B.over;i++){await beatLead(f,.1,2);await strikeAnim(f,o,sk,i%2?'kick':'punch',()=>hitF(f,o,sk,{small:i<2,kb:i<2?1.2:4,canDodge:i===0}))}return}
+  await approach(f,o,1.15);await beatLead(f,.18);if(B.over)return;await strikeAnim(f,o,sk,Math.random()<.5?'punch':'kick',()=>hitF(f,o,sk,{kb:4.5}));
+  if(Math.random()<.4&&!B.over)await hopTo(f,nearPt(f,o,2.4),.5,.35);
+}
+async function reposition(f,o){const r=Math.random(),a0=Math.atan2(f.p.z-o.p.z,f.p.x-o.p.x),a=a0+(Math.random()<.5?1:-1)*(.6+Math.random()*.8),rad=2+Math.random()*1.6,t={x:o.p.x+Math.cos(a)*rad,z:o.p.z+Math.sin(a)*rad};
+  if(r<.45)await runTo(f,t,.8);else if(r<.75)await hopTo(f,t,.7,.45,Math.random()<.3?1:0);else await slideTo(f,t)}
+function pick(f,o){const opts=f.skills.filter(s=>!(s.kind==='ENCORE'&&f.hp>f.maxhp*.5));let best=opts[0],sc=-1;for(const s of opts){const v=(s.pw||60)*typeMult(s.tone,o.dom)*(s.kind==='ENCORE'?1.5:1)*(.6+Math.random()*.8);if(v>sc){sc=v;best=s}}return best}
+async function brain(f){const o=other(f),mine=B;await waitT(f,.5+Math.random()*.7);
+  while(!B.over&&B===mine&&!f.ko){
+    if(f.stunT>0){const s=f.stunT;f.stunT=0;await waitT(f,s);continue}
+    if(B.special){await waitT(f,.15);continue}
+    if(f.side==='me'&&f.want&&f.hype>=100){f.want=false;await special(f,o);continue}
+    if(f.side==='foe'&&f.hype>=100){await special(f,o);continue}
+    if(Math.random()<.28)await reposition(f,o);else await act(f,o,pick(f,o));
+    if(B.over)break;await waitT(f,.2+(110-clamp(f.stats.spd*stage(f.spd),40,110))/200+Math.random()*.35)}}
+/* the S special: tap on the beat */
+async function special(f,o){
+  const sk=f.closer||f.skills[0],isMe=f.side==='me',N=8;B.special=f.side;B.frozen=o.side;f.hype=0;hud();sBtn();
+  shout(f,{...sk,name:(f.closer?sk.name:shoutName(sk.src.t,'FINALE',0))},true);f.flash=1.5;RD.cam.special(f,o);RD.buff(f,sk);
+  await approach(f,o,1.2);
+  const {t0,spb}=Music.grid(),first=Math.ceil((Music.now()-t0)/spb)+2,beats=Array.from({length:N},(_,i)=>t0+(first+i)*spb),res=Array(N).fill(null);
+  const ui=isMe?specialUI(beats,res,spb):null;
+  let perf=0;
+  for(let i=0;i<N&&!B.over;i++){
+    await waitClock(f,beats[i]+(isMe?.17:0));
+    let r=res[i];if(!isMe){const x=Math.random();r=x<.45?'PERFECT':x<.8?'GOOD':'MISS'}r=r||'MISS';res[i]=r;if(ui)ui.judge(i,r);if(r==='PERFECT')perf++;
+    const type=['punch','kick','upper','punch','kick','punch','upper','kick'][i];
+    if(r==='MISS'){f.sq=.2;pop(f.side,'miss','#ffffff');continue}
+    strikeAnim(f,o,sk,type,()=>hitF(f,o,sk,{pw:sk.pw*.13*(r==='PERFECT'?1.25:.75),canDodge:false,small:true,kb:.6}));
+  }
+  if(ui)ui.done(perf,N);
+  if(!B.over){await waitT(f,.3);await hopTo(f,{...f.p},1.4,.45,1);await RD.vinyl(f,o,sk);hitF(f,o,sk,{pw:sk.pw*.35*(.5+perf/N),canDodge:false,kb:7});pop(f.side,`${perf}/${N} PERFECT`,'#ffd400')}
+  await waitT(f,.6);B.special=null;B.frozen=null;RD.cam.auto();sBtn();
+}
+function specialUI(beats,res,spb){
+  window.SX&&(SX.lastBeats=beats);const rh=$('#rh'),rg=$('#rg'),jd=$('#jd'),rl=$('#rl');rh.classList.add('on','sp');rl.textContent='TAP ON THE BEAT!';jd.textContent='';let raf,alive=true,combo=0;
+  const loop=()=>{if(!alive)return;const now=Music.now(),i=res.findIndex(x=>!x);if(i<0)return;const dt=beats[i]-now;rg.style.transform=`scale(${clamp(1+dt/spb*1.4,1,3).toFixed(3)})`;rg.style.opacity=dt>spb*1.3?.25:1;
+    if(i===0&&dt>spb*.9)jd.textContent=dt>spb*1.6?'READY…':'GO!';raf=requestAnimationFrame(loop)};raf=requestAnimationFrame(loop);
+  rh.onpointerdown=e=>{e.preventDefault();const now=Music.now();let bi=-1,bo=1;for(let i=0;i<beats.length;i++){if(res[i])continue;const off=Math.abs(now-beats[i]);if(off<bo){bo=off;bi=i}}
+    if(bi<0||bo>.18)return;res[bi]=bo<.075?'PERFECT':bo<.15?'GOOD':'MISS'};
+  const key=e=>{if(e.code==='Space'||e.key==='Enter'){e.preventDefault();rh.onpointerdown(e)}};window.addEventListener('keydown',key);
+  return {judge(i,r){combo=r==='MISS'?0:combo+1;jd.textContent=r+(combo>1?' ×'+combo:'')},done(p,n){alive=false;cancelAnimationFrame(raf);window.removeEventListener('keydown',key);rh.onpointerdown=null;jd.textContent=`${p}/${n} PERFECT`;setTimeout(()=>rh.classList.remove('on','sp'),700)}}}
+/* comic shouts */
+function shout(f,sk,big){const a=$('#arena');if(!a)return;Music.sfx(sk.motif,sk.tone,f.side==='me'?60:55);
+  const d=document.createElement('div');d.className='shout'+(big?' big':'');d.style.setProperty('--c',TONES[sk.tone].c);d.style.setProperty('--r',((Math.random()-.5)*14).toFixed(1)+'deg');
+  d.innerHTML=`<span>${esc(sk.name)}</span>`;a.appendChild(d);
+  if(!big){const r=RD.anchor(f.side);d.style.left=clamp(r.x+r.w/2-d.offsetWidth/2,6,a.clientWidth-d.offsetWidth-6)+'px';d.style.top=clamp(r.y-30,6,a.clientHeight-90)+'px'}
+  setTimeout(()=>d.remove(),big?2000:1300);log(`${f.name}: “${sk.name}”`)}
+function pop(side,text,color,cls='boom'){const a=$('#arena');if(!a||!RD)return;const r=RD.anchor(side),d=document.createElement('div');d.className=cls;d.textContent=text;if(color)d.style.setProperty('--c',color);
+  d.style.left=clamp(r.x+r.w*(.2+Math.random()*.35),4,a.clientWidth-90)+'px';d.style.top=clamp(r.y+r.h*(.05+Math.random()*.3),4,a.clientHeight-50)+'px';a.appendChild(d);setTimeout(()=>d.remove(),1000)}
+function fx(el,cls,ms=380){el.classList.add(cls);return sleep(ms).then(()=>el.classList.remove(cls))}
+const log=t=>{const l=$('#log');if(l)l.textContent=t};
+function hud(){if(!B)return;for(const k of['me','foe']){const f=B[k],h=$('#h'+k);if(!h)return;h.innerHTML=`<div><b>${esc(f.name)}</b> <span style="float:right">${TONES[f.dom].label}</span></div><div class="hp"><i style="width:${(f.hp/f.maxhp*100).toFixed(1)}%"></i></div><div class="st">${Math.max(0,Math.ceil(f.hp))}/${f.maxhp}${f.atk?` ATK+${f.atk}`:''}${f.def<0?` DEF${f.def}`:''}</div><div class="hy"><i style="width:${f.hype.toFixed(0)}%"></i></div>`}
+  const hb=$('#hyb');if(hb)hb.style.width=B.me.hype.toFixed(1)+'%';sBtn()}
+function sBtn(){const b=$('#sbtn');if(!b||!B)return;const ready=B.me.hype>=100&&!B.special&&!B.over;b.disabled=!ready&&!B.me.want;b.classList.toggle('ready',ready&&!B.me.want);
+  $('#hyt').textContent=B.over?'':B.special==='me'?'Tap on every beat!':B.special==='foe'?'Rival special! Brace…':B.me.want?'Special queued…':ready?'Press S for your special!':'Hype fills as you fight. At 100, press S.'}
 function viewBattle(){
-  kill3D();
+  kill3D();if(B){B.over=true}
   const me=activeCreature();if(!me)return go('ritual');
   const R=RIVALS[S.rival%RIVALS.length],foe=makeCreature(R.pl,R.lvl);
-  B={me:fighter(me,1,'me'),foe:fighter(foe,R.lvl,'foe'),busy:false,heard:new Set(),R};
-  if(me.aura==='Undertow')B.foe.spd=-1;if(foe.aura==='Undertow')B.me.spd=-1;
-  scr.innerHTML=`<div class="arena" id="arena">${fieldSVG}
+  B={me:fighter(me,1,'me'),foe:fighter(foe,R.lvl,'foe'),over:false,special:null,frozen:null,heard:new Set(),R};
+  if(me.aura==='Undertow')B.foe.spd=-1;if(foe.aura==='Undertow')B.me.spd=-1;faceTo(B.me,B.foe);faceTo(B.foe,B.me);B.me.yaw=B.me.yawT;B.foe.yaw=B.foe.yawT;
+  scr.innerHTML=`<div class="arena big" id="arena">${fieldSVG}
    <div class="fighter f-foe" id="ffoe">${creatureSVG(foe)}</div><div class="fighter f-me" id="fme">${creatureSVG(me)}</div>
    <div class="hud foe" id="hfoe"></div><div class="hud me" id="hme"></div>
    <button class="vt" id="vtb" aria-pressed="${S.battle3d}">${S.battle3d?'3D on':'3D'}</button>
    <div class="rhythm" id="rh"><div class="ringbox"><div class="tgt"></div><div class="rg" id="rg"></div></div><div class="judge" id="jd"></div><div class="lbl" id="rl"></div></div></div>
-   <div class="log" id="log"></div><div class="cmds" id="cmds"></div>
+   <div class="log" id="log"></div>
+   <div class="ctrl"><div class="hypebox"><b>Hype</b><div class="hbar"><i id="hyb"></i></div><small id="hyt"></small></div><button class="sbtn" id="sbtn" aria-label="Special move" disabled>S</button></div>
    <div class="over" id="over"></div>`;
-  setMusicFor(me.mix,me.key);
-  hud();log(`${R.who} drops the needle on ${foe.name}! Turn the music on to hear the beat you're tapping to.`);cmds();
-  $('#vtb').onclick=()=>{if(B.busy)return;S.battle3d=!S.battle3d;store.set('sx.battle3d',S.battle3d);const b=$('#vtb');b.setAttribute('aria-pressed',S.battle3d);b.textContent=S.battle3d?'3D on':'3D';mountStage()};
-  mountStage();
+  setMusicFor(me.mix,me.key);hud();log(`${R.who} drops the needle on ${foe.name}! It fights on its own. Turn the music on and get ready to tap.`);
+  $('#sbtn').onclick=()=>{if(B.me.hype>=100&&!B.special&&!B.over){B.me.want=true;sBtn()}};
+  B.keyS=e=>{if((e.key==='s'||e.key==='S')&&S.view==='battle')$('#sbtn').click()};window.addEventListener('keydown',B.keyS);
+  $('#vtb').onclick=()=>{S.battle3d=!S.battle3d;store.set('sx.battle3d',S.battle3d);const b=$('#vtb');b.setAttribute('aria-pressed',S.battle3d);b.textContent=S.battle3d?'3D on':'3D';mountRenderer()};
+  const myB=B;mountRenderer().then(()=>{if(B===myB&&!B.started){B.started=true;brain(B.me);brain(B.foe)}});
 }
-async function mountStage(){
-  kill3D();const ar=$('#arena');ar.classList.remove('d3');ST=stage2D();
-  ['me','foe'].forEach(s=>{$('#f'+s).style.opacity=B[s].hp>0?'':'.35'});
-  if(!S.battle3d)return;
-  const myB=B;
-  try{const st=await stage3D(ar,B.me,B.foe);if(B!==myB||!ar.isConnected){st.kill();return}
-    ST=st;ar.classList.add('d3');LIVE3D=()=>{st.kill();ar.classList.remove('d3')};for(const s of['me','foe'])if(B[s].hp<=0)st.ko(s)}
-  catch(e){console.warn('3D unavailable',e);if(ar.isConnected)log('3D could not load here, so this fight is in 2D.')}
-}
-function hud(){for(const k of['me','foe']){const f=B[k];$('#h'+k).innerHTML=`<div><b>${esc(f.name)}</b> <span style="float:right">${TONES[f.dom].label}</span></div><div class="hp"><i style="width:${(f.hp/f.maxhp*100).toFixed(1)}%"></i></div><div class="st">${Math.max(0,Math.ceil(f.hp))}/${f.maxhp}${f.atk?` ATK${f.atk>0?'+':''}${f.atk}`:''}${f.def?` DEF${f.def>0?'+':''}${f.def}`:''}${f.stun?' · dazed':''}</div>${k==='me'?`<div class="hy"><i style="width:${f.hype}%"></i></div><div class="st">HYPE ${Math.round(f.hype)}</div>`:''}`}}
-const log=t=>{const l=$('#log');if(l)l.textContent=t};
-function effTag(s){const m=typeMult(s.tone,B.foe.dom);return m>1?'<span class="eff up">▲ strong</span>':m<1?'<span class="eff dn">▼ weak</span>':''}
-function cmds(){
-  const m=B.me,list=m.skills.map((s,i)=>`<button class="cmd" data-k="${i}"><i style="background:${TONES[s.tone].c}"></i><b>${esc(s.name)}</b><small>${KINDS[s.kind].d} ${effTag(s)}</small></button>`);
-  list.push(`<button class="cmd" data-k="g"><i style="background:#fff"></i><b>Guard</b><small>halve damage · +20 hype</small></button>`);
-  if(m.closer)list.push(`<button class="cmd fin" data-k="c" ${m.hype>=100?'':'disabled'}><b>★ ${esc(m.closer.name)}</b><small>Closer · ${m.hype>=100?'ready!':'fill your hype to 100'} ${effTag(m.closer)}</small></button>`);
-  $('#cmds').innerHTML=list.join('');
-  $('#cmds').querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>turn(b.dataset.k));
-}
-function rhythm(label){return new Promise(res=>{
-  const rh=$('#rh'),rg=$('#rg'),jd=$('#jd');$('#rl').textContent=label;jd.textContent='';rh.classList.add('on');
-  const start=Music.now(),{spb}=Music.grid();let done=false,raf;
-  const loop=()=>{const {t0,spb}=Music.grid(),ph=(((Music.now()-t0)/spb)%1+1)%1;rg.style.transform=`scale(${(1+1.3*(1-ph)).toFixed(3)})`;rg.style.opacity=(.4+.6*ph).toFixed(2);if(Music.now()-start>spb*4)fin(null);else raf=requestAnimationFrame(loop)};
-  const fin=off=>{if(done)return;done=true;cancelAnimationFrame(raf);rh.onpointerdown=null;window.removeEventListener('keydown',key);
-    const r=off==null?'MISS':off<.075?'PERFECT':off<.15?'GOOD':'MISS';jd.textContent=r==='MISS'&&off==null?'TOO SLOW':r+'!';setTimeout(()=>{rh.classList.remove('on');res(r)},420)};
-  const tap=()=>{const now=Music.now();if(now-start<.18)return;const {t0,spb}=Music.grid(),p=(now-t0)/spb,off=Math.abs(p-Math.round(p))*spb;fin(off)};
-  const key=e=>{if(e.code==='Space'||e.key==='Enter'){e.preventDefault();tap()}};
-  rh.onpointerdown=e=>{e.preventDefault();tap()};window.addEventListener('keydown',key);raf=requestAnimationFrame(loop)})}
-function fx(el,cls,ms=380){el.classList.add(cls);return sleep(ms).then(()=>el.classList.remove(cls))}
-function pop(side,text,color,cls='boom'){const a=$('#arena');if(!a)return;const r=ST.anchor(side),d=document.createElement('div');d.className=cls;d.textContent=text;if(color)d.style.setProperty('--c',color);
-  d.style.left=clamp(r.x+r.w*(.2+Math.random()*.35),4,a.clientWidth-90)+'px';d.style.top=clamp(r.y+r.h*(.05+Math.random()*.25),4,a.clientHeight-50)+'px';a.appendChild(d);setTimeout(()=>d.remove(),1000)}
-async function use(atk,def,s,isMe){
-  log(`${atk.name} plays ${s.name}!`);
-  const len=Music.sfx(s.motif,s.tone,isMe?60:55);if(!isMe)B.heard.add(s.src.t);
-  await ST.cast(atk.side,s);
-  await sleep(Math.max(0,Math.min(900,(len||.5)*1000)-260));
-  const needsHit=s.kind!=='ENCORE';let judge='GOOD';
-  if(isMe)judge=await rhythm(s.kind==='ENCORE'?'TAP ON THE BEAT TO HEAL':'TAP ON THE BEAT!');
-  else if(needsHit&&!def.guard)judge=await rhythm('GUARD ON THE BEAT!');
-  const tm=isMe?{PERFECT:1.3,GOOD:1.1,MISS:.85}[judge]:{PERFECT:.55,GOOD:.8,MISS:1}[judge];
-  if(isMe)atk.hype=clamp(atk.hype+{PERFECT:18,GOOD:10,MISS:4}[judge],0,100);
-  if(s.kind==='ENCORE'){const amt=Math.round(atk.maxhp*.26*(atk.stats.fx/62)*(isMe?tm:1));await ST.heal(atk.side,s);atk.hp=Math.min(atk.maxhp,atk.hp+amt);pop(atk.side,'+'+amt,null,'dmg');pop(atk.side,TONES[s.tone].boom[1],TONES[s.tone].c);hud();log(`${atk.name} recovers ${amt} HP.`);ST.settle();return}
-  const useFx=['DRAIN','DISSONANCE','OFFBEAT'].includes(s.kind),aStat=s.kind==='FINALE'?Math.max(atk.stats.atk,atk.stats.fx):useFx?atk.stats.fx:atk.stats.atk;
-  const fxBoost=atk.aura==='Nocturne'&&atk.hp<atk.maxhp/2&&useFx?1.25:1,od=atk.aura==='Overdrive'?1.12:1;
-  const hits=s.kind==='FLURRY'?3:1;let total=0;const mult=typeMult(s.tone,def.dom);
-  if(s.kind==='FINALE')await ST.finale(atk.side,def.side,s);
-  for(let h=0;h<hits;h++){
-    if(s.kind!=='FINALE')await ST.deliver(atk.side,def.side,s,h);
-    let dmg=s.pw*(aStat*stage(atk.atk)*fxBoost)/(def.stats.def*stage(def.def))*1.05*mult*tm*od*(def.guard?.5:1)*(.92+Math.random()*.14);
-    dmg=Math.max(1,Math.round(dmg));def.hp=Math.max(0,def.hp-dmg);total+=dmg;
-    Music.thud();ST.impact(def.side,s,h,mult);pop(def.side,String(dmg),null,'dmg');if(h===0)pop(def.side,TONES[s.tone].boom[(Math.random()*3)|0],TONES[s.tone].c);hud();if(hits>1)await sleep(200)}
-  if(!isMe)def.hype=clamp(def.hype+8,0,100);
-  let extra='';
-  if(s.kind==='DRAIN'){const hl=Math.round(total*.5);await ST.drain(def.side,atk.side,s);atk.hp=Math.min(atk.maxhp,atk.hp+hl);pop(atk.side,'+'+hl,null,'dmg');extra=` Drained ${hl} HP.`}
-  if(s.kind==='CRESCENDO'&&atk.atk<3){atk.atk++;ST.buff(atk.side,s);extra=' ATK rises!'}
-  if(s.kind==='DISSONANCE'&&def.def>-3){def.def--;ST.debuff(def.side,s);extra=` ${def.name}'s DEF drops!`}
-  if(s.kind==='OFFBEAT'&&def.hp>0&&Math.random()<(judge==='PERFECT'&&isMe?.55:.35)){def.stun=1;ST.stun(def.side);extra=` ${def.name} is dazed!`}
-  if(s.kind==='FINALE')atk.hype=0;
-  if(def.hp<=0)ST.ko(def.side);
-  log(`${s.name} hits for ${total}${mult>1?' (strong!)':mult<1?' (weak…)':''}.${extra}`+(isMe?` ${judge==='PERFECT'?'Perfect timing!':judge==='GOOD'?'Good timing.':'Off the beat.'}`:''));hud();
-  await sleep(s.kind==='FINALE'?700:350);ST.settle();
-}
-function foeChoice(){const f=B.foe,opts=f.skills.filter(s=>!(s.kind==='ENCORE'&&f.hp>f.maxhp*.55));let best=opts[0],sc=-1;
-  for(const s of opts){const v=(s.pw||60)*typeMult(s.tone,B.me.dom)*(s.kind==='ENCORE'?1.4:1)*(.7+Math.random()*.6);if(v>sc){sc=v;best=s}}
-  if(f.closer&&f.hype>=100)return f.closer;return best}
-async function turn(k){
-  if(B.busy)return;B.busy=true;const myB=B;$('#cmds').querySelectorAll('button').forEach(b=>b.disabled=true);
-  const m=B.me,f=B.foe;m.guard=k==='g'?1:0;f.guard=0;
-  if(m.guard){m.hype=clamp(m.hype+20,0,100);ST.guard('me',true);log(`${m.name} braces and listens…`);hud();await sleep(600)}
-  const mySkill=k==='c'?m.closer:k==='g'?null:m.skills[+k];
-  const order=(m.stats.spd*stage(m.spd))>=(f.stats.spd*stage(f.spd))?['me','foe']:['foe','me'];
-  for(const who of order){
-    if(B!==myB)return;
-    const a=B[who],d=B[who==='me'?'foe':'me'];if(a.hp<=0||d.hp<=0)continue;
-    if(a.stun){a.stun=0;ST.unstun(who);log(`${a.name} is dazed and misses the cue!`);hud();await sleep(900);continue}
-    if(d.aura==='Lullaby'&&Math.random()<.12){log(`${a.name} dozes off to ${d.name}'s lullaby…`);await sleep(900);continue}
-    if(who==='me'){if(mySkill)await use(m,f,mySkill,true)}else{f.hype=clamp(f.hype+12,0,100);await use(f,m,foeChoice(),false)}
-    await sleep(500);
-  }
-  if(B!==myB)return;
-  ST.guard('me',false);
-  for(const x of[m,f])if(x.aura==='Heartbeat'&&x.hp>0){x.hp=Math.min(x.maxhp,x.hp+Math.round(x.maxhp*.05))}
-  hud();
-  if(f.hp<=0||m.hp<=0)return end(f.hp<=0);
-  B.busy=false;cmds();
+async function mountRenderer(){
+  const ar=$('#arena'),myB=B;if(RD){RD.kill();RD=null}ar.classList.remove('d3');const tmp=renderer2D(ar,simTick);RD=tmp;LIVE3D=()=>{myB.over=true;window.removeEventListener('keydown',myB.keyS);tmp.kill()};
+  if(S.battle3d){try{const r=await renderer3D(ar,()=>{});if(B!==myB||!ar.isConnected||RD!==tmp){r.kill();return}tmp.kill();r.setTick(simTick);RD=r;ar.classList.add('d3');LIVE3D=()=>{myB.over=true;window.removeEventListener('keydown',myB.keyS);r.kill();if(RD===r)RD=null};return}
+    catch(e){console.warn('3D unavailable',e);log('3D could not load here, so this fight is in 2D.')}}
+
 }
 function end(won){
-  const f=B.foe,mask=t=>t.split(/\s+/).map(w=>w[0]+'_'.repeat(Math.max(0,w.length-1))).join(' ');
-  const heard=[...B.heard];
-  const o=$('#over');o.classList.add('on');
-  o.innerHTML=`<h2>${won?'You win!':'Knocked out…'}</h2><p class="sub">${won?`${esc(f.name)} spins down. `:''}${esc(B.R.who)}'s record stays secret — but you heard ${heard.length} of its songs:</p>
+  if(!$('#over'))return;const f=B.foe,mask=t=>t.split(/\s+/).map(w=>w[0]+'_'.repeat(Math.max(0,w.length-1))).join(' ');
+  const heard=[...B.heard];const o=$('#over');o.classList.add('on');sBtn();
+  o.innerHTML=`<h2>${won?'You win!':'Knocked out…'}</h2><p class="sub">${won?`${esc(f.name)} spins down. `:''}${esc(B.R.who)}'s record stays secret, but you heard ${heard.length} of its songs:</p>
   ${heard.map(t=>`<p class="mask">♪ ${esc(mask(t))}</p>`).join('')||'<p class="note">None this time.</p>'}
-  <p class="note">Hints show each word's first letter. In the full game these would be the real clips you heard, with a link back to the song.</p>
+  <p class="note">Each word shows its first letter. Their shouts gave you clues too.</p>
   <div class="row" style="margin-top:14px">${won&&S.rival<RIVALS.length-1?'<button class="btn" id="nx" style="background:var(--VOLT)">Next rival →</button>':''}<button class="btn" id="again">Rematch</button><button class="btn" id="tocard">Back to card</button></div>`;
   if(won&&S.rival<RIVALS.length-1)$('#nx').onclick=()=>{S.rival++;viewBattle();syncBob()};
   $('#again').onclick=()=>{viewBattle();syncBob()};$('#tocard').onclick=()=>go('card');
@@ -1033,7 +1082,7 @@ mute.onclick=()=>{if(Music.on){Music.stop();mute.setAttribute('aria-pressed','fa
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{if(b.dataset.v==='ritual'&&!S.editing){}go(b.dataset.v)});
 if(activeEntry())S.view='card';
 render();
-window.SX={S,Music,makeCreature,creatureSVG,SAMPLES,RIVALS,go,turn,B:()=>B,ST:()=>ST,MB};
+window.SX={S,Music,makeCreature,creatureSVG,SAMPLES,RIVALS,go,B:()=>B,RD:()=>RD,MB};
 }
 </script>
 </body>
