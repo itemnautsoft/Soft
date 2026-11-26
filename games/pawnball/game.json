@@ -1,9 +1,14 @@
 {
   "title": "Pawnball",
-  "blurb": "Fling numbered pawns, bump friends for +1, bonk uniforms till the helmet pops. Nobody crosses alone.",
+  "blurb": "3D: fling numbered pawns, bump friends for +1, bonk uniforms till the helmet pops. Drag to look around. Nobody crosses alone.",
   "date": "2026-11-26",
   "updated": "2026-11-26",
-  "tags": ["mobile", "arcade", "physics"],
-  "controls": "Drag back from a pawn and let go",
+  "tags": [
+    "mobile",
+    "arcade",
+    "physics",
+    "3d"
+  ],
+  "controls": "Drag back from a pawn to fling. Drag the board to orbit, pinch to zoom, double-tap to reset view",
   "artifact": "https://claude.ai/artifact/NCuFTc1P3j7az3BfrGXJtA"
 }
