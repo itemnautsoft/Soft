@@ -94,7 +94,16 @@
     transition:opacity .25s, transform .25s; background:#fffdf6; border:4px solid var(--ink); border-radius:18px; padding:10px 18px;
     font-weight:800; font-size:22px; text-align:center; max-width:86vw; box-shadow:0 6px 0 rgba(0,0,0,.25); }
   #toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
-  #help { position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 18px); transform:translateX(-50%); pointer-events:none;
+  #pad { position:fixed; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 14px); display:none;
+    justify-content:space-between; align-items:flex-end; padding:0 14px; pointer-events:none; }
+  #pad button { pointer-events:auto; width:74px; height:74px; border-radius:50%; border:4px solid var(--ink);
+    background:rgba(255,255,255,.88); color:var(--ink); font-size:30px; font-weight:800; line-height:1; padding:0;
+    box-shadow:0 5px 0 var(--ink); display:flex; flex-direction:column; align-items:center; justify-content:center;
+    touch-action:none; -webkit-user-select:none; user-select:none; }
+  #pad button small { font-size:12px; margin-top:1px; }
+  #pad #padJ { width:86px; height:86px; background:#4cb963; color:#fff; margin-bottom:10px; }
+  #pad button.pressed { transform:translateY(4px); box-shadow:0 1px 0 var(--ink); }
+  #help { position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 118px); transform:translateX(-50%); pointer-events:none;
     background:rgba(29,29,36,.8); color:#fff; border-radius:14px; padding:8px 14px; font-weight:800; font-size:16px; text-align:center;
     opacity:0; transition:opacity .4s; width:max-content; max-width:90vw; }
   #help.show { opacity:1; }
@@ -176,6 +185,11 @@
   </div>
 </div>
 
+<div id="pad">
+  <button id="padL" aria-label="Move left">◀</button>
+  <button id="padJ" aria-label="Hop">▲<small data-t="hopBtn">HOP</small></button>
+  <button id="padR" aria-label="Move right">▶</button>
+</div>
 <div id="toast"></div>
 <div id="help"></div>
 <div id="flash"></div>
@@ -194,14 +208,14 @@ const cv = $('game'), ctx = cv.getContext('2d');
 // ---------------- Text (English / Spanish) ----------------
 const TXT = {
   en: { play:'Play', cont:'Continue · Stage {n}', shop:'Shop', musicOn:'♪ Music: On', musicOff:'♪ Music: Off', lang:'Español',
-    by:'a Trouble Makers game', help:'Swipe ← → to move · Swipe ↑ to hop', mode3d:'🧊 3D: On', mode2d:'🧊 3D: Off', loading3d:'Loading 3D…', fail3d:'3D could not load here', on3d:'3D mode', on2d:'2D mode', paused:'Paused', resume:'Resume',
+    by:'a Trouble Makers game', help:'Tap ◀ ▶ to move · HOP to jump (or swipe)', hopBtn:'HOP', mode3d:'🧊 3D: On', mode2d:'🧊 3D: Off', loading3d:'Loading 3D…', fail3d:'3D could not load here', on3d:'3D mode', on2d:'2D mode', paused:'Paused', resume:'Resume',
     restart:'Restart stage', menu:'Menu', over:'Out of hearts!', again:'Try again · Stage {n}', points:'Points', stage:'Stage {n}',
     street:'Street', school:'School', missed:'Missed a star!<br>Run the stage again', next:'⭐⭐⭐<br>Stage {n}!',
     home:'🏠 Sid made it home!<br>Next stop: school', characters:'Characters', caps:'Caps (Sid)', poos:'Poo hats (Scott)', back:'Back', free:'Free',
     select:'Use', selected:'Using', buy:'Buy', wet:'Wet floor! Slip!', ouch:'Ouch!', best:'Best: {s} points · Stage {n}',
     stats:'Stage {n} · {p} points · +{c} coins', go:'Go!' , start:'Stage {n}<br><small>Find the 3 stars!</small>' },
   es: { play:'Jugar', cont:'Continuar · Etapa {n}', shop:'Tienda', musicOn:'♪ Música: Sí', musicOff:'♪ Música: No', lang:'English',
-    by:'un juego de Trouble Makers', help:'Desliza ← → para moverte · Desliza ↑ para saltar', mode3d:'🧊 3D: Sí', mode2d:'🧊 3D: No', loading3d:'Cargando 3D…', fail3d:'El 3D no pudo cargar aquí', on3d:'Modo 3D', on2d:'Modo 2D', paused:'Pausa', resume:'Seguir',
+    by:'un juego de Trouble Makers', help:'Toca ◀ ▶ para moverte · SALTA para saltar', hopBtn:'SALTA', mode3d:'🧊 3D: Sí', mode2d:'🧊 3D: No', loading3d:'Cargando 3D…', fail3d:'El 3D no pudo cargar aquí', on3d:'Modo 3D', on2d:'Modo 2D', paused:'Pausa', resume:'Seguir',
     restart:'Reiniciar etapa', menu:'Menú', over:'¡Sin corazones!', again:'Otra vez · Etapa {n}', points:'Puntos', stage:'Etapa {n}',
     street:'Calle', school:'Escuela', missed:'¡Te faltó una estrella!<br>Corre la etapa otra vez', next:'⭐⭐⭐<br>¡Etapa {n}!',
     home:'🏠 ¡Sid llegó a su casa!<br>Ahora: la escuela', characters:'Personajes', caps:'Gorras (Sid)', poos:'Popós (Scott)', back:'Volver', free:'Gratis',
@@ -588,7 +602,7 @@ function jump() {
   G.p.air = true; G.p.vy = 9.8; sfx('jump');
 }
 let sw = null;
-cv.addEventListener('pointerdown', e => { sw = { x:e.clientX, y:e.clientY, done:false }; });
+for (const el of [cv, $('game3d')]) el.addEventListener('pointerdown', e => { sw = { x:e.clientX, y:e.clientY, done:false }; });
 addEventListener('pointermove', e => {
   if (!sw || sw.done) return;
   const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
@@ -978,6 +992,12 @@ $('langBtn').onclick = () => { save.lang = save.lang === 'en' ? 'es' : 'en'; per
 $('pauseBtn').onclick = e => { e.stopPropagation(); if (state === 'play') pauseGame(); else if (state === 'paused') resumeGame(); };
 $('pauseBtn').addEventListener('pointerdown', e => e.stopPropagation());
 $('resumeBtn').onclick = resumeGame;
+for (const [id, act] of [['padL', () => move(-1)], ['padR', () => move(1)], ['padJ', () => jump()]]) {
+  const b = $(id);
+  b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audioInit(); act(); b.classList.add('pressed'); });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => b.classList.remove('pressed'));
+  b.addEventListener('contextmenu', e => e.preventDefault());
+}
 $('pick2d').onclick = () => { if (save.mode3d) setMode3D(false); };
 $('pick3d').onclick = () => { if (!save.mode3d) setMode3D(true); };
 $('mode3dBtn2').onclick = () => setMode3D(!save.mode3d);
@@ -1475,6 +1495,7 @@ function frame(now) {
   if (state === 'play' || state === 'menu' || state === 'shop') update(dt);
   if (save.mode3d && R3) render3D(dt); else render();
   if (state === 'play' || state === 'paused' || state === 'over') updateHud();
+  $('pad').style.display = state === 'play' ? 'flex' : 'none';
   if ($('menu').classList.contains('show')) { if (save.mode3d && R3) drawMenuSid3D(now / 1000); else drawMenuSid(now / 1000); }
   if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) $('toast').classList.remove('show'); }
   if (helpTimer > 0) { helpTimer -= dt; if (helpTimer <= 0) $('help').classList.remove('show'); }
