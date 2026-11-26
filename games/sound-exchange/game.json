@@ -1,6 +1,6 @@
 {
   "title": "Sound Exchange",
-  "blurb": "Press a playlist into a battle creature. The title shapes its body; every song adds a part, stats and a move named after the song. Creatures brawl on their own in 3D, shouting their moves like comic sound effects. Fill your hype, hit S, and tap to the beat for a special.",
+  "blurb": "Press a playlist into a battle creature. In battle, each creature rides the edge of its own spinning record: spin clockwise to strike as you pass the gap, counter-clockwise to block or parry. Moves are named after your songs and shouted like comic sound effects. Fill your hype, hit S, and tap to the beat.",
   "date": "2026-11-25",
   "updated": "2026-11-26",
   "tags": [
@@ -10,6 +10,6 @@
     "rhythm",
     "3d"
   ],
-  "controls": "Type an artist or song and pick a suggestion (or tap a sample), then press. Battles play out on their own. When hype hits 100, press S (or the S key), then tap the screen (or Space) on every beat. The 3D button toggles 3D; drag the 3D card model to spin it.",
+  "controls": "Scratch (drag around) your record or tap \u27f3/\u27f2: clockwise attacks when you pass the gap, counter-clockwise into the gap as the rival strikes parries, holding still near the gap blocks. Arrow keys work too. At 100 hype press S (or the S key) and tap (or Space) on every beat.",
   "artifact": "https://claude.ai/artifact/CEjeSQnL6RLrhKZgqqUsPx"
 }
