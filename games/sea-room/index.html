@@ -96,6 +96,29 @@
   #renameBox div{background:var(--paper);border:1.5px solid var(--ink);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:12px}
   #renameBox input{font:inherit;font-size:18px;padding:8px 10px;border:1.5px solid var(--ink);border-radius:8px;width:210px;background:#fff}
   #err{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#fff;text-align:center;padding:30px}
+  /* camera roll (cameraman) */
+  .cmr{position:absolute;inset:0;background:var(--paper);display:none;flex-direction:column;box-sizing:border-box;padding:22px 18px 0;z-index:30}
+  .cmr.on{display:flex}
+  .cmh{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-bottom:14px;border-bottom:1.5px solid var(--ink)}
+  .cmh b{flex:1 0 100%;font-size:26px;font-weight:800;margin-bottom:4px}
+  .cmr button{font:700 13px 'M PLUS Rounded 1c',system-ui,sans-serif;color:var(--ink);background:var(--paper);border:1.5px solid var(--ink);border-radius:var(--r);padding:7px 11px}
+  .cmr .cms{background:var(--yel)}
+  .cmx{position:absolute;right:18px;top:20px;width:36px;height:36px;border-radius:50%!important;padding:0!important;font-size:16px!important}
+  .cmg{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px 0 30px;align-content:start;-webkit-overflow-scrolling:touch}
+  .cmg .cmt{position:relative;padding:0 0 177.78%!important;height:0;overflow:hidden;border-radius:8px!important;background:#ddd!important}
+  .cmg .cmt img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+  .cmg .tag{position:absolute;z-index:1;left:5px;bottom:6px;background:var(--yel);border:1.5px solid var(--ink);border-radius:6px;padding:0 5px;font-size:9px;font-weight:800;max-width:85%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cmg .fav{position:absolute;z-index:1;right:6px;top:4px;font-size:16px}
+  .cme{grid-column:1/-1;font-size:14px;color:#77736a;line-height:1.5;max-width:320px}
+  .cmv{position:absolute;inset:0;z-index:5;background:var(--paper);display:none;flex-direction:column;padding:18px 14px 16px;box-sizing:border-box}
+  .cmv.on{display:flex}
+  .cmvm{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+  .cmvm img,.cmvm video{max-width:100%;min-height:0;flex:0 1 auto;max-height:100%;border:1.5px solid var(--ink);border-radius:var(--r);background:#ddd;object-fit:contain}
+  .cmc{margin:0;font-size:13px;line-height:1.45;text-align:center;max-width:340px}
+  .cmvb{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding-top:12px}
+  .cmf{position:absolute;left:var(--m);top:162px;z-index:6;pointer-events:none;background:var(--paper);border:1.5px solid var(--ink);border-radius:var(--r);padding:5px 10px;font-size:13px;font-weight:800;opacity:0}
+  .cmf.on{animation:cmfa 1.8s ease-out}
+  @keyframes cmfa{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}</script>
 </head>
@@ -104,7 +127,7 @@
   <div id="hud">
     <div id="top">
       <div id="cards"></div>
-      <div class="icons"><button class="ib" id="snap" aria-label="Take a photo for the diary">📷</button><button class="ib" id="book" aria-label="Open the diary">📖</button><button class="ib" id="mic" aria-label="Voice commands">🎤</button><button class="ib" id="mute" aria-label="Sound on or off">🔊</button></div>
+      <div class="icons"><button class="ib" id="snap" aria-label="Take a photo for the diary">📷</button><button class="ib" id="book" aria-label="Open the diary">📖</button><button class="ib" id="roll" aria-label="Camera roll">🎞️</button><button class="ib" id="mic" aria-label="Voice commands">🎤</button><button class="ib" id="mute" aria-label="Sound on or off">🔊</button></div>
     </div>
     <div id="panel"></div>
     <div id="floats"></div>
@@ -2028,7 +2051,9 @@ function tick() {
     if (p.bubbleT <= 0 || q.behind) p.bubble.classList.remove('on');
   }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) toastEl.classList.remove('on'); }
+  srBefore(dt);
   renderer.render(scene, camera);
+  srAfter();
   if (snapPending) { snapPending = false; doSnap(); }
   requestAnimationFrame(tick);
 }
@@ -2048,7 +2073,232 @@ $('#go').onclick = async () => {
   setTimeout(() => { sBark(); say(dog, 'WOOF! HI!', 1.6); }, 900);
   setTimeout(() => { if (!sensorOn) toast('Tilt sensors aren’t available here, so the ⟲ ⟳ buttons turn the room.', 4); }, 1800);
 };
-window.__seaRoom = { pets, dog, cat, ball, turn, feed, napPets, throwBall, command, handleVoice, startCall, moveCall, endCall, safeSpot, toHud,
+/* ---------- cameraman core: storage + Camera roll (shared across Itemnaut games) ---------- */
+function makeCamRoll(o) {
+  const $i = id => document.getElementById(id), P = o.prefix, CFG = { auto: true, clips: true, big: false };
+  try { Object.assign(CFG, JSON.parse(localStorage.getItem(P + '_cfg') || '{}')); } catch (e) {}
+  const saveCfg = () => { try { localStorage.setItem(P + '_cfg', JSON.stringify(CFG)); } catch (e) {} };
+  let db = null, list = [], cur = -1, urls = [], dirty = false, isOpen = false;
+  const openDB = () => db ? Promise.resolve(db) : new Promise((ok, no) => { const r = indexedDB.open(P + '_cam', 1); r.onupgradeneeded = () => r.result.createObjectStore('shots', { keyPath: 'id' }); r.onsuccess = () => { db = r.result; ok(db); }; r.onerror = () => no(r.error); });
+  const tx = (mode, fn) => openDB().then(d => new Promise((ok, no) => { const t = d.transaction('shots', mode), out = fn(t.objectStore('shots')); t.oncomplete = () => ok(out && 'result' in out ? out.result : undefined); t.onerror = () => no(t.error); }));
+  const all = () => tx('readonly', s => s.getAll()).then(a => (a || []).sort((x, y) => y.t - x.t)).catch(() => []);
+  const id = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  async function put(rec) {
+    rec.id = rec.id || id(); rec.t = rec.t || Date.now();
+    try {
+      await tx('readwrite', s => s.put(rec)); const a = await all(), del = [];
+      [['photo', 48], ['clip', 12]].forEach(([k, cap]) => { const L = a.filter(r => r.kind === k && !r.fav); if (L.length > cap) { L.sort((x, y) => (x.hype - y.hype) || (x.t - y.t)); del.push(...L.slice(0, L.length - cap)); } });
+      if (del.length) await tx('readwrite', s => { del.forEach(r => s.delete(r.id)); });
+      flash(rec);
+    } catch (e) {}
+  }
+  function flash(rec) { const f = $i(P + 'F'); if (!f) return; f.textContent = (rec.kind === 'clip' ? '🎬 ' : '📸 ') + (rec.tag || ''); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+  const free = () => { urls.forEach(u => URL.revokeObjectURL(u)); urls = []; };
+  const url = b => { const u = URL.createObjectURL(b); urls.push(u); return u; };
+  function sync() { $i(P + 'A').textContent = 'Auto photos: ' + (CFG.auto ? 'on' : 'off'); $i(P + 'V').textContent = 'Clips: ' + (CFG.clips ? 'on' : 'off'); $i(P + 'Z').textContent = 'Size: ' + (CFG.big ? 'Poster 4K' : 'Phone'); }
+  async function show() {
+    free(); list = await all(); const g = $i(P + 'G'); g.innerHTML = '';
+    if (!list.length) { g.innerHTML = '<p class="cme">' + o.empty + '</p>'; return; }
+    list.forEach((r, i) => {
+      const d = document.createElement('button'); d.className = 'cmt';
+      if (r.thumb) { const im = new Image(); im.src = url(r.thumb); d.append(im); }
+      const t = document.createElement('span'); t.className = 'tag'; t.textContent = (r.kind === 'clip' ? '▶ ' : '') + (r.tag || '') + (r.kind === 'clip' && r.dur ? ' ' + r.dur + 's' : ''); d.append(t);
+      if (r.fav) { const s = document.createElement('span'); s.className = 'fav'; s.textContent = '★'; d.append(s); }
+      d.onclick = () => view(i); g.append(d);
+    });
+  }
+  function view(i) {
+    cur = (i + list.length) % list.length; const r = list[cur], m = $i(P + 'M'); m.innerHTML = '';
+    if (r.kind === 'clip') { const v = document.createElement('video'); v.src = url(r.blob); v.controls = v.loop = v.autoplay = v.muted = v.playsInline = true; v.setAttribute('playsinline', ''); m.append(v); }
+    else { const im = new Image(); im.src = url(r.blob); m.append(im); }
+    if (r.cap) { const c = document.createElement('p'); c.className = 'cmc'; c.textContent = r.cap; m.append(c); }
+    $i(P + 'K').textContent = r.fav ? '★ Kept' : '☆ Keep'; $i(P + 'W').classList.add('on');
+  }
+  const file = r => { const ty = r.blob.type || '', ext = ty.includes('png') ? 'png' : ty.includes('mp4') ? 'mp4' : ty.includes('webm') ? 'webm' : 'jpg'; return new File([r.blob], o.fileBase + '-' + (r.ev || 'shot') + '-' + r.id + '.' + ext, { type: ty }); };
+  function dl(r) { const f = file(r), a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 3000); }
+  async function share(r) { const f = file(r); if (navigator.canShare && navigator.canShare({ files: [f] })) { try { await navigator.share({ files: [f], title: o.title, text: r.cap || '' }); } catch (e) {} } else dl(r); }
+  function open() { isOpen = true; o.onOpen && o.onOpen(); sync(); $i(P + 'R').classList.add('on'); show(); }
+  function close() { isOpen = false; $i(P + 'W').classList.remove('on'); $i(P + 'R').classList.remove('on'); $i(P + 'M').innerHTML = ''; free(); }
+  const closeView = () => { $i(P + 'W').classList.remove('on'); $i(P + 'M').innerHTML = ''; if (dirty) { dirty = false; show(); } };
+  // markup
+  const root = document.createElement('div'); root.id = P + 'R'; root.className = 'cmr';
+  root.innerHTML = `<div class="cmh"><b>Camera roll</b><button id="${P}S" class="cms">📸 Snap now</button><button id="${P}A"></button><button id="${P}V"></button><button id="${P}Z"></button></div><button id="${P}X" class="cmx">✕</button><div id="${P}G" class="cmg"></div><div id="${P}W" class="cmv"><div id="${P}M" class="cmvm"></div><div class="cmvb"><button id="${P}P">‹</button><button id="${P}K">☆ Keep</button><button id="${P}H">Share</button><button id="${P}D">Save</button><button id="${P}Q">Delete</button><button id="${P}N">›</button><button id="${P}C">✕</button></div></div>`;
+  (o.mount || document.body).append(root);
+  if (!$i(P + 'F')) { const f = document.createElement('div'); f.id = P + 'F'; f.className = 'cmf'; (o.flashMount || document.body).append(f); }
+  $i(P + 'X').onclick = close;
+  $i(P + 'A').onclick = () => { CFG.auto = !CFG.auto; saveCfg(); sync(); };
+  $i(P + 'V').onclick = () => { CFG.clips = !CFG.clips; saveCfg(); sync(); };
+  $i(P + 'Z').onclick = () => { CFG.big = !CFG.big; saveCfg(); sync(); };
+  $i(P + 'S').onclick = () => { close(); o.onSnap && o.onSnap(); };
+  $i(P + 'C').onclick = closeView;
+  $i(P + 'P').onclick = () => view(cur - 1); $i(P + 'N').onclick = () => view(cur + 1);
+  $i(P + 'H').onclick = () => share(list[cur]); $i(P + 'D').onclick = () => dl(list[cur]);
+  $i(P + 'K').onclick = async () => { const r = list[cur]; r.fav = !r.fav; await tx('readwrite', s => s.put(r)); $i(P + 'K').textContent = r.fav ? '★ Kept' : '☆ Keep'; dirty = true; };
+  $i(P + 'Q').onclick = async () => { const r = list[cur]; await tx('readwrite', s => s.delete(r.id)); closeView(); await show(); if (list.length) view(Math.min(cur, list.length - 1)); };
+  return { CFG, put, all, open, close, get isOpen() { return isOpen; } };
+}
+/* shared helpers */
+const cmBlob = (c, t, q) => new Promise(ok => c.toBlob(ok, t, q));
+function cmShrink(c, w) { const h = Math.round(c.height * w / c.width), k = document.createElement('canvas'); k.width = w; k.height = h; k.getContext('2d').drawImage(c, 0, 0, w, h); return k; }
+function cmMime() { if (!window.MediaRecorder) return ''; return ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || ''; }
+/* comic speech bubble drawn into a capture (x,y = speaker's head in canvas px) */
+function cmBubble(x2, x, y, text, s, font) {
+  x2.save(); x2.font = '800 ' + Math.round(34 * s) + 'px ' + font; const w = x2.measureText(text).width + 34 * s, h = 58 * s, W = x2.canvas.width;
+  let bx = Math.max(12 * s, Math.min(W - w - 12 * s, x - w / 2)), by = Math.max(12 * s, y - h - 46 * s);
+  x2.lineWidth = 4 * s; x2.strokeStyle = '#1d1d24'; x2.fillStyle = '#fff';
+  const r = 18 * s; x2.beginPath(); x2.moveTo(bx + r, by); x2.arcTo(bx + w, by, bx + w, by + h, r); x2.arcTo(bx + w, by + h, bx, by + h, r);
+  const tx = Math.max(bx + 24 * s, Math.min(bx + w - 24 * s, x)); x2.lineTo(tx + 12 * s, by + h); x2.lineTo(Math.max(bx, Math.min(bx + w, x)), Math.min(y - 8 * s, by + h + 30 * s)); x2.lineTo(tx - 12 * s, by + h);
+  x2.arcTo(bx, by + h, bx, by, r); x2.arcTo(bx, by, bx + w, by, r); x2.closePath(); x2.fill(); x2.stroke();
+  x2.fillStyle = '#1d1d24'; x2.textBaseline = 'middle'; x2.fillText(text, bx + 17 * s, by + h / 2 + 1 * s); x2.restore();
+}
+
+/* ---------- cameraman: a second camera that catches the pets' big moments ----------
+   Watches each pet's behaviour and speech, scores it, and takes portrait photos from its own
+   angles (eye level, floor, overhead, profile, the pair, sea view, corner wide) with the speech
+   bubble drawn in. Big moments also get a short "pet cam" clip that follows the pet.
+   The player's view never moves. Everything goes to the Camera roll (🎞). */
+const SRCM_HYPE = {
+  dog: { zoomies: 4, roll: 4, sneeze: 4, rollover: 3, belly: 3, bow: 3, spin: 3, chase: 3, yawn: 3, shake: 3, paw: 3, sleep: 2, eat: 2, happy: 2, watch: 2, beg: 2, sad: 2, drink: 1, circle: 1, sniff: 1 },
+  cat: { swat: 4, pounceRun: 4, zoomies: 4, roll: 4, snub: 3, stalk: 3, rub: 3, belly: 3, yawn: 3, perchWatch: 3, flop: 2, knead: 2, scratch: 2, stretch: 2, loaf: 2, sleep: 2, groom: 2, happy: 2, beg: 2, drink: 1 }
+};
+const SRCM_TAG = { zoomies: 'ZOOMIES!', roll: 'WHEEE', sneeze: 'ACHOO!', rollover: 'ROLL OVER', belly: 'BELLY', bow: 'PLAY BOW', spin: 'SPIN', chase: 'FETCH', yawn: 'YAWN', shake: 'SHAKE', paw: 'HIGH FIVE',
+  sleep: 'ZZZ', eat: 'DINNER', happy: 'HAPPY', watch: 'SEA VIEW', beg: 'HUNGRY', sad: 'SAD', swat: 'SWAT!', pounceRun: 'POUNCE!', snub: 'SNUB', stalk: 'STALK', rub: 'BOOP', perchWatch: 'GULLS',
+  flop: 'SUNBEAM', knead: 'KNEAD', scratch: 'SCRATCH', stretch: 'STRETCH', loaf: 'LOAF', groom: 'GROOM', cuddle: 'CUDDLE', pretty: 'SEA ROOM', snap: 'SNAP' };
+const SRCM_MEME = new Set(['MINE.', 'HSSS!', 'ACHOO!', 'MY TAIL!', 'ENOUGH.', '…fine.', 'you ok?', 'NOT AGAIN', '*BURP*', 'SHE’S HUNGRY!!', 'sorry!!', 'NOT SLEEPY!', '…nope.', '…hmph.', 'finally.', '*dignified*', 'MORE?!', 'BELLY RUBS?', 'ZOOMIES!', 'PLAY?? PLAY??', 'boop ♡', '…later.', 'ROLLY POLLY!']);
+const SRCM_FONT = "'M PLUS Rounded 1c',system-ui,sans-serif";
+const srRoll = makeCamRoll({ prefix: 'srcm', title: 'Sea Room', fileBase: 'sea-room', mount: $('#stage'), flashMount: $('#hud'),
+  empty: 'Nothing yet. The cameraman catches zoomies, swats, sneezes, naps and sea views on its own. Tap 📸 Snap now for a shot from its angle.',
+  onOpen: () => { srQ.length = 0; if (srClip) srClipStop(); }, onSnap: () => { const p = pets[(Math.random() * 2) | 0]; srQ.push({ at: performance.now() + 150, p, ev: 'snap', hype: 2 }); } });
+const srCam = new THREE.PerspectiveCamera(40, 9 / 16, .05, 900), srRay = new THREE.Raycaster(), srV = new V3(), srV2 = new V3();
+let srQ = [], srHist = [], srLast = {}, srShotT = 0, srWhim = performance.now() + 50000, srClip = null, srClipT = -1e9, srCuddleT = -1e9;
+const srHead = p => new V3(p.x, p.y + p.H * .92 - p.P.lower * p.sp.scale, p.z);
+const srMid = p => new V3(p.x, p.y + p.H * .5, p.z);
+const srKey = p => p.ballMode ? 'roll' : p.state;
+const srR = (a, b) => a + Math.random() * (b - a);
+/* say() also feeds the cameraman: funny lines are worth a photo with the bubble in it */
+{ const say0 = say; say = function (p, t, dur) { say0(p, t, dur); p._cmSay = { t, at: performance.now() };
+  if (started && srRoll.CFG.auto && !srRoll.isOpen && SRCM_MEME.has(t)) srEvent(p, 'say', 4, t); }; }
+function srEvent(p, ev, h, line) {
+  const now = performance.now(), k = p.kind + ':' + ev + (line || '');
+  const duo = dist(p, p.other) < 1.6 && !p.other.ballMode; if (duo) h += 1;
+  if (h < 3 || now - (srLast[k] || -1e9) < 25000 || srQ.some(q => q.p === p)) return;
+  srLast[k] = now; srQ.push({ at: now + (ev === 'say' ? 250 : 450), p, ev, hype: h, line, duo });
+  if (h >= 4 && ev !== 'say') srQ.push({ at: now + 1350, p, ev, hype: h - .5, duo });
+  if (h >= 4 && srRoll.CFG.clips && !srClip && now - srClipT > 30000 && ev !== 'say') srClipStart(p, ev, h);
+}
+function srWatch() {
+  const now = performance.now();
+  for (const p of pets) { const k = srKey(p); if (k !== p._cmS) { p._cmS = k; const h = (SRCM_HYPE[p.kind] || {})[k] || 0; if (h >= 3) srEvent(p, k, h); } }
+  if (isSleeping(dog) && isSleeping(cat) && dist(dog, cat) < 1.5 && now - srCuddleT > 90000) { srCuddleT = now; srQ.push({ at: now + 300, p: dog, ev: 'cuddle', hype: 5, duo: true }); }
+  if (now > srWhim && !srQ.length && !srClip) { srWhim = now + srR(60000, 100000); const p = pets.find(q => ['watch', 'perchWatch', 'sleep', 'loaf', 'flop'].includes(q.state)) || pets[(Math.random() * 2) | 0]; srQ.push({ at: now, p, ev: 'pretty', hype: 2 }); }
+}
+/* framing */
+const SRCM_V = { snap: ['eye', 'low', 'side', 'sea', 'top'], pretty: ['sea', 'wide', 'eye'], sleep: ['top', 'eye', 'sea'], cuddle: ['duo', 'top'], perchWatch: ['sea', 'low'], watch: ['sea', 'side'],
+  zoomies: ['side', 'low', 'wide'], roll: ['low', 'side', 'top'], say: ['eye', 'low', 'side'], swat: ['duo', 'eye', 'low'], snub: ['eye', 'low'], belly: ['top', 'eye'], rollover: ['top', 'low'], loaf: ['eye', 'low'] };
+function srPick(q) { let L = (SRCM_V[q.ev] || ['eye', 'low', 'side', 'top']).slice(); if (q.duo && !L.includes('duo')) L.unshift('duo');
+  const recent = srHist.slice(-12), fresh = L.filter(v => !recent.includes(q.p.kind + q.ev + ':' + v)); L = fresh.length ? fresh : L; return L[(Math.random() * L.length) | 0]; }
+const srIn = v => { v.x = clamp(v.x, -HX + .42, HX - .42); v.z = clamp(v.z, -HZ + .42, HZ - .42); v.y = clamp(v.y, .14, RH - .3); return v; };
+function srRoom(x, z, a) { // how far a lens can back away from (x,z) in direction a before reaching a wall
+  const dx = Math.sin(a), dz = Math.cos(a), m = .45; let t = 99;
+  if (dx > 1e-4) t = Math.min(t, (HX - m - x) / dx); if (dx < -1e-4) t = Math.min(t, (-HX + m - x) / dx);
+  if (dz > 1e-4) t = Math.min(t, (HZ - m - z) / dz); if (dz < -1e-4) t = Math.min(t, (-HZ + m - z) / dz); return Math.max(.3, t); }
+function srFit(p, a, y, look, k, aspect) { // back away along a as far as wanted, then widen the lens until the pet fits
+  const hv = p.H * 1.25 * k, want = p.H * (2.6 + .9 * k), d = Math.min(want, srRoom(p.x, p.z, a)), pos = new V3(p.x + Math.sin(a) * d, y, p.z + Math.cos(a) * d);
+  const dd = pos.distanceTo(look), fov = clamp(2 * Math.atan(hv / dd) * 180 / Math.PI, 30, 78); return { pos, look, fov };
+}
+function srBestDir(p, a0, spread) { let best = a0, bd = -1; for (let i = 0; i < 7; i++) { const a = a0 + (i / 6 - .5) * 2 * spread, d = srRoom(p.x, p.z, a); if (d > bd + .2) { bd = d; best = a; } } return best; }
+function srFrame(v, p, aspect = 9 / 16) {
+  const head = srHead(p), mid = srMid(p), yaw = p.yaw || 0, look = mid.clone().lerp(head, .4);
+  let f;
+  if (v === 'eye') f = srFit(p, srBestDir(p, yaw + srR(-.5, .5), .7), head.y * .9, look, .72, aspect);
+  else if (v === 'low') f = srFit(p, srBestDir(p, yaw + srR(-.6, .6), .8), .2, mid.clone().lerp(head, .6), .85, aspect);
+  else if (v === 'side') f = srFit(p, srBestDir(p, yaw + (Math.random() < .5 ? 1 : -1) * Math.PI / 2, .9), head.y * .75, look, 1.05, aspect);
+  else if (v === 'top') { const pos = new V3(p.x + Math.sin(yaw) * .5, Math.min(RH - .3, p.H + 2.2), p.z + Math.cos(yaw) * .5 + .01); f = { pos, look: mid, fov: clamp(2 * Math.atan(p.H * 1.1 / pos.distanceTo(mid)) * 180 / Math.PI, 40, 80) }; }
+  else if (v === 'duo') { const o = p.other, m = new V3((p.x + o.x) / 2, Math.max(p.H, o.H) * .5, (p.z + o.z) / 2), dx = o.x - p.x, dz = o.z - p.z, L = Math.hypot(dx, dz) || 1,
+      a = srBestDir({ x: m.x, z: m.z }, Math.atan2(-dz, dx) + (Math.random() < .5 ? 0 : Math.PI), .6), d = Math.min(srRoom(m.x, m.z, a), L * 1.6 + 4), pos = new V3(m.x + Math.sin(a) * d, m.y + .5, m.z + Math.cos(a) * d);
+    f = { pos, look: m, fov: clamp(2 * Math.atan((L * .6 + Math.max(p.H, o.H) * .8) / aspect / d) * 180 / Math.PI, 34, 80) }; }
+  else if (v === 'sea') { const pos = new V3(p.x * .5 + srR(-.4, .4), head.y + .6, Math.min(HZ - .3, p.z + p.H * 3)); f = { pos, look: new V3(p.x, head.y * .75, p.z - 3), fov: 62 }; }
+  else { const pos = new V3((Math.random() < .5 ? -1 : 1) * (HX - .25), 2.8, clamp(p.z + srR(4, 6), -HZ + .3, HZ - .3)); f = { pos, look: mid, fov: 70 }; }
+  srIn(f.pos); return f;
+}
+function srPetBlocks(pos, tgt, o) { // does pet o stand between the lens and tgt?
+  const c = srMid(o), ab = srV2.copy(tgt).sub(pos), L = ab.length(); if (L < 1e-3) return false; ab.divideScalar(L);
+  const t = c.clone().sub(pos).dot(ab); if (t < 0 || t > L - .3) return false; return c.distanceTo(pos.clone().addScaledVector(ab, t)) < o.R * 1.15 + .1; }
+function srClear(f, p) { // the head, body and feet must all be in plain view of the lens
+  if (srPetBlocks(f.pos, srMid(p), p.other) || srPetBlocks(f.pos, srHead(p), p.other)) return false;
+  for (const tgt of [srHead(p), srMid(p), new V3(p.x, p.y + .18, p.z)]) {
+    const d = f.pos.distanceTo(tgt); srRay.set(f.pos, srV.copy(tgt).sub(f.pos).normalize()); srRay.far = d;
+    if (srRay.intersectObject(room, true).some(x => x.object.visible && x.distance < d - p.R * .8 && !(x.object.material && x.object.material.transparent))) return false;
+  }
+  return true; }
+function srAim(cam, f, aspect) { cam.fov = f.fov; cam.aspect = aspect; cam.position.copy(f.pos); cam.up.set(0, 1, 0); cam.lookAt(f.look); cam.updateProjectionMatrix(); cam.updateMatrixWorld(); }
+function srRenderTo(cam, fn) { // render with every wall up (we stand inside the room), then put things back
+  const wv = Object.values(wallGroups).map(g => g.visible); Object.values(wallGroups).forEach(g => g.visible = true);
+  try { fn(); } finally { Object.values(wallGroups).forEach((g, i) => g.visible = wv[i]); }
+}
+function srBubbles(x2, cam, W, H, s) {
+  for (const p of pets) { if (!(p.bubbleT > 0) || !p._cmSay || /^[….!? z]*$/.test(p._cmSay.t)) continue; srV2.copy(srHead(p)).project(cam); if (srV2.z > 1 || Math.abs(srV2.x) > 1.1 || Math.abs(srV2.y) > 1.1) continue;
+    cmBubble(x2, (srV2.x + 1) / 2 * W, (1 - srV2.y) / 2 * H, p._cmSay.t, s * 1.5, SRCM_FONT); }
+}
+function srShoot(q) {
+  const now = performance.now(); if (!started || srRoll.isOpen || document.hidden || (q.ev !== 'snap' && now - srShotT < 2500)) return;
+  let v, f; for (let i = 0; i < 8; i++) { v = srPick(q); f = srFrame(v, q.p); if (srClear(f, q.p)) break; f = null; }
+  if (!f) return; const hk = q.p.kind + q.ev + ':' + v, score = q.hype + (srHist.slice(-12).includes(hk) ? 0 : 2);
+  if (q.ev !== 'snap' && score < 4) return; srHist.push(hk); if (srHist.length > 40) srHist.shift(); srShotT = now;
+  const big = srRoll.CFG.big, W = big ? 2160 : 1080, H = big ? 3840 : 1920, c = document.createElement('canvas'); c.width = W; c.height = H;
+  srAim(srCam, f, W / H);
+  const pr = renderer.getPixelRatio(), sz = renderer.getSize(new THREE.Vector2());
+  srRenderTo(srCam, () => { try { renderer.setPixelRatio(1); renderer.setSize(W, H, false); renderer.render(scene, srCam); c.getContext('2d').drawImage(renderer.domElement, 0, 0, W, H); }
+    finally { renderer.setPixelRatio(pr); renderer.setSize(sz.x, sz.y, false); } });
+  renderer.render(scene, camera);
+  srBubbles(c.getContext('2d'), srCam, W, H, W / 1080);
+  const line = q.line || (q.p._cmSay && now - q.p._cmSay.at < 1800 ? q.p._cmSay.t : ''), tag = q.ev === 'say' ? q.line.toUpperCase().slice(0, 16) : (SRCM_TAG[q.ev] || q.ev.toUpperCase());
+  const cap = caption() + (line ? ' ' + q.p.name + ': “' + line + '”' : '');
+  Promise.all([cmBlob(c, big ? 'image/png' : 'image/jpeg', .92), cmBlob(cmShrink(c, 270), 'image/jpeg', .8)]).then(([blob, thumb]) => { if (blob) srRoll.put({ kind: 'photo', ev: q.ev, v, hype: score, tag, cap, blob, thumb, w: W, h: H }); });
+}
+/* pet cam clips: the second camera follows the pet for a few seconds */
+function srClipStart(p, ev, h) {
+  const mt = cmMime(), k = document.createElement('canvas'); if (!mt || !k.captureStream) return;
+  const bs = renderer.getDrawingBufferSize(new THREE.Vector2()), pr = renderer.getPixelRatio();
+  let ch = Math.min(srRoll.CFG.big ? 1920 : 1280, bs.y, Math.floor(bs.x * 16 / 9)); ch -= ch % (2 * Math.ceil(pr)); const cw = Math.round(ch * 9 / 16 / 2) * 2; if (ch < 320) return;
+  k.width = cw; k.height = ch; let mode, f = null; for (let i = 0; i < 6 && !f; i++) { mode = ['track', 'orbit', 'low'][(Math.random() * 3) | 0]; f = srFrame(mode === 'low' ? 'low' : mode === 'orbit' ? 'eye' : 'side', p); if (!srClear(f, p)) f = null; } if (!f) return;
+  try {
+    const rec = new MediaRecorder(k.captureStream(30), { mimeType: mt, videoBitsPerSecond: srRoll.CFG.big ? 12e6 : 6e6 }), ch2 = [];
+    rec.ondataavailable = e => { if (e.data && e.data.size) ch2.push(e.data); }; rec.start(500);
+    const off = f.pos.clone().sub(new V3(p.x, 0, p.z));
+    srClip = { p, ev, h, rec, ch2, mt, k, x2: k.getContext('2d'), t0: performance.now(), dur: srR(6000, 8000), mode, lift: 0, fov: f.fov, pos: f.pos.clone(), look: f.look.clone(), off, a: Math.atan2(off.x, off.z), r: Math.hypot(off.x, off.z), thumb: null, cap: caption() };
+  } catch (e) { srClip = null; }
+}
+function srClipFrame(dt) { // called just before the main render: draw the pet cam into the clip canvas
+  const C = srClip, p = C.p, t = (performance.now() - C.t0) / 1000, hd = srHead(p);
+  if (C.mode === 'orbit') { C.a += dt * .35; srV.set(p.x + Math.sin(C.a) * C.r, hd.y * .9, p.z + Math.cos(C.a) * C.r); }
+  else if (C.mode === 'track') srV.set(p.x + C.off.x, C.pos.y, p.z + C.off.z);
+  else srV.copy(C.pos);
+  const blk = srPetBlocks(srV, srMid(p), p.other) || srPetBlocks(srV, hd, p.other); C.lift += ((blk ? 1 : 0) - C.lift) * (1 - Math.exp(-2.5 * dt)); if (C.mode === 'orbit' && blk) C.a += dt * .6;
+  srV.y += C.lift * 1.7; srIn(srV); const kk = 1 - Math.exp(-3 * dt); C.pos.lerp(srV, C.mode === 'low' && C.lift < .02 ? 0 : kk); C.look.lerp(srMid(p).lerp(hd, .45), kk * 1.4);
+  srAim(srCam, { pos: C.pos, look: C.look, fov: C.fov }, C.k.width / C.k.height);
+  const pr = renderer.getPixelRatio(), bs = renderer.getDrawingBufferSize(new THREE.Vector2()), vp = renderer.getViewport(new THREE.Vector4()), w = C.k.width, h = C.k.height;
+  srRenderTo(srCam, () => { renderer.setViewport(0, 0, w / pr, h / pr); renderer.setScissor(0, 0, w / pr, h / pr); renderer.setScissorTest(true);
+    try { renderer.render(scene, srCam); C.x2.drawImage(renderer.domElement, 0, bs.y - h, w, h, 0, 0, w, h); } finally { renderer.setScissorTest(false); renderer.setViewport(vp); } });
+  srBubbles(C.x2, srCam, w, h, w / 1080);
+  if (!C.thumb && t > C.dur / 2500) C.thumb = cmShrink(C.k, 270);
+  if (t * 1000 > C.dur) srClipStop(true);
+}
+function srClipStop(keep) {
+  const C = srClip; srClip = null; srClipT = performance.now(); if (!C) return;
+  C.rec.onstop = () => { if (!keep || !C.ch2.length) return; const blob = new Blob(C.ch2, { type: C.mt.split(';')[0] });
+    (C.thumb ? cmBlob(C.thumb, 'image/jpeg', .8) : Promise.resolve(null)).then(thumb => srRoll.put({ kind: 'clip', ev: C.ev, v: C.mode, hype: C.h, tag: SRCM_TAG[C.ev] || C.ev.toUpperCase(), cap: C.cap, blob, thumb, dur: Math.round((performance.now() - C.t0) / 1000) })); };
+  try { C.rec.stop(); } catch (e) {}
+}
+function srBefore(dt) { if (srClip) { if (!started || srRoll.isOpen) srClipStop(false); else try { srClipFrame(dt); } catch (e) { srClipStop(false); } } }
+function srAfter() {
+  if (!started || srRoll.isOpen) return;
+  if (srRoll.CFG.auto) srWatch();
+  const now = performance.now(), i = srQ.findIndex(q => now >= q.at); if (i >= 0) { const q = srQ.splice(i, 1)[0]; try { srShoot(q); } catch (e) {} }
+}
+$('#roll').onclick = () => { if (started) { initAudio(); srRoll.open(); } };
+
+window.__seaRoom = { srRoll, srQ: () => srQ, srHist: () => srHist, srEvent, srClipStart, pets, dog, cat, ball, turn, feed, napPets, throwBall, command, handleVoice, startCall, moveCall, endCall, safeSpot, toHud,
   dbg: () => ({ view, thetaCur, rho, hudRot, sensorOn, fov: camera.fov, dog: [dog.state, +dog.x.toFixed(2), +dog.z.toFixed(2)], cat: [cat.state, +cat.x.toFixed(2), +cat.z.toFixed(2)] }) };
 
 </script>
