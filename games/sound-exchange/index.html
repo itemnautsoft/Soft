@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sound Exchange</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Dela+Gothic+One&family=DotGothic16&family=M+PLUS+Rounded+1c:wght@500;800&display=swap" rel="stylesheet">
 <style>
@@ -143,6 +144,23 @@ textarea.in{min-height:110px}
 .slot .row{justify-content:center;margin-top:6px}
 .slot.act{background:#fff6c2}
 .mini{font-size:13px;padding:6px 10px;min-height:38px;box-shadow:0 3px 0 var(--ink)}
+.acwrap{position:relative}
+.ac{position:absolute;left:0;right:0;top:100%;z-index:20;background:#fff;border:3px solid var(--ink);border-radius:12px;margin-top:4px;box-shadow:0 4px 0 var(--ink);max-height:310px;overflow:auto;display:none}
+.ac.on{display:block}
+.ac button{display:block;width:100%;text-align:left;border:0;border-bottom:1.5px solid #e6e1d2;background:#fff;padding:9px 12px;min-height:46px;font-size:13px;line-height:1.3}
+.ac button[aria-selected=true]{background:#fff3b0}
+.ac button b{display:block;font-size:15px}
+.ac .st{padding:10px 12px;font-size:13px;opacity:.8}
+.tt i{font-style:normal;opacity:.65}
+canvas.c3{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;z-index:0}
+.vt{position:absolute;top:10px;right:10px;z-index:7;border:3px solid var(--ink);border-radius:999px;background:#fff;font-weight:800;padding:4px 14px;min-height:40px;box-shadow:0 3px 0 var(--ink);font-size:14px}
+.vt[aria-pressed=true]{background:var(--VOLT)}
+.arena .vt{top:auto;bottom:8px;right:auto;left:8px}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:3}
+.flash.go{animation:flash .4s ease-out}
+@keyframes flash{0%{opacity:.9}100%{opacity:0}}
+.arena.d3 .fighter,.arena.d3 svg.field{display:none}
+.hint3{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font:400 12px "DotGothic16",monospace;background:rgba(255,255,255,.85);border:2px solid var(--ink);border-radius:8px;padding:2px 8px;z-index:6;pointer-events:none;white-space:nowrap}
 @media (prefers-reduced-motion:reduce){.bob,.spin,.press svg{animation:none}}
 </style>
 </head>
@@ -178,11 +196,11 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 /* ---------- tones (genre families) ---------- */
 const TONES={
  BEAT:{c:'#ffb800',label:'Beat',kw:['hip hop','hip-hop','rap','trap','drill','grime','boom bap','reggaeton','afrobeat','dancehall','reggae','latin','lil ','mc ','freestyle','cypher','bars'],bias:[2,6,2,3,3],adj:['Boom-Bap','Gold Chain','Block Party','Head-Nod','Sample'],boom:['BAP!','BOOM!','WORD!']},
- VOLT:{c:'#8fdc1e',label:'Volt',kw:['edm','house','techno','trance','dubstep','dnb','drum and bass','synth','electro','hyperpop','vaporwave','club','rave','neon','overclock','8-bit','chip','dj '],bias:[1,3,1,7,4],adj:['Neon','Chrome','Laser','Glitch','Turbo'],boom:['ZAP!','WUB!','BZZT!']},
- ROAR:{c:'#ff3b30',label:'Roar',kw:['rock','metal','punk','grunge','emo','hardcore','screamo','riff','mosh','amp','iron','knockout','shred'],bias:[4,7,3,2,0],adj:['Feedback','Power-Chord','Mosh','Amp-Blown','Riot'],boom:['CRASH!','SHRED!','KRANG!']},
- BLOOM:{c:'#ff5fa2',label:'Bloom',kw:['pop','k-pop','kpop','j-pop','jpop','city pop','disco','idol','sugar','bubblegum','glitter','sparkle','heart','candy'],bias:[2,3,2,5,4],adj:['Glitter','Bubblegum','Idol','Sparkle','Sugar'],boom:['POP!','✦SHINE✦','KYAA!']},
- SOUL:{c:'#2f6bff',label:'Soul',kw:['soul','r&b','rnb','jazz','funk','gospel','blues','motown','neo soul','groove','velvet','swing','syrup'],bias:[5,2,3,2,4],adj:['Velvet','Brass','Midnight','Silk','Gospel'],boom:['OOH!','SHOO-BE!','FUNK!']},
- DRIFT:{c:'#8a5cff',label:'Drift',kw:['ambient','classical','lofi','lo-fi','folk','acoustic','country','piano','soundtrack','ost','instrumental','lullaby','waltz','sleep','chill','rain'],bias:[3,1,6,1,5],adj:['Hush','Cloud','Paper','Moss','Lull'],boom:['hush…','DRIFT!','~lull~']}
+ VOLT:{c:'#8fdc1e',label:'Volt',kw:['edm','house','techno','trance','dubstep','dnb','drum and bass','synth','electro','hyperpop','vaporwave','club','rave','neon','overclock','8-bit','chip','dj ','electronic','electronica','idm','breakbeat','garage house','future bass','eurobeat'],bias:[1,3,1,7,4],adj:['Neon','Chrome','Laser','Glitch','Turbo'],boom:['ZAP!','WUB!','BZZT!']},
+ ROAR:{c:'#ff3b30',label:'Roar',kw:['rock','metal','punk','grunge','emo','hardcore','screamo','riff','mosh','amp','iron','knockout','shred','alternative','indie rock','post-punk','garage rock','hard rock','noise','ska'],bias:[4,7,3,2,0],adj:['Feedback','Power-Chord','Mosh','Amp-Blown','Riot'],boom:['CRASH!','SHRED!','KRANG!']},
+ BLOOM:{c:'#ff5fa2',label:'Bloom',kw:['pop','k-pop','kpop','j-pop','jpop','city pop','disco','idol','sugar','bubblegum','glitter','sparkle','heart','candy','synthpop','dance','idol','teen'],bias:[2,3,2,5,4],adj:['Glitter','Bubblegum','Idol','Sparkle','Sugar'],boom:['POP!','✦SHINE✦','KYAA!']},
+ SOUL:{c:'#2f6bff',label:'Soul',kw:['soul','r&b','rnb','jazz','funk','gospel','blues','motown','neo soul','groove','velvet','swing','syrup','bossa nova','afro-cuban','salsa','doo-wop','quiet storm'],bias:[5,2,3,2,4],adj:['Velvet','Brass','Midnight','Silk','Gospel'],boom:['OOH!','SHOO-BE!','FUNK!']},
+ DRIFT:{c:'#8a5cff',label:'Drift',kw:['ambient','classical','lofi','lo-fi','folk','acoustic','country','piano','soundtrack','ost','instrumental','lullaby','waltz','sleep','chill','rain','singer-songwriter','new age','shoegaze','dream pop','bluegrass','video game music'],bias:[3,1,6,1,5],adj:['Hush','Cloud','Paper','Moss','Lull'],boom:['hush…','DRIFT!','~lull~']}
 };
 const TK=Object.keys(TONES);
 const BEATS={ROAR:'VOLT',VOLT:'SOUL',SOUL:'BEAT',BEAT:'BLOOM',BLOOM:'DRIFT',DRIFT:'ROAR'}; // attacker > defender
@@ -483,7 +501,7 @@ const RIVALS=[
 
 /* ---------- state ---------- */
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-const S={crate:store.get('sx.crate',[]),active:store.get('sx.active',null),draft:store.get('sx.draft',{title:'',link:'',tracks:[]}),editing:null,prev:null,view:'ritual',sleeve:false,rival:0,fresh:false};
+const S={crate:store.get('sx.crate',[]),active:store.get('sx.active',null),draft:store.get('sx.draft',{title:'',link:'',tracks:[]}),editing:null,prev:null,view:'ritual',sleeve:false,rival:0,fresh:false,card3d:store.get('sx.card3d',false),battle3d:store.get('sx.battle3d',true)};
 const save=()=>{store.set('sx.crate',S.crate);store.set('sx.active',S.active);store.set('sx.draft',S.draft)};
 const activeEntry=()=>S.crate.find(e=>e.id===S.active)||null;
 const activeCreature=()=>{const e=activeEntry();return e?makeCreature(e):null};
@@ -492,6 +510,7 @@ const $=s=>document.querySelector(s),scr=$('#screen');
 function setMusicFor(mix,key){Music.setMix(mix.length?mix:[{k:'DRIFT',w:1}],key);if(!Music.on)syncBob()}
 function go(v){S.view=v;render()}
 function render(){
+  kill3D();
   const has=!!activeEntry();
   document.querySelectorAll('#tabs button').forEach(b=>{b.setAttribute('aria-current',b.dataset.v===S.view);b.disabled=!has&&(b.dataset.v==='card'||b.dataset.v==='battle')});
   ({ritual:viewRitual,crate:viewCrate,card:viewCard,battle:viewBattle})[S.view]();
@@ -507,6 +526,52 @@ const parseLines=txt=>txt.split(/\n/).map(l=>l.replace(/^\s*\d+[.)]\s*/,'').repl
   let a='',t=l;const m=l.split(/\s+[-–—]\s+/);if(m.length>1){a=m[0];t=m.slice(1).join(' - ')}else{const b=l.split(/\s+by\s+/i);if(b.length>1){t=b[0];a=b[1]}}
   const tone=tag&&TK.find(k=>k===tag.toUpperCase())||guessTone((tag||'')+' '+a+' '+t+' '+S.draft.title,h32(a+t));return {a,t,tone}});
 function mixBar(mix){return `<div class="mix">${mix.map(m=>`<i style="width:${(m.w*100).toFixed(1)}%;background:${TONES[m.k].c}"></i>`).join('')}</div><div class="legend">${mix.map(m=>`<span><b style="background:${TONES[m.k].c}"></b>${TONES[m.k].label} ${Math.round(m.w*100)}%</span>`).join('')}</div>`}
+/* ---------- song search (MusicBrainz, ~1 request a second) ---------- */
+const MB={last:0,chain:Promise.resolve(),cache:new Map(),offline:false,
+ get(path){if(this.cache.has(path))return this.cache.get(path);
+  const p=this.chain.then(async()=>{const w=this.last+1100-Date.now();if(w>0)await sleep(w);this.last=Date.now();
+   const r=await fetch('https://musicbrainz.org/ws/2/'+path+(path.includes('?')?'&':'?')+'fmt=json',{headers:{Accept:'application/json'}});
+   if(!r.ok)throw new Error('http '+r.status);return r.json()});
+  this.chain=p.catch(()=>{});this.cache.set(path,p);p.catch(e=>{this.cache.delete(path);if(e instanceof TypeError)this.offline=true});return p}};
+const luc=s=>s.replace(/([+\-&|!(){}[\]^"~*?:\\\/])/g,'\\$1');
+const terms=(s,wild)=>{const w=s.trim().split(/\s+/).filter(Boolean).map(luc);if(wild&&w.length&&w[w.length-1].length>1)w[w.length-1]+='*';return w.join(' AND ')};
+async function searchSongs(title,artist){
+  let q=`recording:(${terms(title,true)})`;if(artist.trim())q+=` AND artist:(${terms(artist,false)})`;
+  const j=await MB.get('recording?limit=10&query='+encodeURIComponent(q)),seen=new Set(),out=[];
+  for(const r of j.recordings||[]){const a=(r['artist-credit']||[]).map(c=>(c.name||'')+(c.joinphrase||'')).join('').trim(),k=norm(r.title+'|'+a);if(seen.has(k))continue;seen.add(k);
+    out.push({t:r.title,a,aid:r['artist-credit']?.[0]?.artist?.id,tags:(r.tags||[]).map(x=>x.name),sub:r.releases?.[0]?.title||''});if(out.length>=7)break}
+  return out}
+async function searchArtists(a){const j=await MB.get('artist?limit=6&query='+encodeURIComponent(`artist:(${terms(a,true)})`));
+  return (j.artists||[]).map(x=>({a:x.name,aid:x.id,sub:[x.disambiguation,x.country].filter(Boolean).join(' · '),tags:(x.tags||[]).map(t=>t.name)}))}
+async function genreFor(tr,aid){try{const j=await MB.get('artist/'+aid+'?inc=genres+tags');
+  const g=[...(j.genres||[]),...(j.tags||[])].sort((a,b)=>(b.count||0)-(a.count||0)).map(x=>x.name);if(!g.length)return;
+  const hit=g.find(n=>TK.some(k=>TONES[k].kw.some(w=>(' '+n+' ').includes(w))));
+  if(hit&&!tr.manual){tr.tone=guessTone(g.slice(0,4).join(' '),h32(tr.t));tr.g=hit}save();if(S.view==='ritual'&&!document.activeElement?.closest?.('.acwrap'))viewRitual()}catch(e){}}
+const AC={items:[],sel:-1,mode:null,timer:null,gen:0,aid:null};
+function wireAC(d,upd){
+  const na=$('#na'),nt=$('#nt'),box=$('#ac');
+  const close=()=>{box.classList.remove('on');AC.items=[];AC.sel=-1;na.setAttribute('aria-expanded','false');nt.setAttribute('aria-expanded','false')};
+  const status=t=>{box.innerHTML=`<div class="st">${t}</div>`;box.classList.add('on')};
+  const show=()=>{if(!AC.items.length)return status(AC.mode==='song'?'No matches yet. Keep typing, or tap Add to use it as typed.':'No artists found.');
+    box.innerHTML=AC.items.map((x,i)=>`<button type="button" role="option" data-i="${i}" aria-selected="${i===AC.sel}">${AC.mode==='song'?`<b>${esc(x.t)}</b>${esc(x.a)}${x.sub?' · '+esc(x.sub):''}`:`<b>${esc(x.a)}</b>${esc(x.sub)}`}</button>`).join('');
+    box.classList.add('on');(AC.mode==='song'?nt:na).setAttribute('aria-expanded','true');
+    box.querySelectorAll('[data-i]').forEach(b=>{b.onpointerdown=e=>e.preventDefault();b.onclick=()=>pick(AC.items[+b.dataset.i])})};
+  const pick=x=>{if(!x)return;
+    if(AC.mode==='artist'){na.value=x.a;AC.aid=x.aid;close();nt.focus();return}
+    const tr={a:x.a,t:x.t,tone:guessTone([...x.tags,x.a,x.t,d.title].join(' '),h32(x.a+x.t))};
+    d.tracks.push(tr);AC.aid=null;close();if(x.aid)genreFor(tr,x.aid);upd();$('#na').focus()};
+  const run=mode=>{clearTimeout(AC.timer);const v=(mode==='song'?nt:na).value.trim();if(v.length<2)return close();
+    if(MB.offline)return status('Song search needs the internet, and this preview page is sealed off from it. On the Itemnaut site it suggests songs as you type. Here, type the song and tap Add.');
+    AC.mode=mode;const g=++AC.gen;status('Searching…');
+    AC.timer=setTimeout(async()=>{try{const r=mode==='song'?await searchSongs(v,na.value):await searchArtists(v);if(g!==AC.gen)return;AC.items=r;AC.sel=-1;show()}
+      catch(e){if(g!==AC.gen)return;status(MB.offline?'Song search needs the internet, and this preview page is sealed off from it. On the Itemnaut site it suggests songs as you type. Here, type the song and tap Add.':'The music database is busy. Try again in a moment.')}},450)};
+  na.oninput=()=>{AC.aid=null;run('artist')};nt.oninput=()=>run('song');
+  const key=(e,el)=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){if(!AC.items.length)return;e.preventDefault();AC.sel=(AC.sel+(e.key==='ArrowDown'?1:-1)+AC.items.length)%AC.items.length;show()}
+    else if(e.key==='Enter'){e.preventDefault();if(AC.sel>=0)pick(AC.items[AC.sel]);else if(el===nt)$('#add').click();else nt.focus()}
+    else if(e.key==='Escape')close()};
+  na.onkeydown=e=>key(e,na);nt.onkeydown=e=>key(e,nt);
+  na.onblur=nt.onblur=()=>setTimeout(()=>{if(!document.activeElement?.closest?.('.acwrap'))close()},120);
+}
 function viewRitual(){
   const d=S.draft,ed=S.editing&&S.crate.find(e=>e.id===S.editing),lk=parseLink(d.link),tr=cleanTracks(d),mix=tr.length?mixOf(tr):[];
   scr.innerHTML=`<div class="pad">
@@ -518,8 +583,9 @@ function viewRitual(){
    <label for="ttl">Playlist title</label>
    <input id="ttl" class="in" placeholder="late bus home" value="${esc(d.title)}">
    <label>Tracks <span style="font-weight:500;opacity:.7">· tap a genre to change it</span></label>
-   ${tr.length&&!tr[0].ghost?`<ul class="tracks">${d.tracks.map((t,i)=>`<li><button class="tone" data-cy="${i}" style="background:${TONES[t.tone].c}">${TONES[t.tone].label}</button><span class="tt"><b>${esc(t.t)}</b>${esc(t.a)}</span><button class="x" data-rm="${i}" aria-label="Remove track">×</button></li>`).join('')}</ul>`:`<p class="note">No tracks yet. Add some, paste a list, or try a sample.</p>`}
-   <div class="two"><div><label for="na">Artist</label><input id="na" class="in" placeholder="Artist"></div><div><label for="nt">Song</label><input id="nt" class="in" placeholder="Song title"></div><button class="btn" id="add">Add</button></div>
+   ${tr.length&&!tr[0].ghost?`<ul class="tracks">${d.tracks.map((t,i)=>`<li><button class="tone" data-cy="${i}" style="background:${TONES[t.tone].c}">${TONES[t.tone].label}</button><span class="tt"><b>${esc(t.t)}</b>${esc(t.a)}${t.g?` <i>· ${esc(t.g)}</i>`:''}</span><button class="x" data-rm="${i}" aria-label="Remove track">×</button></li>`).join('')}</ul>`:`<p class="note">No tracks yet. Add some, paste a list, or try a sample.</p>`}
+   <div class="acwrap"><div class="two"><div><label for="na">Artist</label><input id="na" class="in" placeholder="Start typing an artist" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="ac" aria-expanded="false"></div><div><label for="nt">Song</label><input id="nt" class="in" placeholder="…or a song title" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="ac" aria-expanded="false"></div><button class="btn" id="add">Add</button></div><div class="ac" id="ac" role="listbox"></div></div>
+   <p class="note">Suggestions and genres come from <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, the open music database.</p>
    <details><summary>Paste a whole list</summary><p class="note">One per line: <b>Artist - Song</b>. Add <b>#rock</b>, <b>#jazz</b> or a family name like <b>#volt</b> to set the genre.</p><textarea id="paste" class="in" placeholder="Neon Wardrobe - Window Seat Static #synth"></textarea><button class="btn" id="addall" style="margin-top:8px">Add all</button></details>
    <p class="note" style="margin-top:12px">Samples:</p><div class="samples">${SAMPLES.map((s,i)=>`<button class="chip" data-s="${i}" style="min-height:36px">${esc(s.title)}</button>`).join('')}${d.tracks.length?'<button class="chip" id="clr" style="min-height:36px">Clear</button>':''}</div>
    ${mix.length?`<label>Genre mix · this is what the music plays</label>${mixBar(mix)}`:''}
@@ -529,12 +595,12 @@ function viewRitual(){
   const upd=()=>{save();viewRitual();syncBob()};
   $('#lnk').onchange=e=>{d.link=e.target.value;upd()};
   $('#ttl').onchange=e=>{d.title=e.target.value;upd()};
-  scr.querySelectorAll('[data-cy]').forEach(b=>b.onclick=()=>{const t=d.tracks[b.dataset.cy];t.tone=TK[(TK.indexOf(t.tone)+1)%6];upd()});
+  scr.querySelectorAll('[data-cy]').forEach(b=>b.onclick=()=>{const t=d.tracks[b.dataset.cy];t.tone=TK[(TK.indexOf(t.tone)+1)%6];t.manual=1;upd()});
   scr.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{d.tracks.splice(+b.dataset.rm,1);upd()});
   scr.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{const s=SAMPLES[b.dataset.s];S.draft={title:s.title,link:'',tracks:s.tracks.map(t=>({...t}))};upd()});
   const clr=$('#clr');if(clr)clr.onclick=()=>{d.tracks=[];upd()};
-  $('#add').onclick=()=>{const a=$('#na').value.trim(),t=$('#nt').value.trim();if(!t)return $('#nt').focus();d.tracks.push(...parseLines(a?a+' - '+t:t));upd();$('#na').focus()};
-  $('#nt').onkeydown=e=>{if(e.key==='Enter')$('#add').click()};
+  $('#add').onclick=()=>{const a=$('#na').value.trim(),t=$('#nt').value.trim();if(!t)return $('#nt').focus();const tr=parseLines(a?a+' - '+t:t)[0];if(tr){d.tracks.push(tr);if(AC.aid)genreFor(tr,AC.aid)}AC.aid=null;upd();$('#na').focus()};
+  wireAC(d,upd);
   $('#addall').onclick=()=>{d.tracks.push(...parseLines($('#paste').value));upd()};
   $('#press').onclick=press;
 }
@@ -553,9 +619,10 @@ async function press(){
 const statRows=(c,prev)=>[['HP','hp'],['ATK','atk'],['DEF','def'],['SPD','spd'],['FX','fx']].map(([l,k])=>{const v=c.stats[k],d=prev?v-prev.stats[k]:0;return `<div class="stat"><span>${l}</span><div class="bar"><i style="width:${clamp(v/1.4,4,100)}%;background:${c.look.c1}"></i></div><span class="n">${v}</span><span class="n ${d>0?'up':d<0?'dn':''}">${d?(d>0?'+':'')+d:''}</span></div>`}).join('');
 const moveRow=(s,i,sleeve)=>`<button class="move" data-mv="${i}"><span class="dot" style="background:${TONES[s.tone].c}"></span><span><b>${esc(s.name)}${s.role==='opener'?' ★':''}${s.role==='closer'?' · Closer':''}</b><small>${TONES[s.tone].label} · ${KINDS[s.kind].d}${sleeve?'':` · ♪ ${esc(s.src.t)}${s.src.a?' — '+esc(s.src.a):''}`}</small></span><span class="pw">${s.pw?'PW '+s.pw:'heal'}</span></button>`;
 function viewCard(){
+  kill3D();
   const c=activeCreature();if(!c)return go('ritual');
   const mv=[...c.skills,...(c.closer?[c.closer]:[])];
-  scr.innerHTML=`<div class="stage">${bgArcs(c)}${creatureSVG(c,'crit'+(S.fresh?' reveal':''))}</div>
+  scr.innerHTML=`<div class="stage" id="stage">${bgArcs(c)}${creatureSVG(c,'crit'+(S.fresh?' reveal':''))}<button class="vt" id="vt3" aria-pressed="${S.card3d}">${S.card3d?'3D on':'3D'}</button></div>
   <div class="pad"><p class="name">${esc(c.name)}</p><p class="sub">pressed from “${esc(S.sleeve?'▢▢▢▢▢':c.title)}” · ${c.tracks.length} tracks · ${TONES[c.dom].label}${c.sec!==c.dom?' / '+TONES[c.sec].label:''}</p>
   ${mixBar(c.mix)}
   <div class="cardgrid" style="margin-top:14px"><div>${statRows(c,S.prev)}<div class="stat"><span>MAX</span><span style="grid-column:2/5;font-family:DotGothic16,monospace">${c.maxhp} HP in battle</span></div>
@@ -568,6 +635,8 @@ function viewCard(){
   const cry=()=>Music.sfx(c.skills[0].motif.map(n=>({...n,deg:n.deg+12})),c.skills[0].tone,60,.8);
   if(S.fresh){S.fresh=false;setTimeout(cry,350)}
   $('#cry').onclick=cry;
+  $('#vt3').onclick=()=>{S.card3d=!S.card3d;store.set('sx.card3d',S.card3d);viewCard();syncBob()};
+  if(S.card3d)mountCard3D($('#stage'),c,cry);
   scr.querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>{const s=mv[b.dataset.mv];Music.sfx(s.motif,s.tone)});
   $('#slv').onchange=e=>{S.sleeve=e.target.checked;viewCard();syncBob()};
   $('#remix').onclick=()=>{const e=activeEntry();S.editing=e.id;S.draft={title:e.title,link:e.link,tracks:e.tracks.map(t=>({...t}))};go('ritual')};
@@ -583,12 +652,262 @@ function viewCrate(){
   scr.querySelectorAll('[data-del]').forEach(b=>{let armed=false;b.onclick=()=>{if(!armed){armed=true;b.textContent='Sure?';return}S.crate=S.crate.filter(e=>e.id!==b.dataset.del);if(S.active===b.dataset.del)S.active=S.crate[0]?.id||null;save();render()}});
 }
 
+/* ---------- 3D (three.js, loaded only when needed) ---------- */
+let T3=null,LIVE3D=null;
+async function load3D(){if(!T3){const THREE=await import('three');const {OutlineEffect}=await import('three/addons/effects/OutlineEffect.js');T3={THREE,OutlineEffect}}return T3}
+function kill3D(){if(LIVE3D){try{LIVE3D()}catch(e){}LIVE3D=null}}
+function svgTexture(frag,vb,size=256){
+  const {THREE}=T3,cv=document.createElement('canvas');cv.width=cv.height=size;const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.join(' ')}" width="${size}" height="${size}" stroke-linejoin="round" stroke-linecap="round">${frag}</svg>`;
+  const img=new Image(),url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+  img.onload=()=>{cv.getContext('2d').drawImage(img,0,0,size,size);tex.needsUpdate=true;URL.revokeObjectURL(url)};img.src=url;return tex}
+function toonKit(){const {THREE}=T3,d=new Uint8Array([70,160,255]),g=new THREE.DataTexture(d,3,1,THREE.RedFormat);g.minFilter=g.magFilter=THREE.NearestFilter;g.needsUpdate=true;
+  const mats=[];return {mats,m(col,o={}){const m=new THREE.MeshToonMaterial({color:col,gradientMap:g,...o});mats.push(m);return m}}}
+const NOLINE={visible:false};
+/* builds a toon creature from the same look data as the 2D drawing; faces it +z, feet at y=0 */
+function build3D(c,kit,height=2.2){
+  const {THREE}=T3,L=c.look,G=new THREE.Group(),s=1/50,W='#fffdf6',K='#1b1b1b',C1=L.c1,C2=L.c2==='#ffffff'?W:L.c2,ACC=L.c2==='#ffffff'?L.c1:L.c2;
+  const v=(x,y,z=0)=>new THREE.Vector3((x-100)*s,(205-y)*s,z);
+  const add=(geo,col,p,r,sc,par=G)=>{const m=new THREE.Mesh(geo,kit.m(col));if(p)m.position.copy(p);if(r)m.rotation.set(...r);if(sc)m.scale.set(...sc);par.add(m);return m};
+  const tube=(pts,r,col)=>{add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),24,r,10),col);add(new THREE.SphereGeometry(r,12,8),col,pts[0]);add(new THREE.SphereGeometry(r,12,8),col,pts[pts.length-1])};
+  const decal=(tex,w,p,par=G)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,w),new THREE.MeshBasicMaterial({map:tex,transparent:true,alphaTest:.05,depthWrite:false}));m.material.userData.outlineParameters=NOLINE;m.position.copy(p);m.renderOrder=2;par.add(m);return m};
+  const patDecal=(x,y,w,h,p)=>decal(svgTexture(pattern(L.pat,x,y,w,h,L),[x,y+h/2-w/2,w,w]),w*s,p);
+  const mitt=p=>{add(new THREE.SphereGeometry(.2,16,12),W,p);add(new THREE.SphereGeometry(.09,10,8),W,p.clone().add(new THREE.Vector3(-.15,.1,.05)))};
+  let hp;
+  if(L.body==='biped'){
+    add(new THREE.CapsuleGeometry(.5,.2,8,20),C1,v(100,135),null,[1.15,.85,.75]);patDecal(74,114,52,42,v(100,135,.39));
+    tube([v(89,154),v(86,172,.05),v(79,190,.08)],.11,W);tube([v(111,154),v(114,172,.05),v(121,190,.08)],.11,W);
+    const shoe=L.c2==='#ffffff'?K:W;add(new THREE.SphereGeometry(.22,18,12),shoe,v(73,195,.12),null,[1.7,.85,1.3]);add(new THREE.SphereGeometry(.22,18,12),shoe,v(127,195,.12),null,[1.7,.85,1.3]);
+    let A=[[v(74,122,0),v(60,134,.12),v(54,150,.18)],[v(126,122,0),v(140,134,.12),v(146,150,.18)]],H=[v(52,156,.2),v(148,156,.2)];
+    if(L.pose===1){A[1]=[v(126,120),v(142,110,.12),v(150,88,.15)];H[1]=v(151,82,.16)}
+    if(L.pose===2){A=[[v(74,120),v(58,110,.12),v(50,88,.15)],[v(126,120),v(142,110,.12),v(150,88,.15)]];H=[v(49,82,.16),v(151,82,.16)]}
+    A.forEach(a=>tube(a,.1,W));H.forEach(mitt);hp=v(100,72,.05);
+  }else if(L.body==='quad'){
+    add(new THREE.SphereGeometry(1,28,18),C1,v(106,156),null,[1,.5,.56]);patDecal(92,140,42,32,v(110,156,.57));
+    for(const [x,z] of[[78,.26],[78,-.26],[132,.26],[132,-.26]]){tube([v(x,164,z),v(x-1,192,z)],.11,W);add(new THREE.SphereGeometry(.15,12,8),W,v(x-2,196,z+.04),null,[1.2,.6,1.3])}
+    tube([v(152,150),v(170,140,-.05),v(171,122,-.05),v(160,118),v(156,130)],.07,C1);hp=v(64,114,.12);
+  }else if(L.body==='bean'){
+    const pr=[[0,0],[.5,.03],[.85,.28],[.92,.62],[.8,1.0],[.5,1.38],[.14,1.6],[0,1.62]].map(([r,y])=>new THREE.Vector2(r,y));
+    add(new THREE.LatheGeometry(pr,28),C1,v(100,190),null,[1,1,.8]);patDecal(74,140,52,40,v(100,160,.72));
+    add(new THREE.SphereGeometry(.2,14,10),W,v(80,197,.15),null,[1.3,.6,1.2]);add(new THREE.SphereGeometry(.2,14,10),W,v(120,197,.15),null,[1.3,.6,1.2]);
+    add(new THREE.SphereGeometry(.2,14,10),W,v(52,152,.1),[0,0,.4],[.8,1.1,.8]);add(new THREE.SphereGeometry(.2,14,10),W,v(148,152,.1),[0,0,-.4],[.8,1.1,.8]);hp=v(100,86,.2);
+  }else if(L.body==='spider'){
+    add(new THREE.CapsuleGeometry(.38,.1,8,18),C1,v(100,143),null,[1.05,.95,.75]);
+    tube([v(93,158),v(82,176,.05),v(72,190,.1)],.09,K);tube([v(107,158),v(118,176,.05),v(128,190,.1)],.09,K);
+    add(new THREE.SphereGeometry(.2,12,8),K,v(68,194,.15),null,[1.3,.5,1.2]);add(new THREE.SphereGeometry(.2,12,8),K,v(132,194,.15),null,[1.3,.5,1.2]);
+    for(const sd of[-1,1]){const x=q=>100+sd*q;tube([v(x(16),130),v(x(38),128,.1),v(x(60),148,.2)],.08,K);add(new THREE.CylinderGeometry(.13,.13,.18,14),C2,v(x(46),134,.14),[0,0,sd*1.1]);
+      add(new THREE.SphereGeometry(.18,14,10),K,v(x(62),152,.22));add(new THREE.SphereGeometry(.08,8,6),K,v(x(70),158,.28));add(new THREE.SphereGeometry(.08,8,6),K,v(x(64),162,.3))}
+    hp=v(100,80,.05);
+  }else{
+    add(new THREE.BoxGeometry(1.44,1.16,.8),C1,v(100,137));patDecal(76,120,48,34,v(100,137,.41));
+    add(new THREE.BoxGeometry(.32,.48,.36),W,v(86,174));add(new THREE.BoxGeometry(.32,.48,.36),W,v(114,174));
+    add(new THREE.BoxGeometry(.6,.26,.62),K,v(83,191,.06));add(new THREE.BoxGeometry(.6,.26,.62),K,v(117,191,.06));
+    for(const x of[46,154]){add(new THREE.BoxGeometry(.56,.68,.5),W,v(x,144));add(new THREE.BoxGeometry(.2,.24,.24),K,v(x<100?64:136,138))}
+    hp=v(100,70,.05);
+  }
+  // head
+  const Hd=new THREE.Group();Hd.position.copy(hp);G.add(Hd);
+  const R=({biped:40,quad:38,bean:36,spider:42,mech:36})[L.body]*s,X=(geo,col,p,r,sc)=>add(geo,col,p,r,sc,Hd),V=(x,y,z)=>new THREE.Vector3(x,y,z);
+  const ROT=[Math.PI/2,0,0];let faceZ=.15*R,fo=[0,0],fs=.5,top=R,spin=null;
+  const ring=(r0,r1,a,b,col,z,par=Hd)=>{const m=new THREE.Mesh(new THREE.RingGeometry(r0,r1,32,1,a,b),new THREE.MeshBasicMaterial({color:col,side:THREE.DoubleSide}));m.material.userData.outlineParameters=NOLINE;m.position.z=z;par.add(m);return m};
+  if(L.head==='vinyl'){X(new THREE.CylinderGeometry(R,R,.24*R,48),K,null,ROT);spin=new THREE.Group();Hd.add(spin);
+    for(const [r,a,b] of[[.86,-160,-95],[.86,15,75],[.72,-140,-115],[.72,35,60],[.6,-170,-150]])ring(r*R-.012,r*R+.012,-b*Math.PI/180,(b-a)*Math.PI/180,'#ffffff',.125*R,spin);
+    X(new THREE.CylinderGeometry(.5*R,.5*R,.3*R,40),W,null,ROT);faceZ=.15*R+.004;fs=.5;
+  }else if(L.head==='gear'){const sh=new THREE.Shape();let i=0;for(let k=0;k<10;k++)for(const [g,r] of[[-14,.8],[-8,1],[8,1],[14,.8]]){const a=(k*36+g)*Math.PI/180;i++?sh.lineTo(R*r*Math.cos(a),R*r*Math.sin(a)):sh.moveTo(R*r*Math.cos(a),R*r*Math.sin(a))}
+    const geo=new THREE.ExtrudeGeometry(sh,{depth:.3*R,bevelEnabled:true,bevelThickness:.03*R,bevelSize:.03*R,bevelSegments:2});geo.translate(0,0,-.15*R);X(geo,L.c2==='#ffffff'?'#c9c9c9':C2);
+    X(new THREE.CylinderGeometry(.68*R,.68*R,.42*R,40),K,null,ROT);faceZ=.21*R+.004;fs=.62;
+  }else if(L.head==='clock'){X(new THREE.CylinderGeometry(R,R,.4*R,48),W,null,ROT);ring(.84*R,.87*R,0,Math.PI*2,K,.2*R+.003);
+    for(const a of[0,1,2,3])X(new THREE.SphereGeometry(.05*R,8,6),K,V(Math.cos(a*Math.PI/2)*.72*R,Math.sin(a*Math.PI/2)*.72*R,.2*R));
+    for(const sd of[-1,1])X(new THREE.SphereGeometry(.34*R,20,10,0,Math.PI*2,0,Math.PI/2),W,V(sd*.64*R,.8*R,0),[0,0,-sd*.45]);
+    X(new THREE.CylinderGeometry(.04*R,.04*R,.3*R,8),K,V(0,1.12*R,0));X(new THREE.BoxGeometry(.36*R,.14*R,.14*R),W,V(0,1.3*R,0));faceZ=.2*R+.004;fs=.62;top=1.38*R;
+  }else if(L.head==='triangle'){const sh=new THREE.Shape();sh.moveTo(0,1.25*R);sh.lineTo(-1.3*R,-.72*R);sh.lineTo(1.3*R,-.72*R);sh.closePath();
+    const geo=new THREE.ExtrudeGeometry(sh,{depth:.45*R,bevelEnabled:true,bevelThickness:.05*R,bevelSize:.05*R,bevelSegments:2});geo.translate(0,0,-.225*R);X(geo,W);
+    X(new THREE.SphereGeometry(.07*R,8,6),W,V(-1.2*R,-.98*R,.1*R));faceZ=.28*R+.004;fo=[0,-.22*R];fs=.56;top=1.25*R;
+  }else if(L.head==='boombox'){X(new THREE.BoxGeometry(2.24*R,1.44*R,.9*R),C1);X(new THREE.TorusGeometry(.7*R,.08*R,8,24,Math.PI),ACC,V(0,.72*R,0));
+    for(const sd of[-1,1]){X(new THREE.CylinderGeometry(.36*R,.36*R,.08*R,32),W,V(sd*.52*R,.08*R,.49*R),ROT);ring(.2*R,.25*R,0,Math.PI*2,K,.535*R).position.x=sd*.52*R;X(new THREE.SphereGeometry(.1*R,12,8),K,V(sd*.47*R,.08*R,.53*R))}
+    X(new THREE.BoxGeometry(.68*R,.3*R,.06*R),W,V(0,-.45*R,.48*R));for(const sd of[-1,1])X(new THREE.CylinderGeometry(.07*R,.07*R,.03*R,12),K,V(sd*.15*R,-.45*R,.515*R),ROT);
+    faceZ=null;top=1.0*R;
+  }else if(L.head==='lcd'){X(new THREE.SphereGeometry(R,32,20),L.c2==='#ffffff'?'#d8d8d8':C2,null,null,[1.1,1,.8]);
+    const sg=new THREE.CylinderGeometry(1,1,.05*R,40);sg.rotateX(Math.PI/2);sg.scale(.78*R,.62*R,1);X(sg,'#c6d69e',V(0,-.06*R,.72*R));
+    for(const sd of[-1,0,1])X(new THREE.SphereGeometry(.08*R,8,6),W,V(sd*.26*R,-.76*R,.55*R));faceZ=.75*R+.004;fo=[0,-.06*R];fs=.6;
+  }else{X(new THREE.SphereGeometry(.88*R,32,20),W);for(const sd of[-1,1])X(new THREE.SphereGeometry(.38*R,16,12),W,V(sd*.9*R,-.08*R,-.05*R),null,[1,1,.6]);
+    X(new THREE.ConeGeometry(.6*R,2.0*R,24),W,V(.75*R,1.17*R,-.05*R),[0,0,-.8]);faceZ=.9*R;fo=[-.06*R,-.16*R];fs=.56;top=.88*R;
+  }
+  if(faceZ!=null){const hd=drawHead(L,{x:100,y:100,R:50});const f=hd.face;if(f){const F={...f,fx:100,fy:100,fs:50*fs};const half=F.fs*.85;
+    decal(svgTexture(drawFace(F,L),[100-half,100-half*.9,half*2,half*2]),half*2*s*(R/1),V(fo[0],fo[1]-half*.1*s*R,faceZ),Hd)}}
+  // accessories
+  const yel='#ffd400';
+  if(L.acc==='phones'&&L.head!=='boombox'){const wx=(L.head==='triangle'?.95:L.head==='lcd'?1.12:1.04)*R,wy=L.head==='triangle'?-.25*R:0;X(new THREE.TorusGeometry(wx,.07*R,8,32,Math.PI),ACC,V(0,wy,0));for(const sd of[-1,1])X(new THREE.CylinderGeometry(.2*R,.2*R,.32*R,18),ACC,V(sd*wx,wy,0),[0,0,Math.PI/2])}
+  else if(L.acc==='crown'){const cg=new THREE.Group();cg.position.set(L.head==='spike'?-.35*R:-.08*R,top,0);cg.rotation.z=.17;Hd.add(cg);add(new THREE.CylinderGeometry(.32*R,.32*R,.16*R,20),yel,V(0,.06*R,0),null,null,cg);
+    for(let k=0;k<5;k++){const a=k/5*Math.PI*2;add(new THREE.ConeGeometry(.08*R,.26*R,8),yel,V(Math.cos(a)*.26*R,.27*R,Math.sin(a)*.26*R),null,null,cg)}}
+  else if(L.acc==='antenna'){X(new THREE.CylinderGeometry(.03*R,.03*R,.62*R,8),K,V(-.45*R,top+.27*R,0),[0,0,.35]);X(new THREE.SphereGeometry(.13*R,10,8),K,V(-.62*R,top+.58*R,0),null,[1.3,1,1]);
+    X(new THREE.CylinderGeometry(.025*R,.025*R,.44*R,6),K,V(-.5*R,top+.8*R,0));X(new THREE.BoxGeometry(.28*R,.1*R,.05*R),K,V(-.38*R,top+.98*R,0),[0,0,-.4])}
+  else if(L.acc==='wings'){for(const sd of[-1,1]){const sh=new THREE.Shape(),P=[[0,0],[.9,.85],[.75,.35],[.55,.5],[.42,.12],[.2,.25]];P.forEach(([x,y],i)=>i?sh.lineTo(sd*x*R,y*R):sh.moveTo(sd*x*R,y*R));
+    X(new THREE.ExtrudeGeometry(sh,{depth:.05*R,bevelEnabled:false}),K,V(sd*.55*R,top-.35*R,-.12*R),[0,sd*.35,0])}}
+  else if(L.acc==='horns'){for(const sd of[-1,1])X(new THREE.ConeGeometry(.14*R,.6*R,12),W,V(sd*.45*R,top+.12*R,0),[0,0,-sd*.5])}
+  // wireframe shell for move FX
+  const wireMat=new THREE.LineBasicMaterial({color:TONES[c.dom].c,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false});wireMat.userData.outlineParameters=NOLINE;
+  G.traverse(o=>{if(o.isMesh&&o.material.isMeshToonMaterial){const l=new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry,28),wireMat);l.scale.setScalar(1.025);o.add(l)}});
+  // normalise size
+  const box=new THREE.Box3().setFromObject(G),h=box.max.y-box.min.y,sc=height/h,root=new THREE.Group();G.scale.setScalar(sc);G.position.set(-(box.min.x+box.max.x)/2*sc,-box.min.y*sc,0);root.add(G);
+  return {root,model:G,head:Hd,spin,wireMat,height,headY:(hp.y*sc+(-box.min.y*sc)),mats:kit.mats.slice()};
+}
+function make3D(container,opts){ // shared renderer shell
+  const {THREE,OutlineEffect}=T3,r=new THREE.WebGLRenderer({antialias:true,alpha:false});r.setPixelRatio(Math.min(devicePixelRatio||1,2));
+  r.domElement.className='c3';container.prepend(r.domElement);const fx=new OutlineEffect(r,{defaultThickness:opts.thick||.0045,defaultColor:[.08,.08,.08]});
+  const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(opts.fov||42,1,.1,120);
+  scene.add(new THREE.HemisphereLight('#ffffff',opts.ground||'#6b6b55',1.7));const dl=new THREE.DirectionalLight('#ffffff',2.3);dl.position.set(3,7,5);scene.add(dl);
+  const size=()=>{const w=container.clientWidth,h=container.clientHeight;if(!w||!h)return;r.setSize(w,h,false);fx.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix()};
+  const ro=new ResizeObserver(size);ro.observe(container);size();
+  let raf=0,last=performance.now(),alive=true;
+  const loop=now=>{if(!alive)return;const dt=Math.min(.05,(now-last)/1000);last=now;opts.tick(dt,now/1000);fx.render(scene,cam);raf=requestAnimationFrame(loop)};raf=requestAnimationFrame(loop);
+  const kill=()=>{alive=false;cancelAnimationFrame(raf);ro.disconnect();scene.traverse(o=>{o.geometry?.dispose?.();const m=o.material;(Array.isArray(m)?m:[m]).forEach(x=>{x?.map?.dispose?.();x?.dispose?.()})});r.dispose();r.forceContextLoss?.();r.domElement.remove()};
+  return {r,scene,cam,kill,size};
+}
+const beatPh=()=>{const {t0,spb}=Music.grid();return (((Music.now()-t0)/spb)%1+1)%1};
+async function mountCard3D(stage,c,cry){
+  const svg=stage.querySelector('svg.crit');let note=document.createElement('div');note.className='hint3';note.textContent='loading 3D…';stage.appendChild(note);
+  try{await load3D()}catch(e){note.textContent='3D needs the internet to load';return}
+  if(!stage.isConnected)return;if(svg)svg.style.display='none';stage.querySelector('svg.bgarc').style.display='none';note.textContent='drag to spin · tap to hear it';
+  const {THREE}=T3,kit=toonKit(),cr=build3D(c,kit,2.4);let yaw=.5,vel=.45,drag=null,flash=0;
+  const sh=make3D(stage,{fov:36,tick(dt){if(!drag){yaw+=vel*dt;vel+=(.45-vel)*dt*.8}cr.root.rotation.y=yaw;const p=beatPh(),b=Math.abs(Math.sin(p*Math.PI));cr.model.parent.position.y=b*.06;cr.root.scale.set(1+(1-b)*.02,1-(1-b)*.03,1);if(cr.spin)cr.spin.rotation.z-=dt*2.2;flash=Math.max(0,flash-dt*1.6);cr.wireMat.opacity=flash}});
+  sh.scene.background=new THREE.Color('#fff6dc');sh.scene.add(cr.root);
+  const cols=[c.look.c1,c.look.c2==='#ffffff'?'#ffd400':c.look.c2,'#2f6bff','#ff3b30'];
+  [[2.6,.35,1.85,0],[2.6,3.95,1.6,1],[1.9,1.9,1.4,2],[1.9,4.4,1.5,3]].forEach(([rad,a,len,i])=>{const m=new THREE.Mesh(new THREE.TorusGeometry(rad,.22,10,64,len),kit.m(cols[i]));m.position.set(0,1.3,-2.2);m.rotation.z=a;sh.scene.add(m)});
+  const shadow=new THREE.Mesh(new THREE.CircleGeometry(1.1,32),new THREE.MeshBasicMaterial({color:'#000',transparent:true,opacity:.15}));shadow.material.userData.outlineParameters=NOLINE;shadow.rotation.x=-Math.PI/2;shadow.position.y=.01;sh.scene.add(shadow);
+  sh.cam.position.set(0,1.55,5.2);sh.cam.lookAt(0,1.25,0);
+  const el=sh.r.domElement;let moved=0;
+  el.onpointerdown=e=>{drag={x:e.clientX,y0:yaw};moved=0;el.setPointerCapture(e.pointerId)};
+  el.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x;moved=Math.max(moved,Math.abs(dx));yaw=drag.y0+dx*.012;vel=dx*.002};
+  el.onpointerup=()=>{if(drag&&moved<6){flash=1;cry()}drag=null};
+  LIVE3D=()=>{sh.kill();note.remove()};
+}
+
+/* ---------- 3D battle stage ---------- */
+async function stage3D(arena,me,foe){
+  await load3D();if(!arena.isConnected)throw new Error('gone');
+  const {THREE}=T3,kit=toonKit();
+  const sh=make3D(arena,{fov:46,ground:'#2c6b35',tick:(dt,t)=>tick(dt,t)}),{scene,cam}=sh;
+  scene.background=new THREE.Color('#123f22');scene.fog=new THREE.Fog('#123f22',11,30);
+  const flat=new THREE.Mesh(new THREE.CircleGeometry(30,48),kit.m('#2c9a3e'));flat.rotation.x=-Math.PI/2;flat.material.userData.outlineParameters=NOLINE;scene.add(flat);
+  const grid=new THREE.GridHelper(40,40,'#ffffff','#ffffff');grid.material.transparent=true;grid.material.opacity=.32;grid.position.y=.01;grid.material.userData.outlineParameters=NOLINE;scene.add(grid);
+  const LM=(col,op=1)=>{const m=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false});m.userData.outlineParameters=NOLINE;return m};
+  const PM=(col,size=.1)=>{const m=new THREE.PointsMaterial({color:col,size,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});m.userData.outlineParameters=NOLINE;return m};
+  const edges=(geo,col,op)=>new THREE.LineSegments(new THREE.EdgesGeometry(geo),LM(col,op)),wire=(geo,col,op)=>new THREE.LineSegments(new THREE.WireframeGeometry(geo),LM(col,op));
+  const SH={BEAT:()=>new THREE.BoxGeometry(.3,.3,.3),VOLT:()=>new THREE.TetrahedronGeometry(.27),ROAR:()=>new THREE.ConeGeometry(.16,.46,5),BLOOM:()=>new THREE.OctahedronGeometry(.24),SOUL:()=>new THREE.TorusGeometry(.18,.06,6,14),DRIFT:()=>new THREE.IcosahedronGeometry(.23,0)};
+  // drifting wireframe sky shapes
+  const amb=[];const tones=[...new Set([...me.mix.map(m=>m.k),...foe.mix.map(m=>m.k)])];
+  for(let i=0;i<14;i++){const tk=tones[i%tones.length],o=wire(new THREE.IcosahedronGeometry(.6+Math.random()*1.1,i%2),TONES[tk].c,.45),a=i/14*Math.PI*2;o.position.set(Math.cos(a)*(11+Math.random()*5),2+Math.random()*6,Math.sin(a)*(11+Math.random()*5));o.userData.sp=(Math.random()-.5)*.6;scene.add(o);amb.push(o)}
+  const horizon=wire(new THREE.SphereGeometry(24,24,10,0,Math.PI*2,0,Math.PI/2),'#5fe08a',.12);scene.add(horizon);
+  // fighters
+  const F={};const place=(side,c,pos)=>{const k2=toonKit(),cr=build3D(c,k2,2.1);cr.root.position.copy(pos);scene.add(cr.root);
+    const pad=edges(new THREE.RingGeometry(1.05,1.15,40),'#ffffff',.9);pad.rotation.x=-Math.PI/2;pad.position.copy(pos).setY(.03);scene.add(pad);
+    const glow=new THREE.Mesh(new THREE.CircleGeometry(1.0,32),new THREE.MeshBasicMaterial({color:TONES[c.dom].c,transparent:true,opacity:.28,depthWrite:false}));glow.material.userData.outlineParameters=NOLINE;glow.rotation.x=-Math.PI/2;glow.position.copy(pos).setY(.02);scene.add(glow);
+    F[side]={...cr,c,home:pos.clone(),pos:pos.clone(),yaw:0,yawT:0,off:new THREE.Vector3(),hit:0,jit:0,flash:0,ko:0,guard:null,dizzy:null}};
+  place('me',me,new THREE.Vector3(-1.8,0,1.35));place('foe',foe,new THREE.Vector3(1.8,0,-1.35));
+  const other=s=>s==='me'?'foe':'me',up=new THREE.Vector3(0,1,0);
+  const mid=new THREE.Vector3(),lineDir=F.foe.home.clone().sub(F.me.home).normalize(),perp=new THREE.Vector3(-lineDir.z,0,lineDir.x);if(perp.z<0)perp.negate();
+  const idleCam=()=>mid.clone().addScaledVector(perp,6.8).addScaledVector(lineDir,-1.6).setY(3.0);
+  const faceYaw=(from,to)=>Math.atan2(to.x-from.x,to.z-from.z);
+  const restYaw=s=>{const f=F[s],o=F[other(s)],cp=idleCam(),tgt=o.home.clone().multiplyScalar(.5).add(cp.clone().multiplyScalar(.5));return faceYaw(f.home,tgt)};
+  for(const s of['me','foe']){F[s].yaw=F[s].yawT=restYaw(s)}
+  // camera director
+  const CAM={pos:idleCam(),look:new THREE.Vector3(0,1,0),tp:idleCam(),tl:new THREE.Vector3(0,1,0),k:3,shake:0,mode:'idle',orb:null,pump:0};
+  const shoulder=s=>{const a=F[s].home,b=F[other(s)].home,d=b.clone().sub(a).normalize(),p=new THREE.Vector3(-d.z,0,d.x);if(p.dot(perp)<0)p.negate();CAM.mode='aim';CAM.tp=a.clone().addScaledVector(d,-2.6).addScaledVector(p,1.5).setY(2.2);CAM.tl=a.clone().lerp(b,.72).setY(1.1);CAM.k=4};
+  const closeOn=s=>{const a=F[s].home,d=a.clone().sub(F[other(s)].home).normalize(),p=new THREE.Vector3(-d.z,0,d.x);if(p.dot(perp)<0)p.negate();CAM.mode='close';CAM.tp=a.clone().addScaledVector(p,3.0).addScaledVector(d,-1.2).setY(1.5);CAM.tl=a.clone().setY(1.05);CAM.k=6};
+  const settle=()=>{CAM.mode='idle';CAM.k=2.2};
+  // FX pool
+  const FX=[];const addFX=(obj,life,upd,onEnd)=>{if(obj)scene.add(obj);FX.push({obj,t:0,life,upd,onEnd})};
+  const head=s=>F[s].pos.clone().add(F[s].off).setY(F[s].headY*.85+.2),chest=s=>F[s].pos.clone().add(F[s].off).setY(1.0);
+  const col=s=>TONES[s.tone].c;
+  const burst=(p,c,size=2.4,life=.55,detail=1)=>{const o=wire(new THREE.IcosahedronGeometry(.3,detail),c);o.position.copy(p);addFX(o,life,(k,o)=>{o.scale.setScalar(1+k*size*3);o.rotation.y+=.08;o.rotation.x+=.05;o.material.opacity=1-k})};
+  const ringFX=(p,c,max=3.2,life=.5,flatR=true,tilt=0)=>{const o=edges(new THREE.TorusGeometry(1,.02,3,56),c);o.position.copy(p);if(flatR)o.rotation.x=Math.PI/2;o.rotation.y=tilt;addFX(o,life,(k,o)=>{o.scale.setScalar(.2+k*max);o.material.opacity=1-k*k})};
+  const shards=(p,c,tone,n=9,spd=4)=>{for(let i=0;i<n;i++){const o=edges(SH[tone](),c);o.position.copy(p);const v3=new THREE.Vector3(Math.random()-.5,Math.random()*.9+.2,Math.random()-.5).normalize().multiplyScalar(spd*(.6+Math.random()*.6));
+    addFX(o,.75+Math.random()*.3,(k,o,dt)=>{v3.y-=9*dt;o.position.addScaledVector(v3,dt);o.rotation.x+=dt*8;o.rotation.y+=dt*6;o.material.opacity=1-k})}};
+  const bolt=(a,b,c,life=.4)=>{const n=14,g=new THREE.BufferGeometry(),arr=new Float32Array(n*3);g.setAttribute('position',new THREE.BufferAttribute(arr,3));const o=new THREE.Line(g,LM(c));
+    addFX(o,life,(k,o)=>{for(let i=0;i<n;i++){const t=i/(n-1),p=a.clone().lerp(b,t);if(i&&i<n-1)p.add(new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(.6*Math.sin(t*Math.PI)));arr.set([p.x,p.y,p.z],i*3)}g.attributes.position.needsUpdate=true;o.material.opacity=Math.random()<.3?.3:1-k*.6})};
+  const spikes=(p,c)=>{for(let i=0;i<8;i++){const a=i/8*Math.PI*2,o=edges(new THREE.ConeGeometry(.22,1.6,4),c);o.position.set(p.x+Math.cos(a)*.95,0,p.z+Math.sin(a)*.95);o.rotation.z=Math.cos(a)*.35;o.rotation.x=-Math.sin(a)*.35;addFX(o,.7,(k,o)=>{const e=k<.25?k/.25:1-(k-.25)/.75;o.scale.set(1,Math.max(.01,e),1);o.position.y=.8*e;o.material.opacity=e})}};
+  const eq=(p,c,life=1.1)=>{const bars=[];for(let i=0;i<12;i++){const a=i/12*Math.PI*2,o=edges(new THREE.BoxGeometry(.18,1,.18),c);o.position.set(p.x+Math.cos(a)*1.1,0,p.z+Math.sin(a)*1.1);bars.push(o);
+    addFX(o,life,(k,o)=>{const hgt=.05+(Math.abs(Math.sin(k*9+i))*1.8+.4)*Math.sin(k*Math.PI);o.scale.y=hgt;o.position.y=hgt/2;o.material.opacity=1-k*.5})}};
+  const spiral=(from,to,c,life=.9)=>new Promise(res=>{const n=46,g=new THREE.BufferGeometry(),arr=new Float32Array(n*3);g.setAttribute('position',new THREE.BufferAttribute(arr,3));const o=new THREE.Points(g,PM(c,.13));
+    addFX(o,life,(k,o)=>{for(let i=0;i<n;i++){const t=clamp(k*1.6-i/n*.6,0,1),p=from.clone().lerp(to,t),a=t*14+i;p.x+=Math.cos(a)*.35*(1-t);p.z+=Math.sin(a)*.35*(1-t);p.y+=Math.sin(t*Math.PI)*.8;arr.set([p.x,p.y,p.z],i*3)}g.attributes.position.needsUpdate=true;o.material.opacity=1-Math.max(0,k-.8)*5},res)});
+  const shoot=(a,b,c,tone,dur=.32,arc=.9)=>new Promise(res=>{const o=edges(SH[tone](),c);o.scale.setScalar(1.5);const n=16,tg=new THREE.BufferGeometry(),ta=new Float32Array(n*3);tg.setAttribute('position',new THREE.BufferAttribute(ta,3));const tr=new THREE.Line(tg,LM(c,.8));scene.add(tr);
+    for(let i=0;i<n;i++)ta.set([a.x,a.y,a.z],i*3);
+    addFX(o,dur,(k,o)=>{const p=a.clone().lerp(b,k);p.y+=Math.sin(k*Math.PI)*arc;o.position.copy(p);o.rotation.x+=.3;o.rotation.y+=.2;ta.copyWithin(3,0,(n-1)*3);ta.set([p.x,p.y,p.z],0);tg.attributes.position.needsUpdate=true},()=>{addFX(tr,.25,(k,t)=>{t.material.opacity=.8*(1-k)});res()})});
+  const pulse=(s,c)=>{const p=chest(s);const o=wire(new THREE.IcosahedronGeometry(1,2),c,.8);o.position.copy(p);addFX(o,.9,(k,o)=>{o.scale.setScalar(.5+k*1.3);o.rotation.y+=.03;o.material.opacity=.8*(1-k)});
+    for(let i=0;i<7;i++){const n=edges(new THREE.OctahedronGeometry(.13),c),a=i/7*Math.PI*2;n.position.set(p.x+Math.cos(a)*.9,.2,p.z+Math.sin(a)*.9);addFX(n,1.2,(k,n)=>{n.position.y=.2+k*2.6;n.rotation.y+=.1;n.material.opacity=1-k})}};
+  const dizzy=s=>{const g=new THREE.Group();for(let i=0;i<3;i++){const o=edges(new THREE.OctahedronGeometry(.12),'#ffd400');o.position.set(Math.cos(i*2.1)*.5,0,Math.sin(i*2.1)*.5);g.add(o)}F[s].dizzy=g;scene.add(g)};
+  const flashEl=document.createElement('div');flashEl.className='flash';arena.appendChild(flashEl);
+  const flash=()=>{flashEl.classList.remove('go');void flashEl.offsetWidth;flashEl.classList.add('go')};
+  const wireFlash=s=>{F[s].flash=1};
+  // per-frame
+  function tick(dt,t){
+    const ph=beatPh(),bb=Math.abs(Math.sin(ph*Math.PI));CAM.pump=Math.max(CAM.pump,ph<.08?1:0);CAM.pump*=Math.pow(.02,dt);
+    for(const s of['me','foe']){const f=F[s];f.yaw+=(f.yawT-f.yaw)*Math.min(1,dt*8);f.root.rotation.y=f.yaw;
+      const jit=f.jit>0?new THREE.Vector3((Math.random()-.5)*.25,0,(Math.random()-.5)*.25):new THREE.Vector3();f.jit=Math.max(0,f.jit-dt);
+      f.root.position.copy(f.pos).add(f.off).add(jit);f.off.multiplyScalar(Math.pow(.004,dt));
+      if(f.ko<1){f.model.parent.position.y=bb*.07;f.root.scale.set(1+(1-bb)*.025,1-(1-bb)*.035,1+(1-bb)*.025)}
+      else{f.root.rotation.x=Math.min(Math.PI/2.2,f.root.rotation.x+dt*4)}
+      if(f.spin)f.spin.rotation.z-=dt*2.4;
+      f.flash=Math.max(0,f.flash-dt*1.4);f.wireMat.opacity=Math.min(1,f.flash*1.2+(f.ko?.25:0));
+      f.hit=Math.max(0,f.hit-dt*3);for(const m of f.mats)m.emissive?.setScalar(f.hit*.9);
+      if(f.guard){f.guard.rotation.y+=dt*1.5;f.guard.position.copy(f.pos).setY(1.0);f.guard.material.opacity=.55+.25*Math.sin(t*8)}
+      if(f.dizzy){f.dizzy.position.copy(head(s)).setY(F[s].headY+.45);f.dizzy.rotation.y+=dt*5}}
+    for(const o of amb){o.rotation.y+=o.userData.sp*dt;o.rotation.x+=o.userData.sp*dt*.5}
+    horizon.rotation.y+=dt*.02;
+    for(let i=FX.length-1;i>=0;i--){const e=FX[i];e.t+=dt;const k=Math.min(1,e.t/e.life);e.upd&&e.upd(k,e.obj,dt);if(k>=1){FX.splice(i,1);if(e.obj){scene.remove(e.obj);e.obj.geometry?.dispose();e.obj.material?.dispose()}e.onEnd&&e.onEnd()}}
+    if(CAM.mode==='idle'){const a=Math.sin(t*.25)*.32,base=idleCam().sub(mid);base.applyAxisAngle(up,a);CAM.tp=mid.clone().add(base).setY(3.0+Math.sin(t*.4)*.35);CAM.tl=new THREE.Vector3(0,.95,0)}
+    if(CAM.mode==='orbit'){CAM.orb.a+=dt*CAM.orb.sp;const c0=CAM.orb.c;CAM.tp=c0.clone().add(new THREE.Vector3(Math.cos(CAM.orb.a)*CAM.orb.r,0,Math.sin(CAM.orb.a)*CAM.orb.r)).setY(CAM.orb.y);CAM.tl=c0.clone().setY(1.4)}
+    const k=1-Math.exp(-dt*CAM.k);CAM.pos.lerp(CAM.tp,k);CAM.look.lerp(CAM.tl,k);CAM.shake*=Math.pow(.01,dt);
+    cam.position.copy(CAM.pos).add(new THREE.Vector3((Math.random()-.5)*CAM.shake,(Math.random()-.5)*CAM.shake,(Math.random()-.5)*CAM.shake));cam.lookAt(CAM.look);
+    cam.fov=46-CAM.pump*1.6;cam.updateProjectionMatrix();
+  }
+  const face=(s,toFoe)=>{F[s].yawT=toFoe?faceYaw(F[s].home,F[other(s)].home):restYaw(s)};
+  const ST={
+    async cast(s,sk){face(s,true);shoulder(s);wireFlash(s);ringFX(F[s].home.clone().setY(.05),col(sk),2.2,.6);await sleep(260)},
+    async deliver(a,d,sk,h){const c2=col(sk),tn=sk.tone;
+      if(sk.kind==='FLURRY'||sk.kind==='DRAIN'||sk.kind==='OFFBEAT'||sk.kind==='DISSONANCE'){if(h===0){closeOn(d);CAM.k=3}await shoot(chest(a),chest(d),c2,tn,.3,sk.kind==='FLURRY'?.4+h*.4:1);return}
+      const f=F[a],dir=F[d].home.clone().sub(f.home);f.off.addScaledVector(dir,.42);wireFlash(a);
+      if(tn==='VOLT')bolt(chest(a),chest(d),c2,.35);await sleep(140);closeOn(d)},
+    impact(d,sk,h,mult){const p=chest(d),c2=col(sk),f=F[d],dir=f.home.clone().sub(F[other(d)].home).normalize();
+      f.hit=1;f.off.addScaledVector(dir,.35);CAM.shake=Math.max(CAM.shake,sk.kind==='FLURRY'?.12:.24);
+      burst(p,c2,sk.kind==='FLURRY'?1.2:2.2);ringFX(p,c2,2.6,.45,false,Math.random()*3);shards(p,c2,sk.tone,sk.kind==='FLURRY'?4:9);
+      if(sk.tone==='ROAR'&&h===0)spikes(f.home,c2);if(sk.tone==='BEAT'&&h===0)ringFX(f.home.clone().setY(.05),c2,3.4,.6);
+      if(sk.tone==='VOLT')bolt(p.clone().setY(7),p,c2,.3);if(mult>1){flash();burst(p,'#ffffff',3,.6,0)}},
+    async heal(s,sk){face(s,false);closeOn(s);pulse(s,col(sk));wireFlash(s);await sleep(700)},
+    async drain(from,to,sk){shoulder(to);await spiral(chest(from),chest(to),col(sk));pulse(to,col(sk))},
+    buff(s,sk){eq(F[s].home,col(sk));wireFlash(s);ringFX(chest(s),col(sk),1.8,.6)},
+    debuff(s,sk){F[s].jit=.45;for(let i=0;i<3;i++)bolt(head(s).add(new THREE.Vector3(-.8,i*.3,0)),head(s).add(new THREE.Vector3(.8,-i*.3,0)),col(sk),.45);ringFX(head(s),col(sk),1.6,.5,false,1)},
+    stun(s){dizzy(s)},
+    unstun(s){if(F[s].dizzy){scene.remove(F[s].dizzy);F[s].dizzy=null}},
+    guard(s,on){if(on&&!F[s].guard){const g=wire(new THREE.IcosahedronGeometry(1.35,1),'#7fd3ff',.7);F[s].guard=g;scene.add(g)}if(!on&&F[s].guard){scene.remove(F[s].guard);F[s].guard=null}},
+    async finale(a,d,sk){const c2=col(sk),A=F[a].home,D=F[d].home;face(a,true);wireFlash(a);CAM.mode='orbit';CAM.orb={c:A.clone().lerp(D,.35),a:Math.atan2(perp.z,perp.x),r:7.5,y:4.2,sp:1.6};CAM.k=3;
+      const disc=new THREE.Group(),r1=edges(new THREE.RingGeometry(.4,3,64,6),c2),r2=wire(new THREE.CircleGeometry(.4,24),'#ffffff');disc.add(r1,r2);disc.rotation.x=-Math.PI/2;disc.position.copy(A).setY(6);scene.add(disc);
+      eq(A,c2,1.6);for(let i=0;i<6;i++)setTimeout(()=>ringFX(A.clone().setY(.1+i*.5),c2,2.5,.5),i*120);
+      await new Promise(res=>addFX(null,1.4,k=>{disc.rotation.z+=.25;const e=k<.55?0:(k-.55)/.45;disc.position.copy(A.clone().lerp(D,Math.min(1,k*1.6))).setY(6-e*e*5.8);disc.scale.setScalar(1+Math.sin(k*20)*.04)},res));
+      scene.remove(disc);flash();CAM.shake=.6;closeOn(d);for(let i=0;i<3;i++)burst(chest(d),i?c2:'#ffffff',3+i,.8,i);ringFX(D.clone().setY(.05),c2,6,.8);ringFX(D.clone().setY(.05),'#ffffff',4.5,.6);shards(chest(d),c2,sk.tone,18,6);spikes(D,c2);
+      for(let i=0;i<6;i++){const x=D.clone().add(new THREE.Vector3((Math.random()-.5)*2,0,(Math.random()-.5)*2));bolt(x.clone().setY(9),x,c2,.5)}},
+    ko(s){F[s].ko=1;CAM.shake=.3;burst(chest(s),'#ffffff',2.5,.7,0)},
+    settle(){for(const s of['me','foe'])face(s,false);settle()},
+    anchor(s){const p=head(s).project(cam),w=arena.clientWidth,h=arena.clientHeight,x=(p.x+1)/2*w,y=(1-p.y)/2*h;return {x:x-60,y:y-40,w:120,h:120}},
+    kill(){sh.kill();flashEl.remove()},
+    F,CAM
+  };
+  return ST;
+}
+
 /* ---------- battle ---------- */
-let B=null;
-const fieldSVG=`<svg class="field" viewBox="0 0 400 300" preserveAspectRatio="none"><rect width="400" height="300" fill="#2c9a3e"/><g stroke="#fff" stroke-opacity=".55" stroke-width="1.5" fill="none">${[110,150,200,260].map(y=>`<path d="M0 ${y}H400"/>`).join('')}${[-300,-100,100,300,500,700].map(x=>`<path d="M200 60L${x} 300"/>`).join('')}</g><path d="M0 60H400" stroke="#fff" stroke-width="2.5"/><rect width="400" height="60" fill="#1f7a30"/><g fill="#fff" opacity=".85">${[40,120,300,360].map((x,i)=>`<circle cx="${x}" cy="${20+i%2*14}" r="${2+i%2}"/>`).join('')}</g></svg>`;
-function fighter(c,lvl,side){const s=c.stats,st={...c,lvl,side,hp:c.maxhp,atk:0,def:0,spd:0,hype:0,stun:0,guard:0};if(c.aura==='Tempo Up')st.spd=1;if(c.aura==='Headliner')st.hype=35;return st}
+let B=null,ST=null;
+const fieldSVG=`<svg class="field" viewBox="0 0 400 300" preserveAspectRatio="none"><rect width="400" height="300" fill="#2c9a3e"/><g stroke="#fff" stroke-opacity=".55" stroke-width="1.5" fill="none">${[110,150,200,260].map(y=>`<path d="M0 ${y}H400"/>`).join('')}${[-300,-100,100,300,500,700].map(x=>`<path d="M200 60L${x} 300"/>`).join('')}</g><path d="M0 60H400" stroke="#fff" stroke-width="2.5"/><rect width="400" height="60" fill="#1f7a30"/></svg>`;
+function fighter(c,lvl,side){const st={...c,lvl,side,hp:c.maxhp,atk:0,def:0,spd:0,hype:0,stun:0,guard:0};if(c.aura==='Tempo Up')st.spd=1;if(c.aura==='Headliner')st.hype=35;return st}
 const stage=v=>1+.25*clamp(v,-3,3)*(v<0?.67:1);
+function stage2D(){const el=s=>$('#f'+s),ar=()=>$('#arena');
+  return {two:true,async cast(){},async deliver(a){const e=el(a);e.classList.add(a==='me'?'lunge-r':'lunge-l');await sleep(170);e.classList.remove('lunge-r','lunge-l')},
+    impact(d){fx(el(d),'hit')},async heal(){await sleep(250)},async drain(){await sleep(250)},buff(){},debuff(){},stun(){},unstun(){},guard(){},
+    async finale(a,d,s){await this.deliver(a)},ko(s){el(s).style.opacity=.35},settle(){},kill(){},
+    anchor(s){const r=el(s).getBoundingClientRect(),a=ar().getBoundingClientRect();return {x:r.left-a.left,y:r.top-a.top,w:r.width,h:r.height}}}}
 function viewBattle(){
+  kill3D();
   const me=activeCreature();if(!me)return go('ritual');
   const R=RIVALS[S.rival%RIVALS.length],foe=makeCreature(R.pl,R.lvl);
   B={me:fighter(me,1,'me'),foe:fighter(foe,R.lvl,'foe'),busy:false,heard:new Set(),R};
@@ -596,14 +915,26 @@ function viewBattle(){
   scr.innerHTML=`<div class="arena" id="arena">${fieldSVG}
    <div class="fighter f-foe" id="ffoe">${creatureSVG(foe)}</div><div class="fighter f-me" id="fme">${creatureSVG(me)}</div>
    <div class="hud foe" id="hfoe"></div><div class="hud me" id="hme"></div>
+   <button class="vt" id="vtb" aria-pressed="${S.battle3d}">${S.battle3d?'3D on':'3D'}</button>
    <div class="rhythm" id="rh"><div class="ringbox"><div class="tgt"></div><div class="rg" id="rg"></div></div><div class="judge" id="jd"></div><div class="lbl" id="rl"></div></div></div>
    <div class="log" id="log"></div><div class="cmds" id="cmds"></div>
    <div class="over" id="over"></div>`;
   setMusicFor(me.mix,me.key);
-  hud();log(`${R.who} drops the needle on ${foe.name}! Music on helps you hit the beat.`);cmds();
+  hud();log(`${R.who} drops the needle on ${foe.name}! Turn the music on to hear the beat you're tapping to.`);cmds();
+  $('#vtb').onclick=()=>{if(B.busy)return;S.battle3d=!S.battle3d;store.set('sx.battle3d',S.battle3d);const b=$('#vtb');b.setAttribute('aria-pressed',S.battle3d);b.textContent=S.battle3d?'3D on':'3D';mountStage()};
+  mountStage();
+}
+async function mountStage(){
+  kill3D();const ar=$('#arena');ar.classList.remove('d3');ST=stage2D();
+  ['me','foe'].forEach(s=>{$('#f'+s).style.opacity=B[s].hp>0?'':'.35'});
+  if(!S.battle3d)return;
+  const myB=B;
+  try{const st=await stage3D(ar,B.me,B.foe);if(B!==myB||!ar.isConnected){st.kill();return}
+    ST=st;ar.classList.add('d3');LIVE3D=()=>{st.kill();ar.classList.remove('d3')};for(const s of['me','foe'])if(B[s].hp<=0)st.ko(s)}
+  catch(e){console.warn('3D unavailable',e);if(ar.isConnected)log('3D could not load here, so this fight is in 2D.')}
 }
 function hud(){for(const k of['me','foe']){const f=B[k];$('#h'+k).innerHTML=`<div><b>${esc(f.name)}</b> <span style="float:right">${TONES[f.dom].label}</span></div><div class="hp"><i style="width:${(f.hp/f.maxhp*100).toFixed(1)}%"></i></div><div class="st">${Math.max(0,Math.ceil(f.hp))}/${f.maxhp}${f.atk?` ATK${f.atk>0?'+':''}${f.atk}`:''}${f.def?` DEF${f.def>0?'+':''}${f.def}`:''}${f.stun?' · dazed':''}</div>${k==='me'?`<div class="hy"><i style="width:${f.hype}%"></i></div><div class="st">HYPE ${Math.round(f.hype)}</div>`:''}`}}
-const log=t=>{$('#log').textContent=t};
+const log=t=>{const l=$('#log');if(l)l.textContent=t};
 function effTag(s){const m=typeMult(s.tone,B.foe.dom);return m>1?'<span class="eff up">▲ strong</span>':m<1?'<span class="eff dn">▼ weak</span>':''}
 function cmds(){
   const m=B.me,list=m.skills.map((s,i)=>`<button class="cmd" data-k="${i}"><i style="background:${TONES[s.tone].c}"></i><b>${esc(s.name)}</b><small>${KINDS[s.kind].d} ${effTag(s)}</small></button>`);
@@ -622,51 +953,58 @@ function rhythm(label){return new Promise(res=>{
   const key=e=>{if(e.code==='Space'||e.key==='Enter'){e.preventDefault();tap()}};
   rh.onpointerdown=e=>{e.preventDefault();tap()};window.addEventListener('keydown',key);raf=requestAnimationFrame(loop)})}
 function fx(el,cls,ms=380){el.classList.add(cls);return sleep(ms).then(()=>el.classList.remove(cls))}
-function pop(sideEl,text,color,cls='boom'){const a=$('#arena'),r=sideEl.getBoundingClientRect(),ar=a.getBoundingClientRect(),d=document.createElement('div');d.className=cls;d.textContent=text;if(color)d.style.setProperty('--c',color);d.style.left=(r.left-ar.left+r.width*(.25+Math.random()*.3))+'px';d.style.top=(r.top-ar.top+r.height*(.15+Math.random()*.2))+'px';a.appendChild(d);setTimeout(()=>d.remove(),1000)}
+function pop(side,text,color,cls='boom'){const a=$('#arena');if(!a)return;const r=ST.anchor(side),d=document.createElement('div');d.className=cls;d.textContent=text;if(color)d.style.setProperty('--c',color);
+  d.style.left=clamp(r.x+r.w*(.2+Math.random()*.35),4,a.clientWidth-90)+'px';d.style.top=clamp(r.y+r.h*(.05+Math.random()*.25),4,a.clientHeight-50)+'px';a.appendChild(d);setTimeout(()=>d.remove(),1000)}
 async function use(atk,def,s,isMe){
-  const aEl=$('#f'+atk.side),dEl=$('#f'+def.side);
   log(`${atk.name} plays ${s.name}!`);
   const len=Music.sfx(s.motif,s.tone,isMe?60:55);if(!isMe)B.heard.add(s.src.t);
-  await sleep(Math.min(900,(len||.5)*1000));
-  const needsHit=s.kind!=='ENCORE';
-  let judge='GOOD';
+  await ST.cast(atk.side,s);
+  await sleep(Math.max(0,Math.min(900,(len||.5)*1000)-260));
+  const needsHit=s.kind!=='ENCORE';let judge='GOOD';
   if(isMe)judge=await rhythm(s.kind==='ENCORE'?'TAP ON THE BEAT TO HEAL':'TAP ON THE BEAT!');
   else if(needsHit&&!def.guard)judge=await rhythm('GUARD ON THE BEAT!');
   const tm=isMe?{PERFECT:1.3,GOOD:1.1,MISS:.85}[judge]:{PERFECT:.55,GOOD:.8,MISS:1}[judge];
-  if(isMe){atk.hype=clamp(atk.hype+{PERFECT:18,GOOD:10,MISS:4}[judge],0,100)}
-  if(s.kind==='ENCORE'){const amt=Math.round(atk.maxhp*.26*(atk.stats.fx/62)*(isMe?tm:1));atk.hp=Math.min(atk.maxhp,atk.hp+amt);pop(aEl,'+'+amt,null,'dmg');pop(aEl,TONES[s.tone].boom[1],TONES[s.tone].c);hud();return}
-  aEl.classList.add(isMe?'lunge-r':'lunge-l');await sleep(170);aEl.classList.remove('lunge-r','lunge-l');
+  if(isMe)atk.hype=clamp(atk.hype+{PERFECT:18,GOOD:10,MISS:4}[judge],0,100);
+  if(s.kind==='ENCORE'){const amt=Math.round(atk.maxhp*.26*(atk.stats.fx/62)*(isMe?tm:1));await ST.heal(atk.side,s);atk.hp=Math.min(atk.maxhp,atk.hp+amt);pop(atk.side,'+'+amt,null,'dmg');pop(atk.side,TONES[s.tone].boom[1],TONES[s.tone].c);hud();log(`${atk.name} recovers ${amt} HP.`);ST.settle();return}
   const useFx=['DRAIN','DISSONANCE','OFFBEAT'].includes(s.kind),aStat=s.kind==='FINALE'?Math.max(atk.stats.atk,atk.stats.fx):useFx?atk.stats.fx:atk.stats.atk;
   const fxBoost=atk.aura==='Nocturne'&&atk.hp<atk.maxhp/2&&useFx?1.25:1,od=atk.aura==='Overdrive'?1.12:1;
   const hits=s.kind==='FLURRY'?3:1;let total=0;const mult=typeMult(s.tone,def.dom);
+  if(s.kind==='FINALE')await ST.finale(atk.side,def.side,s);
   for(let h=0;h<hits;h++){
+    if(s.kind!=='FINALE')await ST.deliver(atk.side,def.side,s,h);
     let dmg=s.pw*(aStat*stage(atk.atk)*fxBoost)/(def.stats.def*stage(def.def))*1.05*mult*tm*od*(def.guard?.5:1)*(.92+Math.random()*.14);
     dmg=Math.max(1,Math.round(dmg));def.hp=Math.max(0,def.hp-dmg);total+=dmg;
-    Music.thud();pop(dEl,String(dmg),null,'dmg');fx(dEl,'hit');if(h===0)pop(dEl,TONES[s.tone].boom[(Math.random()*3)|0],TONES[s.tone].c);hud();if(hits>1)await sleep(220)}
+    Music.thud();ST.impact(def.side,s,h,mult);pop(def.side,String(dmg),null,'dmg');if(h===0)pop(def.side,TONES[s.tone].boom[(Math.random()*3)|0],TONES[s.tone].c);hud();if(hits>1)await sleep(200)}
   if(!isMe)def.hype=clamp(def.hype+8,0,100);
   let extra='';
-  if(s.kind==='DRAIN'){const hl=Math.round(total*.5);atk.hp=Math.min(atk.maxhp,atk.hp+hl);extra=` Drained ${hl} HP.`}
-  if(s.kind==='CRESCENDO'&&atk.atk<3){atk.atk++;extra=' ATK rises!'}
-  if(s.kind==='DISSONANCE'&&def.def>-3){def.def--;extra=` ${def.name}'s DEF drops!`}
-  if(s.kind==='OFFBEAT'&&def.hp>0&&Math.random()<(judge==='PERFECT'&&isMe?.55:.35)){def.stun=1;extra=` ${def.name} is dazed!`}
+  if(s.kind==='DRAIN'){const hl=Math.round(total*.5);await ST.drain(def.side,atk.side,s);atk.hp=Math.min(atk.maxhp,atk.hp+hl);pop(atk.side,'+'+hl,null,'dmg');extra=` Drained ${hl} HP.`}
+  if(s.kind==='CRESCENDO'&&atk.atk<3){atk.atk++;ST.buff(atk.side,s);extra=' ATK rises!'}
+  if(s.kind==='DISSONANCE'&&def.def>-3){def.def--;ST.debuff(def.side,s);extra=` ${def.name}'s DEF drops!`}
+  if(s.kind==='OFFBEAT'&&def.hp>0&&Math.random()<(judge==='PERFECT'&&isMe?.55:.35)){def.stun=1;ST.stun(def.side);extra=` ${def.name} is dazed!`}
   if(s.kind==='FINALE')atk.hype=0;
+  if(def.hp<=0)ST.ko(def.side);
   log(`${s.name} hits for ${total}${mult>1?' (strong!)':mult<1?' (weak…)':''}.${extra}`+(isMe?` ${judge==='PERFECT'?'Perfect timing!':judge==='GOOD'?'Good timing.':'Off the beat.'}`:''));hud();
+  await sleep(s.kind==='FINALE'?700:350);ST.settle();
 }
 function foeChoice(){const f=B.foe,opts=f.skills.filter(s=>!(s.kind==='ENCORE'&&f.hp>f.maxhp*.55));let best=opts[0],sc=-1;
-  for(const s of opts){const v=(s.pw||60)*typeMult(s.tone,B.me.dom)*(s.kind==='ENCORE'?1.4:1)*(.7+Math.random()*.6);if(v>sc){sc=v;best=s}}return best}
+  for(const s of opts){const v=(s.pw||60)*typeMult(s.tone,B.me.dom)*(s.kind==='ENCORE'?1.4:1)*(.7+Math.random()*.6);if(v>sc){sc=v;best=s}}
+  if(f.closer&&f.hype>=100)return f.closer;return best}
 async function turn(k){
-  if(B.busy)return;B.busy=true;$('#cmds').querySelectorAll('button').forEach(b=>b.disabled=true);
+  if(B.busy)return;B.busy=true;const myB=B;$('#cmds').querySelectorAll('button').forEach(b=>b.disabled=true);
   const m=B.me,f=B.foe;m.guard=k==='g'?1:0;f.guard=0;
-  if(m.guard){m.hype=clamp(m.hype+20,0,100);log(`${m.name} braces and listens…`);hud();await sleep(500)}
+  if(m.guard){m.hype=clamp(m.hype+20,0,100);ST.guard('me',true);log(`${m.name} braces and listens…`);hud();await sleep(600)}
   const mySkill=k==='c'?m.closer:k==='g'?null:m.skills[+k];
   const order=(m.stats.spd*stage(m.spd))>=(f.stats.spd*stage(f.spd))?['me','foe']:['foe','me'];
   for(const who of order){
+    if(B!==myB)return;
     const a=B[who],d=B[who==='me'?'foe':'me'];if(a.hp<=0||d.hp<=0)continue;
-    if(a.stun){a.stun=0;log(`${a.name} is dazed and misses the cue!`);hud();await sleep(800);continue}
+    if(a.stun){a.stun=0;ST.unstun(who);log(`${a.name} is dazed and misses the cue!`);hud();await sleep(900);continue}
     if(d.aura==='Lullaby'&&Math.random()<.12){log(`${a.name} dozes off to ${d.name}'s lullaby…`);await sleep(900);continue}
-    if(who==='me'){if(mySkill)await use(m,f,mySkill,true)}else await use(f,m,foeChoice(),false);
-    await sleep(650);
+    if(who==='me'){if(mySkill)await use(m,f,mySkill,true)}else{f.hype=clamp(f.hype+12,0,100);await use(f,m,foeChoice(),false)}
+    await sleep(500);
   }
+  if(B!==myB)return;
+  ST.guard('me',false);
   for(const x of[m,f])if(x.aura==='Heartbeat'&&x.hp>0){x.hp=Math.min(x.maxhp,x.hp+Math.round(x.maxhp*.05))}
   hud();
   if(f.hp<=0||m.hp<=0)return end(f.hp<=0);
@@ -690,7 +1028,7 @@ mute.onclick=()=>{if(Music.on){Music.stop();mute.setAttribute('aria-pressed','fa
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{if(b.dataset.v==='ritual'&&!S.editing){}go(b.dataset.v)});
 if(activeEntry())S.view='card';
 render();
-window.SX={S,Music,makeCreature,creatureSVG,SAMPLES,RIVALS,go,turn,B:()=>B};
+window.SX={S,Music,makeCreature,creatureSVG,SAMPLES,RIVALS,go,turn,B:()=>B,ST:()=>ST,MB};
 }
 </script>
 </body>
