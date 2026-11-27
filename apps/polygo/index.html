@@ -36,6 +36,25 @@ canvas{display:block;position:fixed;inset:0}
 #askF .row{display:flex;gap:8px;justify-content:flex-end}
 #askF button{font-size:15px;padding:8px 16px;border-radius:20px;border:none;background:var(--bg);color:var(--fg);cursor:pointer}
 #askF #askYes{background:var(--accent);color:#fff;font-weight:600}
+#autoP{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:0 max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));touch-action:auto;z-index:20}
+#autoF{background:var(--panel);color:var(--fg);border-radius:16px;padding:18px;width:min(360px,100%);display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 30px var(--shadow)}
+#autoF .ttl{margin:0;font-size:17px;font-weight:600}
+#autoF label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:15px}
+#autoF input[type=number]{width:110px;font-size:16px;padding:8px 10px;border-radius:8px;border:1px solid var(--muted);background:var(--bg);color:var(--fg);font-variant-numeric:tabular-nums}
+#autoF input[type=range]{flex:1;accent-color:var(--accent)}
+#autoF input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
+#autoF .note{margin:0;font-size:13px;color:var(--muted);line-height:1.4}
+#aKind{display:flex;gap:6px;background:var(--bg);border-radius:12px;padding:4px}
+#aKind button{flex:1;min-height:44px;border:none;border-radius:9px;background:transparent;color:var(--fg);font-size:14px;cursor:pointer}
+#aKind button.on{background:var(--panel);box-shadow:0 1px 4px var(--shadow);font-weight:600}
+#aProg{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+#aProg .bar{height:8px;border-radius:4px;background:var(--bg);overflow:hidden}#aBar{display:block;height:100%;width:2%;background:var(--accent);transition:width .2s}
+#autoF .row{display:flex;gap:8px;justify-content:flex-end}
+#autoF .row button{font-size:15px;min-height:44px;padding:8px 16px;border-radius:22px;border:none;background:var(--bg);color:var(--fg);cursor:pointer}
+#autoF #aGo{background:var(--accent);color:#fff;font-weight:600}#autoF #aGo:disabled{opacity:.5}
+#warn{position:fixed;left:calc(10px + env(safe-area-inset-left,0px));top:calc(30px + env(safe-area-inset-top,0px));border:none;border-radius:16px;min-height:32px;padding:6px 12px;background:var(--danger);color:#fff;font-size:13px;font-weight:600;box-shadow:0 2px 6px var(--shadow);cursor:pointer;max-width:calc(100% - 90px);text-align:left}
+#ringUI .b{position:fixed;z-index:15;background:var(--accent);color:#fff;font-size:22px}#ringUI .b span{display:inline-block}
+#ringUI #rImg{background:var(--panel);color:var(--fg)}
 @media (prefers-reduced-motion:reduce){#hint{transition:none}}
 </style>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
@@ -52,7 +71,7 @@ canvas{display:block;position:fixed;inset:0}
 <button class="b off" id="bMir" title="Mirror edits across the centre">🪞</button>
 <button class="b" id="bTuto" title="Tuto on or off">🏀</button>
 <button class="b" id="bTex" title="Use sculpt texture on low-poly">🎨</button>
-<button class="b" id="bAuto" title="Auto retopo">✨</button>
+<button class="b" id="bAuto" title="Auto retopology">✨</button>
 <button class="b" id="bUndo" title="Undo">↶</button>
 <button class="b" id="bExp" title="Export OBJ">⬇</button>
 <button class="b" id="bHelp" title="Help">?</button>
@@ -73,7 +92,494 @@ canvas{display:block;position:fixed;inset:0}
 <input type="range" id="wSize" min="0.03" max="0.2" step="0.005" value="0.08" style="width:110px" title="Tool size">
 <button class="b" style="border-radius:22px;width:auto;padding:0 12px;font-size:13px" id="wNew">New block</button></div>
 <div id="ask" hidden><form id="askF"><p id="askT"></p><input id="askI" type="number" inputmode="numeric" min="10"><div class="row"><button type="button" id="askNo">Cancel</button><button type="submit" id="askYes">OK</button></div></form></div>
+<div id="autoP" hidden><form id="autoF">
+<p class="ttl">Auto retopology</p>
+<div id="aKind"><button type="button" data-k="quad" class="on">Quads that follow the shape</button><button type="button" data-k="tri">Quick triangles</button></div>
+<label for="aN">Faces <input id="aN" type="number" inputmode="numeric" min="20" max="20000" step="50" value="800"></label>
+<label id="aSmL" for="aSm">Smoothness <input id="aSm" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+<label id="aMiL" for="aMi">Mirror across the centre line <input id="aMi" type="checkbox"></label>
+<p class="note">Replaces your low-poly mesh. Undo brings it back. Big counts on dense sculpts can take a minute on a phone.</p>
+<div id="aProg" hidden><div class="bar"><i id="aBar"></i></div><span id="aStage">Starting</span></div>
+<div class="row"><button type="button" id="aNo">Cancel</button><button type="submit" id="aGo">Make quads</button></div>
+</form></div>
+<button id="warn" hidden title="Show the next problem face"></button>
+<div id="ringUI" hidden><button class="b" id="rA" title="Wrap a ring this way"><span>⟷</span></button><button class="b" id="rB" title="Wrap a ring this way"><span>⟷</span></button><button class="b" id="rImg" title="Put a drawing on this side">🖼</button></div>
 <div id="hint"></div>
+<script type="text/plain" id="qremeshSrc">
+// Polygo quad remesher: the Instant Meshes method (Jakob, Tarini, Panozzo, Sorkine-Hornung 2015), written in JS.
+// 1) build a graph hierarchy of the sculpt, 2) smooth a 4-way orientation field, 3) smooth a position field
+// (a square lattice laid over the surface), 4) collapse and connect lattice points into a quad mesh, then
+// 5) project it onto the sculpt and relax it. Runs in a Web Worker; nothing here touches the page.
+'use strict';
+const QREMESH = (() => {
+const dot = (a, i, b, j) => a[i] * b[j] + a[i + 1] * b[j + 1] + a[i + 2] * b[j + 2];
+function shuffle(n, seed) { const a = new Int32Array(n); for (let i = 0; i < n; i++) a[i] = i; let s = seed >>> 0 || 1;
+  for (let i = n - 1; i > 0; i--) { s = (s * 1664525 + 1013904223) >>> 0; const j = s % (i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function csr(n, pairs) {           // adjacency lists from a Set of i*n+j keys (i<j)
+  const deg = new Int32Array(n + 1);
+  for (const k of pairs) { const i = Math.floor(k / n), j = k - i * n; deg[i + 1]++; deg[j + 1]++; }
+  for (let i = 0; i < n; i++) deg[i + 1] += deg[i];
+  const adj = new Int32Array(deg[n]), fill = deg.slice(0, n);
+  for (const k of pairs) { const i = Math.floor(k / n), j = k - i * n; adj[fill[i]++] = j; adj[fill[j]++] = i; }
+  return { off: deg, adj };
+}
+// ---- level 0: the sculpt merged onto a fine grid (keeps it fast on dense sculpts)
+function baseLevel(P, I, cell, sym) {
+  const nv = P.length / 3, key = new Map(), cid = new Int32Array(nv).fill(-1);
+  const sums = [], cnt = [];
+  const keep = new Uint8Array(I.length / 3);
+  for (let t = 0; t < I.length / 3; t++) {
+    if (sym) { const cx = (P[I[t * 3] * 3] + P[I[t * 3 + 1] * 3] + P[I[t * 3 + 2] * 3]) / 3; if (cx < 0) continue; }
+    keep[t] = 1;
+  }
+  const X = i => sym ? Math.max(0, P[i * 3]) : P[i * 3];
+  for (let t = 0; t < keep.length; t++) if (keep[t]) for (let k = 0; k < 3; k++) {
+    const v = I[t * 3 + k]; if (cid[v] >= 0) continue;
+    const kx = Math.floor(X(v) / cell) + 65536, ky = Math.floor(P[v * 3 + 1] / cell) + 65536, kz = Math.floor(P[v * 3 + 2] / cell) + 65536;
+    const kk = (kx * 131072 + ky) * 131072 + kz;     // stays below 2^53, so distinct cells never collide
+    let c = key.get(kk); if (c === undefined) { c = cnt.length; key.set(kk, c); cnt.push(0); sums.push(0, 0, 0); }
+    cid[v] = c; cnt[c]++; sums[c * 3] += X(v); sums[c * 3 + 1] += P[v * 3 + 1]; sums[c * 3 + 2] += P[v * 3 + 2];
+  }
+  const n = cnt.length, pos = new Float64Array(n * 3), nrm = new Float64Array(n * 3), area = new Float64Array(n);
+  for (let c = 0; c < n; c++) for (let k = 0; k < 3; k++) pos[c * 3 + k] = sums[c * 3 + k] / cnt[c];
+  const pairs = new Set(), tris = [];
+  for (let t = 0; t < keep.length; t++) {
+    if (!keep[t]) continue;
+    const a = I[t * 3], b = I[t * 3 + 1], c = I[t * 3 + 2];
+    const ux = X(b) - X(a), uy = P[b * 3 + 1] - P[a * 3 + 1], uz = P[b * 3 + 2] - P[a * 3 + 2];
+    const vx = X(c) - X(a), vy = P[c * 3 + 1] - P[a * 3 + 1], vz = P[c * 3 + 2] - P[a * 3 + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, ar = 0.5 * Math.hypot(nx, ny, nz);
+    const A = cid[a], B = cid[b], C = cid[c];
+    for (const q of [A, B, C]) { nrm[q * 3] += nx; nrm[q * 3 + 1] += ny; nrm[q * 3 + 2] += nz; area[q] += ar / 3; }
+    if (A === B || B === C || A === C) continue;
+    tris.push(A, B, C);
+    for (const [i, j] of [[A, B], [B, C], [C, A]]) pairs.add(i < j ? i * n + j : j * n + i);
+  }
+  for (let c = 0; c < n; c++) { const l = Math.hypot(nrm[c * 3], nrm[c * 3 + 1], nrm[c * 3 + 2]) || 1; for (let k = 0; k < 3; k++) nrm[c * 3 + k] /= l; }
+  const { off, adj } = csr(n, pairs);
+  return { n, pos, nrm, area, off, adj, tris: Int32Array.from(tris) };
+}
+// ---- coarser levels: pair up neighbours with similar normals (follows the surface, never jumps across gaps)
+function coarsen(L, seed) {
+  const n = L.n, match = new Int32Array(n).fill(-1), order = shuffle(n, seed);
+  for (const i of order) {
+    if (match[i] >= 0) continue; let best = -1, bs = -2;
+    for (let e = L.off[i]; e < L.off[i + 1]; e++) { const j = L.adj[e]; if (match[j] >= 0) continue; const s = dot(L.nrm, i * 3, L.nrm, j * 3); if (s > bs) { bs = s; best = j; } }
+    if (best >= 0 && bs > -0.2) { match[i] = best; match[best] = i; } else match[i] = i;
+  }
+  const parent = new Int32Array(n).fill(-1); let m = 0;
+  for (let i = 0; i < n; i++) if (parent[i] < 0) { parent[i] = m; parent[match[i]] = m; m++; }
+  const pos = new Float64Array(m * 3), nrm = new Float64Array(m * 3), area = new Float64Array(m);
+  for (let i = 0; i < n; i++) { const p = parent[i], w = L.area[i] + 1e-12; area[p] += w;
+    for (let k = 0; k < 3; k++) { pos[p * 3 + k] += L.pos[i * 3 + k] * w; nrm[p * 3 + k] += L.nrm[i * 3 + k] * w; } }
+  for (let p = 0; p < m; p++) { for (let k = 0; k < 3; k++) pos[p * 3 + k] /= area[p];
+    const l = Math.hypot(nrm[p * 3], nrm[p * 3 + 1], nrm[p * 3 + 2]);
+    if (l < 1e-9) { for (let i = 0; i < n; i++) if (parent[i] === p) { for (let k = 0; k < 3; k++) nrm[p * 3 + k] = L.nrm[i * 3 + k]; break; } }
+    else for (let k = 0; k < 3; k++) nrm[p * 3 + k] /= l; }
+  const pairs = new Set();
+  for (let i = 0; i < n; i++) for (let e = L.off[i]; e < L.off[i + 1]; e++) { const a = parent[i], b = parent[L.adj[e]]; if (a !== b) pairs.add(a < b ? a * m + b : b * m + a); }
+  const { off, adj } = csr(m, pairs);
+  L.parent = parent;
+  return { n: m, pos, nrm, area, off, adj };
+}
+// ---- field maths (as in the Instant Meshes source)
+const A0 = new Float64Array(3), A1 = new Float64Array(3), B0 = new Float64Array(3), B1 = new Float64Array(3);
+function cross(o, a, i, b, j) { o[0] = a[i + 1] * b[j + 2] - a[i + 2] * b[j + 1]; o[1] = a[i + 2] * b[j] - a[i] * b[j + 2]; o[2] = a[i] * b[j + 1] - a[i + 1] * b[j]; }
+// best-matching pair among {q0, n0×q0} and {q1, n1×q1}; result into ra, rb
+function compatOrient(q, i, n, j, ra, rb) {
+  A0[0] = q[i]; A0[1] = q[i + 1]; A0[2] = q[i + 2]; cross(A1, n, i, q, i);
+  B0[0] = q[j]; B0[1] = q[j + 1]; B0[2] = q[j + 2]; cross(B1, n, j, q, j);
+  const As = [A0, A1], Bs = [B0, B1]; let bs = -1, ba = 0, bb = 0;
+  for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) { const s = Math.abs(As[a][0] * Bs[b][0] + As[a][1] * Bs[b][1] + As[a][2] * Bs[b][2]); if (s > bs) { bs = s; ba = a; bb = b; } }
+  const A = As[ba], B = Bs[bb], sg = (A[0] * B[0] + A[1] * B[1] + A[2] * B[2]) < 0 ? -1 : 1;
+  ra[0] = A[0]; ra[1] = A[1]; ra[2] = A[2]; rb[0] = B[0] * sg; rb[1] = B[1] * sg; rb[2] = B[2] * sg;
+}
+function middle(p, i, n, j, out) {     // a point on both tangent planes, near the edge middle
+  const n0p1 = n[i] * p[j] + n[i + 1] * p[j + 1] + n[i + 2] * p[j + 2], n0p0 = n[i] * p[i] + n[i + 1] * p[i + 1] + n[i + 2] * p[i + 2];
+  const n1p0 = n[j] * p[i] + n[j + 1] * p[i + 1] + n[j + 2] * p[i + 2], n1p1 = n[j] * p[j] + n[j + 1] * p[j + 1] + n[j + 2] * p[j + 2];
+  const n0n1 = n[i] * n[j] + n[i + 1] * n[j + 1] + n[i + 2] * n[j + 2], den = 1 / (1 - n0n1 * n0n1 + 1e-4);
+  const l0 = 2 * (n0p1 - n0p0 - n0n1 * (n1p0 - n1p1)) * den, l1 = 2 * (n1p0 - n1p1 - n0n1 * (n0p1 - n0p0)) * den;
+  let off2 = 0, len2 = 0;
+  for (let k = 0; k < 3; k++) { const d = 0.25 * (n[i + k] * l0 + n[j + k] * l1); off2 += d * d; len2 += (p[i + k] - p[j + k]) ** 2; }
+  // nearly parallel normals can throw the exact point far along the planes' crossing line: stay near the edge
+  const sc = off2 > 0.25 * len2 ? Math.sqrt(0.25 * len2 / off2) : 1;
+  for (let k = 0; k < 3; k++) out[k] = 0.5 * (p[i + k] + p[j + k]) - 0.25 * (n[i + k] * l0 + n[j + k] * l1) * sc;
+}
+const T0 = new Float64Array(3), T1 = new Float64Array(3), MID = new Float64Array(3), F0 = new Float64Array(3), F1 = new Float64Array(3), IX = new Int32Array(4);
+// lattice points of i and j nearest each other around the edge middle; into ra, rb (and integer indices into IX)
+function compatPos(L, Q, O, i, j, s, ra, rb) {
+  const p = L.pos, n = L.nrm, I3 = i * 3, J3 = j * 3;
+  cross(T0, n, I3, Q, I3); cross(T1, n, J3, Q, J3); middle(p, I3, n, J3, MID);
+  const d0q = ((MID[0] - O[I3]) * Q[I3] + (MID[1] - O[I3 + 1]) * Q[I3 + 1] + (MID[2] - O[I3 + 2]) * Q[I3 + 2]) / s;
+  const d0t = ((MID[0] - O[I3]) * T0[0] + (MID[1] - O[I3 + 1]) * T0[1] + (MID[2] - O[I3 + 2]) * T0[2]) / s;
+  const d1q = ((MID[0] - O[J3]) * Q[J3] + (MID[1] - O[J3 + 1]) * Q[J3 + 1] + (MID[2] - O[J3 + 2]) * Q[J3 + 2]) / s;
+  const d1t = ((MID[0] - O[J3]) * T1[0] + (MID[1] - O[J3 + 1]) * T1[1] + (MID[2] - O[J3 + 2]) * T1[2]) / s;
+  const a0 = Math.floor(d0q), b0 = Math.floor(d0t), a1 = Math.floor(d1q), b1 = Math.floor(d1t);
+  let best = Infinity, bi = 0, bj = 0;
+  for (let u = 0; u < 4; u++) {
+    const ua = a0 + (u & 1), ub = b0 + (u >> 1);
+    for (let k = 0; k < 3; k++) F0[k] = O[I3 + k] + (Q[I3 + k] * ua + T0[k] * ub) * s;
+    for (let v = 0; v < 4; v++) {
+      const va = a1 + (v & 1), vb = b1 + (v >> 1);
+      let c = 0; for (let k = 0; k < 3; k++) { const d = F0[k] - (O[J3 + k] + (Q[J3 + k] * va + T1[k] * vb) * s); c += d * d; }
+      if (c < best) { best = c; bi = u; bj = v; }
+    }
+  }
+  const ua = a0 + (bi & 1), ub = b0 + (bi >> 1), va = a1 + (bj & 1), vb = b1 + (bj >> 1);
+  for (let k = 0; k < 3; k++) { ra[k] = O[I3 + k] + (Q[I3 + k] * ua + T0[k] * ub) * s; rb[k] = O[J3 + k] + (Q[J3 + k] * va + T1[k] * vb) * s; }
+  IX[0] = ua; IX[1] = ub; IX[2] = va; IX[3] = vb;
+  return best;
+}
+function roundPos(L, Q, O, i, s) {   // move i's lattice origin to the lattice point nearest its vertex
+  const I3 = i * 3; cross(T0, L.nrm, I3, Q, I3);
+  const dx = L.pos[I3] - O[I3], dy = L.pos[I3 + 1] - O[I3 + 1], dz = L.pos[I3 + 2] - O[I3 + 2];
+  const a = Math.round((dx * Q[I3] + dy * Q[I3 + 1] + dz * Q[I3 + 2]) / s), b = Math.round((dx * T0[0] + dy * T0[1] + dz * T0[2]) / s);
+  for (let k = 0; k < 3; k++) O[I3 + k] += (Q[I3 + k] * a + T0[k] * b) * s;
+}
+function tangentNorm(v, n, i) {     // project v onto the tangent plane at i and normalise; false if degenerate
+  const d = v[0] * n[i] + v[1] * n[i + 1] + v[2] * n[i + 2]; v[0] -= n[i] * d; v[1] -= n[i + 1] * d; v[2] -= n[i + 2] * d;
+  const l = Math.hypot(v[0], v[1], v[2]); if (l < 1e-12) return false; v[0] /= l; v[1] /= l; v[2] /= l; return true;
+}
+const RA = new Float64Array(3), RB = new Float64Array(3), ACC = new Float64Array(3);
+function symAxis(L, i, out) {      // the tangent direction lying in the mirror plane x = 0: n × X
+  const n = L.nrm; out[0] = 0; out[1] = n[i * 3 + 2]; out[2] = -n[i * 3 + 1]; const l = Math.hypot(out[1], out[2]); if (l < 0.2) return false; out[1] /= l; out[2] /= l; return true;
+}
+function smoothOrient(L, Q, iters, symBand) {
+  const n = L.n, N = L.nrm;
+  for (let it = 0; it < iters; it++) for (let i = 0; i < n; i++) {
+    const I3 = i * 3;
+    if (symBand && L.pos[I3] < symBand && symAxis(L, i, ACC)) { Q[I3] = ACC[0]; Q[I3 + 1] = ACC[1]; Q[I3 + 2] = ACC[2]; continue; }
+    ACC[0] = Q[I3]; ACC[1] = Q[I3 + 1]; ACC[2] = Q[I3 + 2]; let ws = 0;
+    for (let e = L.off[i]; e < L.off[i + 1]; e++) {
+      const j = L.adj[e], J3 = j * 3;
+      const sv0 = Q[I3], sv1 = Q[I3 + 1], sv2 = Q[I3 + 2]; Q[I3] = ACC[0]; Q[I3 + 1] = ACC[1]; Q[I3 + 2] = ACC[2];
+      compatOrient(Q, I3, N, J3, RA, RB); Q[I3] = sv0; Q[I3 + 1] = sv1; Q[I3 + 2] = sv2;
+      for (let k = 0; k < 3; k++) ACC[k] = RA[k] * ws + RB[k];
+      ws += 1; tangentNorm(ACC, N, I3);
+    }
+    Q[I3] = ACC[0]; Q[I3 + 1] = ACC[1]; Q[I3 + 2] = ACC[2];
+  }
+}
+function smoothPos(L, Q, O, s, iters, symBand) {
+  const n = L.n, N = L.nrm, P = L.pos;
+  for (let it = 0; it < iters; it++) for (let i = 0; i < n; i++) {
+    const I3 = i * 3; let ws = 0;
+    for (let e = L.off[i]; e < L.off[i + 1]; e++) {
+      const j = L.adj[e];
+      compatPos(L, Q, O, i, j, s, RA, RB);
+      for (let k = 0; k < 3; k++) O[I3 + k] = (RA[k] * ws + RB[k]) / (ws + 1);
+      ws += 1;
+      const d = (O[I3] - P[I3]) * N[I3] + (O[I3 + 1] - P[I3 + 1]) * N[I3 + 1] + (O[I3 + 2] - P[I3 + 2]) * N[I3 + 2];
+      for (let k = 0; k < 3; k++) O[I3 + k] -= N[I3 + k] * d;
+    }
+    roundPos(L, Q, O, i, s);
+    if (symBand && P[I3] < symBand && Math.abs(Q[I3]) < 0.3) O[I3] = 0;     // keep a lattice line on the mirror plane
+  }
+}
+// ---- closest point on the level-0 surface (for projecting the result back onto the sculpt)
+function surfaceIndex(L, cell) {
+  const g = new Map(), T = L.tris, P = L.pos;
+  const K = (x, y, z) => ((x + 65536) * 131072 + (y + 65536)) * 131072 + (z + 65536);
+  for (let t = 0; t < T.length / 3; t++) {
+    let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+    for (let k = 0; k < 3; k++) { const v = T[t * 3 + k] * 3; x0 = Math.min(x0, P[v]); x1 = Math.max(x1, P[v]); y0 = Math.min(y0, P[v + 1]); y1 = Math.max(y1, P[v + 1]); z0 = Math.min(z0, P[v + 2]); z1 = Math.max(z1, P[v + 2]); }
+    for (let x = Math.floor(x0 / cell); x <= Math.floor(x1 / cell); x++) for (let y = Math.floor(y0 / cell); y <= Math.floor(y1 / cell); y++) for (let z = Math.floor(z0 / cell); z <= Math.floor(z1 / cell); z++) {
+      const k = K(x, y, z); let a = g.get(k); if (!a) g.set(k, a = []); a.push(t); }
+  }
+  const cp = new Float64Array(3);
+  function closestTri(px, py, pz, t, out) {   // Ericson, Real-Time Collision Detection 5.1.5
+    const a = T[t * 3] * 3, b = T[t * 3 + 1] * 3, c = T[t * 3 + 2] * 3;
+    const abx = P[b] - P[a], aby = P[b + 1] - P[a + 1], abz = P[b + 2] - P[a + 2], acx = P[c] - P[a], acy = P[c + 1] - P[a + 1], acz = P[c + 2] - P[a + 2];
+    const apx = px - P[a], apy = py - P[a + 1], apz = pz - P[a + 2];
+    const d1 = abx * apx + aby * apy + abz * apz, d2 = acx * apx + acy * apy + acz * apz;
+    const set = (u, v) => { out[0] = P[a] + abx * u + acx * v; out[1] = P[a + 1] + aby * u + acy * v; out[2] = P[a + 2] + abz * u + acz * v; };
+    if (d1 <= 0 && d2 <= 0) return set(0, 0);
+    const bpx = px - P[b], bpy = py - P[b + 1], bpz = pz - P[b + 2], d3 = abx * bpx + aby * bpy + abz * bpz, d4 = acx * bpx + acy * bpy + acz * bpz;
+    if (d3 >= 0 && d4 <= d3) return set(1, 0);
+    const vc = d1 * d4 - d3 * d2; if (vc <= 0 && d1 >= 0 && d3 <= 0) return set(d1 / (d1 - d3), 0);
+    const cpx = px - P[c], cpy = py - P[c + 1], cpz = pz - P[c + 2], d5 = abx * cpx + aby * cpy + abz * cpz, d6 = acx * cpx + acy * cpy + acz * cpz;
+    if (d6 >= 0 && d5 <= d6) return set(0, 1);
+    const vb = d5 * d2 - d1 * d6; if (vb <= 0 && d2 >= 0 && d6 <= 0) return set(0, d2 / (d2 - d6));
+    const va = d3 * d6 - d5 * d4;
+    if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); return set(1 - w, w); }
+    const dn = 1 / (va + vb + vc); return set(vb * dn, vc * dn);
+  }
+  return function project(p) {   // p: [x,y,z] -> moved onto the surface (if any triangle is near)
+    const cx = Math.floor(p[0] / cell), cy = Math.floor(p[1] / cell), cz = Math.floor(p[2] / cell); let best = Infinity, bx = 0, by = 0, bz = 0;
+    for (let r = 1; r <= 2 && best === Infinity; r++) {
+      for (let x = cx - r; x <= cx + r; x++) for (let y = cy - r; y <= cy + r; y++) for (let z = cz - r; z <= cz + r; z++) {
+        const a = g.get(K(x, y, z)); if (!a) continue;
+        for (const t of a) { closestTri(p[0], p[1], p[2], t, cp); const d = (cp[0] - p[0]) ** 2 + (cp[1] - p[1]) ** 2 + (cp[2] - p[2]) ** 2; if (d < best) { best = d; bx = cp[0]; by = cp[1]; bz = cp[2]; } }
+      }
+    }
+    if (best < Infinity) { p[0] = bx; p[1] = by; p[2] = bz; }
+    return p;
+  };
+}
+// ---- 4) extraction: lattice points that coincide become one vertex; unit lattice steps become edges; trace faces
+function extract(L, Q, O, s) {
+  const n = L.n, uf = new Int32Array(n); for (let i = 0; i < n; i++) uf[i] = i;
+  const find = i => { while (uf[i] !== i) { uf[i] = uf[uf[i]]; i = uf[i]; } return i; };
+  const zero = [], unitEdges = [];
+  const qa = new Float64Array(3), qb = new Float64Array(3), Qtmp = new Float64Array(6), Ntmp = new Float64Array(6), Otmp = new Float64Array(6);
+  const tmpL = { pos: new Float64Array(6), nrm: Ntmp };
+  for (let i = 0; i < n; i++) for (let e = L.off[i]; e < L.off[i + 1]; e++) {
+    const j = L.adj[e]; if (j < i) continue;
+    compatOrient(Q, i * 3, L.nrm, j * 3, qa, qb);
+    for (let k = 0; k < 3; k++) { Qtmp[k] = qa[k]; Qtmp[3 + k] = qb[k]; Ntmp[k] = L.nrm[i * 3 + k]; Ntmp[3 + k] = L.nrm[j * 3 + k];
+      tmpL.pos[k] = L.pos[i * 3 + k]; tmpL.pos[3 + k] = L.pos[j * 3 + k]; Otmp[k] = O[i * 3 + k]; Otmp[3 + k] = O[j * 3 + k]; }
+    const cost = compatPos(tmpL, Qtmp, Otmp, 0, 1, s, RA, RB);
+    const dx = IX[0] - IX[2], dy = IX[1] - IX[3];
+    if (dx === 0 && dy === 0) zero.push([Math.hypot(O[i * 3] - O[j * 3], O[i * 3 + 1] - O[j * 3 + 1], O[i * 3 + 2] - O[j * 3 + 2]), i, j]);
+    else if (Math.abs(dx) + Math.abs(dy) === 1) unitEdges.push(i, j);
+  }
+  // merge the closest agreeing pairs first; never merge two groups that a unit edge says are one step apart,
+  // and never let a group drift wider than half a step (this is what stops runaway chaining)
+  const cx = Float64Array.from(O), cw = new Float64Array(n).fill(1), apart = Array.from({ length: n }, () => null);
+  for (let k = 0; k < unitEdges.length; k += 2) { const a = unitEdges[k], b = unitEdges[k + 1]; (apart[a] || (apart[a] = new Set())).add(b); (apart[b] || (apart[b] = new Set())).add(a); }
+  zero.sort((x, y) => x[0] - y[0]);
+  for (const [, i, j] of zero) {
+    let a = find(i), b = find(j); if (a === b) continue;
+    const d = Math.hypot(cx[a * 3] / cw[a] - cx[b * 3] / cw[b], cx[a * 3 + 1] / cw[a] - cx[b * 3 + 1] / cw[b], cx[a * 3 + 2] / cw[a] - cx[b * 3 + 2] / cw[b]);
+    if (d > 0.5 * s) continue;
+    const Sa = apart[a], Sb = apart[b];
+    let clash = false;
+    if (Sa && Sb) { const [sm, lg] = Sa.size < Sb.size ? [Sa, Sb] : [Sb, Sa]; for (const x of sm) { const r = find(x); if (r === a || r === b) { clash = true; break; } } }
+    if (!clash && Sa) for (const x of Sa) if (find(x) === b) { clash = true; break; }
+    if (clash) continue;
+    if ((Sa ? Sa.size : 0) < (Sb ? Sb.size : 0)) { const t = a; a = b; b = t; }
+    uf[b] = a; for (let k = 0; k < 3; k++) cx[a * 3 + k] += cx[b * 3 + k]; cw[a] += cw[b];
+    if (apart[b]) { if (!apart[a]) apart[a] = new Set(); for (const x of apart[b]) apart[a].add(x); apart[b] = null; }
+  }
+  // vertices
+  const id = new Int32Array(n).fill(-1); let m = 0; const root = new Int32Array(n);
+  for (let i = 0; i < n; i++) { const r = find(i); root[i] = r; if (id[r] < 0) id[r] = m++; }
+  const VP = new Float64Array(m * 3), VN = new Float64Array(m * 3), W = new Float64Array(m);
+  for (let i = 0; i < n; i++) { const c = id[root[i]], w = L.area[i] + 1e-12; W[c] += w;
+    for (let k = 0; k < 3; k++) { VP[c * 3 + k] += O[i * 3 + k] * w; VN[c * 3 + k] += L.nrm[i * 3 + k] * w; } }
+  for (let c = 0; c < m; c++) { for (let k = 0; k < 3; k++) VP[c * 3 + k] /= W[c]; const l = Math.hypot(VN[c * 3], VN[c * 3 + 1], VN[c * 3 + 2]) || 1; for (let k = 0; k < 3; k++) VN[c * 3 + k] /= l; }
+  // edges (deduplicated), dropping ones far longer than a lattice step
+  const E = new Map();
+  for (let k = 0; k < unitEdges.length; k += 2) {
+    const a = id[root[unitEdges[k]]], b = id[root[unitEdges[k + 1]]]; if (a === b) continue;
+    const key = a < b ? a * m + b : b * m + a; E.set(key, (E.get(key) || 0) + 1);
+  }
+  const nb = Array.from({ length: m }, () => []);
+  for (const [key, c] of E) { const a = Math.floor(key / m), b = key - a * m;
+    const d = Math.hypot(VP[a * 3] - VP[b * 3], VP[a * 3 + 1] - VP[b * 3 + 1], VP[a * 3 + 2] - VP[b * 3 + 2]);
+    if (d > 1.9 * s || d < 0.15 * s) continue; nb[a].push(b); nb[b].push(a); }
+  // sort each vertex's neighbours counter-clockwise around its normal, then walk faces on the left of each edge
+  const ang = (c, o) => {
+    const nx = VN[c * 3], ny = VN[c * 3 + 1], nz = VN[c * 3 + 2];
+    let ux = Math.abs(nx) < 0.9 ? 1 : 0, uy = ux ? 0 : 1, uz = 0; const d = ux * nx + uy * ny; ux -= nx * d; uy -= ny * d; uz -= nz * d;
+    const ul = Math.hypot(ux, uy, uz); ux /= ul; uy /= ul; uz /= ul;
+    const vx = ny * uz - nz * uy, vy = nz * ux - nx * uz, vz = nx * uy - ny * ux;
+    const px = VP[o * 3] - VP[c * 3], py = VP[o * 3 + 1] - VP[c * 3 + 1], pz = VP[o * 3 + 2] - VP[c * 3 + 2];
+    return Math.atan2(px * vx + py * vy + pz * vz, px * ux + py * uy + pz * uz);
+  };
+  for (let c = 0; c < m; c++) { const a = nb[c].map(o => [ang(c, o), o]).sort((x, y) => x[0] - y[0]); nb[c] = a.map(x => x[1]); }
+  const used = new Set(), faces = [];
+  for (let u = 0; u < m; u++) for (const v of nb[u]) {
+    if (used.has(u * m + v)) continue;
+    const f = [u]; let a = u, b = v, ok = true;
+    for (let steps = 0; steps < 12; steps++) {
+      used.add(a * m + b);
+      if (b === u) break;
+      f.push(b);
+      const list = nb[b], k = list.indexOf(a); if (k < 0) { ok = false; break; }
+      const c = list[(k - 1 + list.length) % list.length];
+      a = b; b = c;
+      if (steps === 11) ok = false;
+    }
+    if (ok && f.length >= 3 && b === u) {   // keep quads and tris; split 5- to 8-sided gaps into quads (and one tri)
+      if (f.length <= 4) faces.push(f);
+      else if (f.length <= 8) { const n = f.length; let k = 1;
+        while (n - k >= 3) { faces.push([f[0], f[k], f[k + 1], f[k + 2]]); k += 2; }
+        if (n - k === 2) faces.push([f[0], f[k], f[k + 1]]); }
+    }
+  }
+  return { VP, VN, m, faces };
+}
+// split every triangle into four until the sculpt has at least one point per grid cell (dense sculpts skip this)
+function refine(P, I, cell) {
+  const lim2 = (cell * 1.5) ** 2;
+  for (let pass = 0; pass < 10; pass++) {
+    const nt = I.length / 3, NP = Array.from(P), NI = [], mid = new Map(); let split = 0;
+    const L2 = (a, b) => (P[a * 3] - P[b * 3]) ** 2 + (P[a * 3 + 1] - P[b * 3 + 1]) ** 2 + (P[a * 3 + 2] - P[b * 3 + 2]) ** 2;
+    const m = (a, b) => { const k = a < b ? a * 4294967296 + b : b * 4294967296 + a; let v = mid.get(k);
+      if (v === undefined) { v = NP.length / 3; NP.push((P[a * 3] + P[b * 3]) / 2, (P[a * 3 + 1] + P[b * 3 + 1]) / 2, (P[a * 3 + 2] + P[b * 3 + 2]) / 2); mid.set(k, v); } return v; };
+    for (let t = 0; t < nt; t++) { const a = I[t * 3], b = I[t * 3 + 1], c = I[t * 3 + 2];
+      if (Math.max(L2(a, b), L2(b, c), L2(c, a)) > lim2 && NI.length < 6e6) { const ab = m(a, b), bc = m(b, c), ca = m(c, a); NI.push(a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca); split++; }
+      else NI.push(a, b, c); }
+    if (!split) break;
+    P = Float64Array.from(NP); I = Uint32Array.from(NI);
+  }
+  return { P, I };
+}
+// keep faces greedily (quads first) so every edge has at most two faces running opposite ways
+function manifold(F) {
+  const order = F.map((f, i) => i).sort((a, b) => (F[a].length === 4 ? 0 : 1) - (F[b].length === 4 ? 0 : 1));
+  const dirE = new Set(), cnt = new Map(), keep = [];
+  for (const i of order) { const f = F[i]; let ok = true;
+    for (let k = 0; k < f.length && ok; k++) { const a = f[k], b = f[(k + 1) % f.length];
+      if (dirE.has(a + '>' + b) || (cnt.get(a < b ? a + '_' + b : b + '_' + a) || 0) >= 2) ok = false; }
+    if (!ok) continue; keep.push(f);
+    for (let k = 0; k < f.length; k++) { const a = f[k], b = f[(k + 1) % f.length], key = a < b ? a + '_' + b : b + '_' + a; dirE.add(a + '>' + b); cnt.set(key, (cnt.get(key) || 0) + 1); } }
+  return keep;
+}
+// close small holes with quads. Up to 4 edges: one face. 5 to 14 edges: a new point in the middle (pressed onto the
+// sculpt) ringed by quads, which gives far better shapes than fanning from a corner. Big openings stay open.
+function fillHoles(F, V, N, project) {
+  const dir = new Set(); for (const f of F) for (let k = 0; k < f.length; k++) dir.add(f[k] + '>' + f[(k + 1) % f.length]);
+  const nxt = new Map(), be = [];
+  for (const f of F) for (let k = 0; k < f.length; k++) { const a = f[k], b = f[(k + 1) % f.length];
+    if (dir.has(b + '>' + a)) continue;               // a hole edge runs b -> a in the patch that fills it
+    be.push([b, a]); (nxt.get(b) || nxt.set(b, []).get(b)).push(a); }
+  const usedE = new Set(), out = F.slice();
+  for (const [s0, s1] of be) {
+    if (usedE.has(s0 + '>' + s1)) continue;
+    // shortest way back round to s0 along unused hole edges (copes with corners shared by two holes)
+    const par = new Map([[s1, -1]]); let q = [s1], found = false;
+    for (let depth = 0; depth < 13 && q.length && !found; depth++) { const nq = [];
+      for (const v of q) { for (const w of nxt.get(v) || []) { if (usedE.has(v + '>' + w)) continue;
+          if (w === s0) { par.set(s0, v); found = true; break; } if (par.has(w)) continue; par.set(w, v); nq.push(w); } if (found) break; }
+      q = nq; }
+    if (!found) continue;
+    const loop = []; for (let v = s0; v !== -1 && v !== undefined; v = v === s1 ? -1 : par.get(v)) loop.push(v);
+    loop.reverse();                                    // s1 ... s0 in walking order; rotate so it starts at s0
+    loop.unshift(loop.pop());
+    for (let k = 0; k < loop.length; k++) usedE.add(loop[k] + '>' + loop[(k + 1) % loop.length]);
+    if (loop.length < 3 || new Set(loop).size !== loop.length) continue;
+    const n = loop.length; if (n <= 4) { out.push(loop); continue; }
+    if (!V) { let k = 1; while (n - k >= 3) { out.push([loop[0], loop[k], loop[k + 1], loop[k + 2]]); k += 2; } if (n - k === 2) out.push([loop[0], loop[k], loop[k + 1]]); continue; }
+    const c = [0, 0, 0], cn = [0, 0, 0]; for (const q of loop) for (let d = 0; d < 3; d++) { c[d] += V[q][d] / n; cn[d] += N[q][d]; }
+    const l = Math.hypot(...cn) || 1, ci = V.push(project ? project(c) : c) - 1; N.push(cn.map(x => x / l));
+    for (let k = 0; k + 2 <= n; k += 2) { if (k + 2 === n) out.push([loop[k], loop[k + 1], loop[0], ci].filter((x, q, A) => A.indexOf(x) === q)); else out.push([loop[k], loop[k + 1], loop[k + 2], ci]); }
+    if (n % 2) out.push([loop[n - 1], loop[0], ci]);
+  }
+  return out;
+}
+// merge the two ends of any edge shorter than minLen
+function weld(V, F, N, minLen) {
+  const uf = V.map((_, i) => i), find = i => { while (uf[i] !== i) { uf[i] = uf[uf[i]]; i = uf[i]; } return i; };
+  for (const f of F) for (let k = 0; k < f.length; k++) { const a = f[k], b = f[(k + 1) % f.length];
+    if (Math.hypot(V[a][0] - V[b][0], V[a][1] - V[b][1], V[a][2] - V[b][2]) < minLen) { const x = find(a), y = find(b); if (x !== y) uf[y] = x; } }
+  const acc = new Map();
+  V.forEach((p, i) => { const r = find(i); const a = acc.get(r) || acc.set(r, [0, 0, 0, 0, 0, 0, 0]).get(r); for (let k = 0; k < 3; k++) { a[k] += p[k]; a[3 + k] += N[i][k]; } a[6]++; });
+  const nV = V.map((p, i) => { const a = acc.get(find(i)); return [a[0] / a[6], a[1] / a[6], a[2] / a[6]]; });
+  const nN = V.map((p, i) => { const a = acc.get(find(i)), l = Math.hypot(a[3], a[4], a[5]) || 1; return [a[3] / l, a[4] / l, a[5] / l]; });
+  const nF = [];
+  for (const f of F) { const g = []; for (const v of f) { const r = find(v); if (g[g.length - 1] !== r) g.push(r); } if (g.length > 1 && g[0] === g[g.length - 1]) g.pop(); if (new Set(g).size === g.length && g.length >= 3) nF.push(g); }
+  return { V: nV, F: nF, N: nN };
+}
+// drop slivers and faces that point against the sculpt's surface (or fold edge-on to it)
+function clean(V, F, N, s) {
+  return F.filter(f => {
+    let n = [0, 0, 0], m = [0, 0, 0];
+    for (let k = 0; k < f.length; k++) { const p = V[f[k]], q = V[f[(k + 1) % f.length]];
+      n[0] += (p[1] - q[1]) * (p[2] + q[2]); n[1] += (p[2] - q[2]) * (p[0] + q[0]); n[2] += (p[0] - q[0]) * (p[1] + q[1]);
+      m[0] += N[f[k]][0]; m[1] += N[f[k]][1]; m[2] += N[f[k]][2]; }
+    const area = Math.hypot(n[0], n[1], n[2]) / 2, ml = Math.hypot(m[0], m[1], m[2]) || 1;
+    if (area < 0.06 * s * s) return false;
+    if (f.length === 4) { const tri = (a, b, c) => { const u = [V[b][0] - V[a][0], V[b][1] - V[a][1], V[b][2] - V[a][2]], w = [V[c][0] - V[a][0], V[c][1] - V[a][1], V[c][2] - V[a][2]];
+        return [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]]; };
+      const t1 = tri(f[0], f[1], f[2]), t2 = tri(f[0], f[2], f[3]), t3 = tri(f[1], f[2], f[3]), t4 = tri(f[1], f[3], f[0]);
+      for (const t of [t1, t2, t3, t4]) if (t[0] * m[0] + t[1] * m[1] + t[2] * m[2] <= 0) return false; }   // concave or twisted
+    return (n[0] * m[0] + n[1] * m[1] + n[2] * m[2]) / (2 * area * ml) > 0.25;
+  });
+}
+// ---- the whole job
+function remesh(P, I, opt, progress = () => {}) {
+  const target = Math.max(20, opt.target | 0), sym = !!opt.symmetric, smooth = Math.max(0, Math.min(1, opt.smooth ?? 0.5));
+  let A = 0;
+  for (let t = 0; t < I.length / 3; t++) {
+    const a = I[t * 3] * 3, b = I[t * 3 + 1] * 3, c = I[t * 3 + 2] * 3;
+    const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2], vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
+    A += 0.5 * Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
+  }
+  if (!(A > 0)) throw new Error('empty');
+  const s = Math.sqrt(A / target);                 // lattice spacing: one quad per s x s of surface
+  let cell = s / 4; const cap = 160000;
+  if (A / (cell * cell) > cap) cell = Math.sqrt(A / cap);
+  progress('Reading the sculpt', 0.02);
+  ({ P, I } = refine(P, I, cell));
+  const L0 = baseLevel(P, I, cell, sym); if (L0.n < 8) throw new Error('small');
+  const levels = [L0];
+  while (levels[levels.length - 1].n > 150 && levels.length < 16) levels.push(coarsen(levels[levels.length - 1], 1234 + levels.length));
+  progress('Building the hierarchy', 0.08);
+  const top = levels.length - 1;
+  const Qs = [], Os = [];
+  // orientation field, coarse to fine
+  const iterO = Math.round(8 + 22 * smooth), iterP = Math.round(6 + 14 * smooth);
+  for (let l = top; l >= 0; l--) {
+    const L = levels[l], Q = new Float64Array(L.n * 3), band = sym ? Math.max(cell * 0.75, cell * Math.pow(2, l) * 0.5) : 0;
+    if (l === top) { let sd = 7; for (let i = 0; i < L.n; i++) { for (let k = 0; k < 3; k++) { sd = (sd * 1664525 + 1013904223) >>> 0; Q[i * 3 + k] = sd / 4294967296 - 0.5; }
+        const v = [Q[i * 3], Q[i * 3 + 1], Q[i * 3 + 2]]; if (!tangentNorm(v, L.nrm, i * 3)) { v[0] = 1; v[1] = 0; v[2] = 0; tangentNorm(v, L.nrm, i * 3) || (v[1] = 1); } Q.set(v, i * 3); } }
+    else { const C = levels[l + 1], QC = Qs[l + 1];
+      for (let i = 0; i < L.n; i++) { const p = L.parent[i], v = [QC[p * 3], QC[p * 3 + 1], QC[p * 3 + 2]]; if (!tangentNorm(v, L.nrm, i * 3)) { v[0] = 1; v[1] = 0; v[2] = 0; tangentNorm(v, L.nrm, i * 3); } Q.set(v, i * 3); } }
+    smoothOrient(L, Q, l === top ? iterO * 4 : iterO, band);
+    Qs[l] = Q;
+    progress('Aligning the flow', 0.1 + 0.35 * (top - l + 1) / (top + 1));
+  }
+  // position field, coarse to fine
+  for (let l = top; l >= 0; l--) {
+    const L = levels[l], Q = Qs[l], O = new Float64Array(L.n * 3), band = sym ? Math.max(cell * 0.75, cell * Math.pow(2, l) * 0.5) : 0;
+    if (l === top) { O.set(L.pos); }
+    else { const OC = Os[l + 1];
+      for (let i = 0; i < L.n; i++) { const p = L.parent[i], I3 = i * 3;
+        for (let k = 0; k < 3; k++) O[I3 + k] = OC[p * 3 + k];
+        const d = (O[I3] - L.pos[I3]) * L.nrm[I3] + (O[I3 + 1] - L.pos[I3 + 1]) * L.nrm[I3 + 1] + (O[I3 + 2] - L.pos[I3 + 2]) * L.nrm[I3 + 2];
+        for (let k = 0; k < 3; k++) O[I3 + k] -= L.nrm[I3 + k] * d;
+        roundPos(L, Q, O, i, s); } }
+    smoothPos(L, Q, O, s, l === top ? iterP * 3 : iterP, band);
+    Os[l] = O;
+    progress('Laying the grid', 0.45 + 0.35 * (top - l + 1) / (top + 1));
+  }
+  progress('Building quads', 0.82);
+  const X = extract(L0, Qs[0], Os[0], s);
+  // project onto the surface and relax
+  const project = surfaceIndex(L0, s * 0.75);
+  let V = [], N = []; for (let c = 0; c < X.m; c++) { V.push(project([X.VP[c * 3], X.VP[c * 3 + 1], X.VP[c * 3 + 2]])); N.push([X.VN[c * 3], X.VN[c * 3 + 1], X.VN[c * 3 + 2]]); }
+  let F = manifold(X.faces);
+  ({ V, F, N } = weld(V, F, N, 0.3 * s));             // points that landed almost on top of each other become one
+  F = clean(V, F, N, s); F = clean(V, manifold(fillHoles(F, V, N, project)), N, s);
+  // drop unused vertices
+  const usedV = new Int32Array(V.length).fill(-1); let nv = 0; const V2 = [], N2 = [];
+  for (const f of F) for (const v of f) if (usedV[v] < 0) { usedV[v] = nv++; V2.push(V[v]); N2.push(N[v]); }
+  F = F.map(f => f.map(v => usedV[v])); V = V2; N = N2;
+  const pin = 0.3 * s;
+  if (sym) V.forEach(p => { if (p[0] < pin) p[0] = 0; });   // centre-line points sit exactly on x = 0
+  const relax = Math.round(smooth * 4);
+  for (let r = 0; r < relax; r++) {
+    const acc = V.map(() => [0, 0, 0, 0]);
+    for (const f of F) for (let k = 0; k < f.length; k++) { const a = f[k], b = f[(k + 1) % f.length]; for (let d = 0; d < 3; d++) { acc[a][d] += V[b][d]; acc[b][d] += V[a][d]; } acc[a][3]++; acc[b][3]++; }
+    V = V.map((p, i) => { const a = acc[i]; if (!a[3]) return p; const q = [p[0] + (a[0] / a[3] - p[0]) * 0.5, p[1] + (a[1] / a[3] - p[1]) * 0.5, p[2] + (a[2] / a[3] - p[2]) * 0.5];
+      if (sym && p[0] === 0) { q[0] = 0; const r = project(q); r[0] = 0; return r; } return project(q); });
+  }
+  F = manifold(fillHoles(clean(V, F, N, s), V, N, project));
+  if (sym) {                       // pin the centre line, then mirror the half across x = 0
+    F = F.filter(f => f.every(v => V[v][0] >= 0));
+    const tw = V.map((p, i) => p[0] === 0 ? i : V.push([-p[0], p[1], p[2]]) - 1);
+    const n0 = F.length; for (let k = 0; k < n0; k++) { const f = F[k]; if (f.every(v => V[v][0] === 0)) continue; F.push(f.map(v => tw[v]).reverse()); }
+  }
+  // drop degenerate faces, and any face that would double up on an edge or face the wrong way
+  F = manifold(fillHoles(manifold(F.filter(f => new Set(f).size === f.length))));
+  progress('Done', 1);
+  return { V, F, spacing: s, levels: levels.length, base: L0.n };
+}
+return { remesh };
+})();
+if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof self.postMessage === 'function') {
+  self.onmessage = e => {
+    try {
+      const { pos, idx, opt } = e.data;
+      const r = QREMESH.remesh(pos, idx, opt, (stage, frac) => self.postMessage({ type: 'progress', stage, frac }));
+      self.postMessage({ type: 'done', V: r.V, F: r.F, spacing: r.spacing });
+    } catch (err) { self.postMessage({ type: 'error', message: String(err && err.message || err) }); }
+  };
+}
+if (typeof module !== 'undefined') module.exports = QREMESH;
+</script>
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -455,8 +961,9 @@ function sampleAll(){const cnt=new Map();
   if(best&&(!texMat||texMat.userData.src!==best)){texMat=best.clone();texMat.userData.src=best;
     Object.assign(texMat,{transparent:true,opacity:lowMat.opacity,side:THREE.DoubleSide,polygonOffset:true,
       polygonOffsetFactor:-2,polygonOffsetUnits:-2,depthWrite:false});texMat.needsUpdate=true}}
-function meshGeo(){const useU=texOn&&texMat&&VU.length===V.length,tp=[],tu=[];
-  F.forEach(f=>{for(let i=1;i<f.length-1;i++)for(const j of [f[0],f[i],f[i+1]]){tp.push(...V[j]);if(useU)tu.push(...VU[j])}});
+let triFace=[];
+function meshGeo(){const useU=texOn&&texMat&&VU.length===V.length,tp=[],tu=[];triFace=[];
+  F.forEach((f,fi)=>{for(let i=1;i<f.length-1;i++){triFace.push(fi);for(const j of [f[0],f[i],f[i+1]]){tp.push(...V[j]);if(useU)tu.push(...VU[j])}}});
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(tp,3));
   if(useU)g.setAttribute('uv',new THREE.Float32BufferAttribute(tu,2));g.computeVertexNormals();
   lowMesh.geometry.dispose();lowMesh.geometry=g;lowMesh.material=refMode?refMat:useU?texMat:lowMat}
@@ -468,6 +975,7 @@ function rebuild(){meshGeo();
   pendL.geometry.dispose();pendL.geometry=new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute(pend.flatMap(i=>V[i]),3));
   $('bX').style.display=pend.length?'block':'none';
   $('stats').textContent=V.length+' verts · '+F.length+' faces';
+  checkSoon();
 }
 
 // ---------- screen picking ----------
@@ -519,11 +1027,264 @@ function loop1(e0){const em=edges();const mid=new Map(),done=new Set(),newF=[];
   const rm=new Set(newF.map(x=>x[0]));F=F.filter((f,i)=>!rm.has(i));newF.forEach(x=>F.push(x[1],x[2]))}
 function delV(i){const m=mirOn?mir(i):-1,ds=[...new Set([i,m].filter(x=>x>=0))].sort((a,b)=>b-a);save();
   for(const d of ds){F=F.filter(f=>!f.includes(d)).map(f=>f.map(j=>j>d?j-1:j));V.splice(d,1)}pend=[];rebuild();hint(ds.length>1?'Points deleted':'Point deleted')}
-async function auto(){if(!high)return hint('Load a sculpt first');const t=await ask('Target face count. Auto makes triangles, then you clean up by hand.',{value:'800',ok:'Run'});if(!t||!(+t>0))return;
-  hint('Working…');setTimeout(()=>{const g=getHighGeo().clone();const tri=(g.index?g.index.count:g.attributes.position.count)/3;
-    const s=new SimplifyModifier().modify(g,Math.max(0,Math.floor(g.attributes.position.count*(1-(+t)/tri))));
-    const p=s.attributes.position,ix=s.index;save();V=[];for(let i=0;i<p.count;i++)V.push([p.getX(i),p.getY(i),p.getZ(i)]);
-    F=[];for(let i=0;i<ix.count;i+=3)F.push([ix.getX(i),ix.getX(i+1),ix.getX(i+2)]);pend=[];rebuild();hint('Auto retopo done')},50)}
+// ---------- mesh health: overlapping, crossing, folded and twisted faces ----------
+// Pure check (also used by the tests): returns [{f, kind}] for faces that overlap or cross others,
+// fold back over a neighbour, or twist into a bow-tie.
+function findProblems(V, F) {
+  const nf = F.length; if (!nf || nf > 20000) return [];
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dt = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const nz = a => { const l = Math.hypot(a[0], a[1], a[2]); return l > 1e-15 ? [a[0] / l, a[1] / l, a[2] / l] : [0, 0, 0]; };
+  const tn = (a, b, c) => nz(cr(sub(V[b], V[a]), sub(V[c], V[a])));
+  const N = [], C = [], R = []; let el = 0, ec = 0;
+  for (const f of F) {
+    let n = [0, 0, 0], c = [0, 0, 0];
+    for (let k = 0; k < f.length; k++) { const p = V[f[k]], q = V[f[(k + 1) % f.length]];
+      n[0] += (p[1] - q[1]) * (p[2] + q[2]); n[1] += (p[2] - q[2]) * (p[0] + q[0]); n[2] += (p[0] - q[0]) * (p[1] + q[1]);
+      c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; el += Math.hypot(...sub(p, q)); ec++; }
+    c = c.map(x => x / f.length); N.push(nz(n)); C.push(c);
+    R.push(Math.max(...f.map(v => Math.hypot(...sub(V[v], c)))));
+  }
+  const avg = el / Math.max(1, ec), out = new Map(), mark = (i, k) => { if (!out.has(i)) out.set(i, k); };
+  // twisted quads: the two halves face opposite ways along both diagonals
+  F.forEach((f, i) => { if (f.length !== 4) return;
+    if (dt(tn(f[0], f[1], f[2]), tn(f[0], f[2], f[3])) < -0.2 && dt(tn(f[1], f[2], f[3]), tn(f[1], f[3], f[0])) < -0.2) mark(i, 'twist'); });
+  // folds: neighbours across an edge that face opposite ways
+  const E = new Map();
+  F.forEach((f, i) => f.forEach((a, k) => { const b = f[(k + 1) % f.length], key = a < b ? a + '_' + b : b + '_' + a; (E.get(key) || E.set(key, []).get(key)).push([i, a]); }));
+  for (const L of E.values()) { if (L.length !== 2) continue; const [[i, ai], [j, aj]] = L; const same = ai === aj;
+    const d = dt(N[i], N[j]) * (same ? -1 : 1); if (d < -0.3) { mark(i, 'fold'); mark(j, 'fold'); } }
+  // overlaps: faces close together that cross, or lie on top of each other
+  const cell = Math.max(avg * 1.5, 1e-6), grid = new Map(), K = (x, y, z) => x + ',' + y + ',' + z;
+  C.forEach((c, i) => { const k = K(Math.floor(c[0] / cell), Math.floor(c[1] / cell), Math.floor(c[2] / cell)); (grid.get(k) || grid.set(k, []).get(k)).push(i); });
+  const tris = f => { const t = []; for (let k = 1; k < f.length - 1; k++) t.push([f[0], f[k], f[k + 1]]); return t; };
+  const shrink = (i, t) => t.map(v => { const p = V[v], c = C[i]; return [c[0] + (p[0] - c[0]) * 0.94, c[1] + (p[1] - c[1]) * 0.94, c[2] + (p[2] - c[2]) * 0.94]; });
+  const segTri = (p, q, A, B, Cc) => {       // does segment pq cross triangle ABC?
+    const e1 = sub(B, A), e2 = sub(Cc, A), d = sub(q, p), h = cr(d, e2), a = dt(e1, h); if (Math.abs(a) < 1e-14) return false;
+    const f = 1 / a, s = sub(p, A), u = f * dt(s, h); if (u < 0 || u > 1) return false;
+    const qq = cr(s, e1), v = f * dt(d, qq); if (v < 0 || u + v > 1) return false; const t = f * dt(e2, qq); return t >= 0 && t <= 1; };
+  const tri3 = (T, U) => { for (let k = 0; k < 3; k++) { if (segTri(T[k], T[(k + 1) % 3], U[0], U[1], U[2]) || segTri(U[k], U[(k + 1) % 3], T[0], T[1], T[2])) return true; } return false; };
+  const tri2 = (T, U, ax, ay) => {            // 2D overlap (separating axis) after projecting onto a plane
+    const P = T.map(p => [dt(p, ax), dt(p, ay)]), Q = U.map(p => [dt(p, ax), dt(p, ay)]);
+    for (const S of [P, Q]) for (let k = 0; k < 3; k++) { const a = S[k], b = S[(k + 1) % 3], nx = b[1] - a[1], ny = a[0] - b[0];
+      let p0 = Infinity, p1 = -Infinity, q0 = Infinity, q1 = -Infinity;
+      for (const v of P) { const x = v[0] * nx + v[1] * ny; p0 = Math.min(p0, x); p1 = Math.max(p1, x); }
+      for (const v of Q) { const x = v[0] * nx + v[1] * ny; q0 = Math.min(q0, x); q1 = Math.max(q1, x); }
+      if (p1 <= q0 || q1 <= p0) return false; }
+    return true; };
+  for (let i = 0; i < nf; i++) {
+    const c = C[i], gx = Math.floor(c[0] / cell), gy = Math.floor(c[1] / cell), gz = Math.floor(c[2] / cell);
+    for (let x = gx - 1; x <= gx + 1; x++) for (let y = gy - 1; y <= gy + 1; y++) for (let z = gz - 1; z <= gz + 1; z++) {
+      const L = grid.get(K(x, y, z)); if (!L) continue;
+      for (const j of L) {
+        if (j <= i || (out.has(i) && out.get(i) === 'overlap' && out.has(j) && out.get(j) === 'overlap')) continue;
+        if (Math.hypot(...sub(C[i], C[j])) > R[i] + R[j]) continue;
+        let shared = 0; for (const v of F[i]) if (F[j].includes(v)) shared++; if (shared >= 2) continue;
+        const flat = Math.abs(dt(N[i], N[j])) > 0.7 && Math.abs(dt(N[i], sub(C[j], C[i]))) < 0.3 * avg;
+        let hit = false;
+        let ax = null, ay = null; if (flat) { ax = nz(Math.abs(N[i][0]) < 0.9 ? cr(N[i], [1, 0, 0]) : cr(N[i], [0, 1, 0])); ay = cr(N[i], ax); }
+        for (const t of tris(F[i])) { const T = shrink(i, t); for (const u of tris(F[j])) { const U = shrink(j, u);
+          if (flat ? tri2(T, U, ax, ay) : tri3(T, U)) { hit = true; break; } } if (hit) break; }
+        if (hit) { out.set(i, 'overlap'); out.set(j, 'overlap'); }
+      }
+    }
+  }
+  return [...out].map(([f, kind]) => ({ f, kind }));
+}
+// Make every face in a connected patch run the same way round, facing out from the model's centre.
+// Changes only the order of each face's points (so exported normals agree), never positions.
+function fixWinding(F, V, center) {
+  const nf = F.length, E = new Map(), seen = new Uint8Array(nf);
+  F.forEach((f, i) => f.forEach((a, k) => { const b = f[(k + 1) % f.length], key = a < b ? a + '_' + b : b + '_' + a; (E.get(key) || E.set(key, []).get(key)).push(i); }));
+  const has = (f, a, b) => { const k = f.indexOf(a); return k >= 0 && f[(k + 1) % f.length] === b; };
+  let changed = 0;
+  for (let s = 0; s < nf; s++) {
+    if (seen[s]) continue; const comp = [s], q = [s]; seen[s] = 1;
+    while (q.length) { const i = q.pop(), f = F[i];
+      for (let k = 0; k < f.length; k++) { const a = f[k], b = f[(k + 1) % f.length], key = a < b ? a + '_' + b : b + '_' + a;
+        for (const j of E.get(key)) { if (seen[j]) continue; if (has(F[j], a, b)) { F[j].reverse(); changed++; } seen[j] = 1; comp.push(j); q.push(j); } } }
+    let vote = 0;
+    for (const i of comp) { const f = F[i]; let n = [0, 0, 0], c = [0, 0, 0];
+      for (let k = 0; k < f.length; k++) { const p = V[f[k]], r = V[f[(k + 1) % f.length]];
+        n[0] += (p[1] - r[1]) * (p[2] + r[2]); n[1] += (p[2] - r[2]) * (p[0] + r[0]); n[2] += (p[0] - r[0]) * (p[1] + r[1]); c[0] += p[0] / f.length; c[1] += p[1] / f.length; c[2] += p[2] / f.length; }
+      vote += n[0] * (c[0] - center[0]) + n[1] * (c[1] - center[1]) + n[2] * (c[2] - center[2]); }
+    if (vote < 0) for (const i of comp) { F[i].reverse(); changed++; }
+  }
+  return changed;
+}
+// Ring tool: from quad f, step its width over the surface, one quad at a time, until it meets the start.
+// surf(p, n) -> {p, n} snaps a point to the sculpt (n = surface normal) or returns null off the sculpt.
+// Returns {made, closed, why}. Adds vertices to V and faces to F.
+function wrapRing(V, F, fi, axis, surf, opts = {}) {
+  const f = F[fi]; if (!f || f.length !== 4) return { made: [], closed: false, why: 'quad' };
+  const [a, b, c, d] = f; let B0, B1, F0, F1;
+  if (axis === 0) { B0 = a; F0 = b; B1 = d; F1 = c; } else { B0 = a; F0 = d; B1 = b; F1 = c; }
+  const sub = (p, q) => [p[0] - q[0], p[1] - q[1], p[2] - q[2]], dt = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2], len = p => Math.hypot(p[0], p[1], p[2]);
+  const L = (len(sub(V[F0], V[B0])) + len(sub(V[F1], V[B1]))) / 2; if (!(L > 1e-9)) return { made: [], closed: false, why: 'flat' };
+  const fwd = f[(f.indexOf(F0) + 1) % 4] === F1, n0 = V.length, start = [B0, B1], made = [], maxSteps = opts.maxSteps || 300;
+  const faceN = g => { let n = [0, 0, 0]; for (let k = 0; k < g.length; k++) { const p = V[g[k]], r = V[g[(k + 1) % g.length]];
+    n[0] += (p[1] - r[1]) * (p[2] + r[2]); n[1] += (p[2] - r[2]) * (p[0] + r[0]); n[2] += (p[0] - r[0]) * (p[1] + r[1]); } const l = len(n) || 1; return n.map(x => x / l); };
+  const near = (p, i) => len(sub(p, V[i]));
+  const key = g => [...g].sort((x, y) => x - y).join(',');
+  const faces = new Set(F.map(key));
+  let back = [B0, B1], front = [F0, F1], guess = faceN(f), closed = false, why = 'max';
+  for (let step = 1; step <= maxSteps; step++) {
+    const e0 = sub(V[front[1]], V[front[0]]), el = len(e0) || 1, e = e0.map(x => x / el), np = [];
+    for (let k = 0; k < 2; k++) {
+      const s0 = surf(V[front[k]], guess); const n = s0 ? s0.n : guess;
+      let t = sub(V[front[k]], V[back[k]]); const tnn = dt(t, n); t = t.map((x, q) => x - n[q] * tnn);
+      const te = dt(t, e); t = t.map((x, q) => x - e[q] * te); const tl = len(t); if (tl < 1e-12) break;
+      let sc = L / tl, s = null;
+      for (let it = 0; it < 3; it++) {        // a curved surface shortens the step once snapped: correct it to the quad's width
+        s = surf(V[front[k]].map((x, q) => x + t[q] * sc), n); if (!s) break;
+        const got = len(sub(s.p, V[front[k]])); if (got < 1e-12 || Math.abs(got - L) < 1e-4 * L) break; sc *= L / got;
+      }
+      if (!s) break; np.push(s.p);
+    }
+    if (np.length < 2) { why = 'edge'; break; }
+    let i0, i1;
+    if (step > 2 && near(np[0], start[0]) < 0.55 * L && near(np[1], start[1]) < 0.55 * L) { i0 = start[0]; i1 = start[1]; closed = true; }
+    else {
+      // stop rather than spiral over faces this ring already made
+      let hitOwn = false; for (let j = n0; j < V.length; j++) if (j !== front[0] && j !== front[1] && (near(np[0], j) < 0.5 * L || near(np[1], j) < 0.5 * L)) { hitOwn = true; break; }
+      if (hitOwn) { why = 'spiral'; break; }
+      i0 = V.push(np[0]) - 1; i1 = V.push(np[1]) - 1;
+    }
+    const nf = fwd ? [front[1], front[0], i0, i1] : [front[0], front[1], i1, i0];
+    if (faces.has(key(nf))) { why = 'exists'; break; }
+    F.push(nf); faces.add(key(nf)); made.push(nf); guess = faceN(nf);
+    if (closed) { why = 'closed'; break; }
+    back = front; front = [i0, i1];
+  }
+  if (closed && made.length > 1) {          // share any leftover gap evenly: re-space the new points along each rail
+    const rails = [[F0], [F1]]; for (const g of made) { const q = fwd ? [g[2], g[3]] : [g[3], g[2]]; rails[0].push(q[0]); rails[1].push(q[1]); }
+    for (const rail of rails) {
+      const pts = rail.map(i => V[i].slice()), segs = []; let tot = 0;
+      for (let k = 1; k < pts.length; k++) { const l = len(sub(pts[k], pts[k - 1])); segs.push(l); tot += l; }
+      const step = tot / (pts.length - 1);
+      for (let k = 1; k < rail.length - 1; k++) {
+        let want = step * k, j = 0; while (j < segs.length - 1 && want > segs[j]) { want -= segs[j]; j++; }
+        const u = segs[j] > 0 ? want / segs[j] : 0, p = pts[j].map((x, q) => x + (pts[j + 1][q] - x) * u);
+        const sn = surf(p, guess); V[rail[k]] = sn ? sn.p : p;
+      }
+    }
+  }
+  return { made, closed, why, n0 };
+}
+
+// ---------- auto retopology: quads (background worker, loaded on tap) or quick triangles ----------
+let qWorker = null, autoKind = 'quad';
+function setAutoKind(k) { autoKind = k; document.querySelectorAll('#aKind button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+  $('aSmL').hidden = $('aMiL').hidden = k !== 'quad'; $('aGo').textContent = k === 'quad' ? 'Make quads' : 'Make triangles'; }
+document.querySelectorAll('#aKind button').forEach(b => b.onclick = () => setAutoKind(b.dataset.k));
+function auto() { if (!high) return hint('Load a sculpt first'); $('aMi').checked = mirOn; setAutoKind(autoKind);
+  $('aProg').hidden = true; $('aGo').disabled = false; $('autoP').hidden = false; }
+function closeAuto() { if (qWorker) { qWorker.terminate(); qWorker = null; hint('Stopped'); } $('autoP').hidden = true; }
+$('aNo').onclick = closeAuto;
+$('autoF').onsubmit = e => { e.preventDefault(); const n = Math.max(20, Math.min(20000, Math.round(+$('aN').value) || 800));
+  if (autoKind === 'tri') { $('autoP').hidden = true; runTri(n); } else runQuad(n, +$('aSm').value, $('aMi').checked); };
+function runQuad(n, smooth, symmetric) {
+  const g = getHighGeo(), pos = new Float32Array(g.attributes.position.array);
+  const idx = g.index ? new Uint32Array(g.index.array) : Uint32Array.from({ length: pos.length / 3 }, (_, i) => i);
+  const url = URL.createObjectURL(new Blob([$('qremeshSrc').textContent], { type: 'text/javascript' }));
+  try { qWorker = new Worker(url); } catch (err) { URL.revokeObjectURL(url); return hint('This browser would not start the background worker'); }
+  $('aProg').hidden = false; $('aGo').disabled = true; $('aBar').style.width = '2%'; $('aStage').textContent = 'Starting';
+  qWorker.onmessage = e => { const d = e.data; URL.revokeObjectURL(url);
+    if (d.type === 'progress') { $('aBar').style.width = Math.round(d.frac * 100) + '%'; $('aStage').textContent = d.stage; return; }
+    qWorker.terminate(); qWorker = null; $('autoP').hidden = true;
+    if (d.type === 'error') return hint(d.message === 'small' ? 'The sculpt is too small for that many faces' : 'Quad retopology failed: ' + d.message, 6000);
+    if (!d.F.length) return hint('No quads came out. Try more faces.', 5000);
+    save(); V = d.V; F = d.F; pend = []; rebuild();
+    const q = F.filter(f => f.length === 4).length;
+    hint(F.length + ' faces, ' + Math.round(100 * q / F.length) + '% quads. Undo brings back your old mesh.', 6000); };
+  qWorker.onerror = () => { URL.revokeObjectURL(url); if (qWorker) qWorker.terminate(); qWorker = null; $('autoP').hidden = true; hint('Quad retopology stopped with an error', 5000); };
+  qWorker.postMessage({ pos, idx, opt: { target: n, smooth, symmetric } }, [pos.buffer, idx.buffer]);
+}
+function runTri(n) {
+  hint('Working…'); setTimeout(() => { const g = getHighGeo().clone(); const tri = (g.index ? g.index.count : g.attributes.position.count) / 3;
+    const s = new SimplifyModifier().modify(g, Math.max(0, Math.floor(g.attributes.position.count * (1 - n / tri))));
+    const p = s.attributes.position, ix = s.index; save(); V = []; for (let i = 0; i < p.count; i++) V.push([p.getX(i), p.getY(i), p.getZ(i)]);
+    F = []; for (let i = 0; i < ix.count; i += 3) F.push([ix.getX(i), ix.getX(i + 1), ix.getX(i + 2)]); pend = []; rebuild(); hint('Triangles made: ' + F.length); }, 50);
+}
+// ---------- mesh health: tint problem faces red, count them, jump to each ----------
+const badMat = new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: .6, side: THREE.DoubleSide, depthWrite: false,
+  polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+const badMesh = new THREE.Mesh(new THREE.BufferGeometry(), badMat); badMesh.renderOrder = 3; scene.add(badMesh);
+let bad = [], badAt = -1;
+function checkSoon() { if (checkSoon.t) return; checkSoon.t = setTimeout(() => { checkSoon.t = 0; runCheck(); }, 160); }
+function runCheck() {
+  if (woodMode || !F.length) { bad = []; return showBad(); }
+  const c = high ? new THREE.Box3().setFromObject(high).getCenter(new THREE.Vector3()).toArray()
+    : V.reduce((a, p) => [a[0] + p[0] / V.length, a[1] + p[1] / V.length, a[2] + p[2] / V.length], [0, 0, 0]);
+  if (fixWinding(F, V, c)) meshGeo();
+  bad = findProblems(V, F); showBad();
+}
+function showBad() {
+  const tp = []; for (const b of bad) { const f = F[b.f]; if (!f) continue; for (let i = 1; i < f.length - 1; i++) tp.push(...V[f[0]], ...V[f[i]], ...V[f[i + 1]]); }
+  badMesh.geometry.dispose(); badMesh.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(tp, 3));
+  badMesh.visible = !woodMode && bad.length > 0;
+  const n = { overlap: 0, fold: 0, twist: 0 }; bad.forEach(b => n[b.kind]++);
+  const parts = []; if (n.overlap) parts.push(n.overlap + ' overlapping'); if (n.fold) parts.push(n.fold + ' folded'); if (n.twist) parts.push(n.twist + ' twisted');
+  $('warn').hidden = !bad.length || woodMode; $('warn').textContent = '⚠ ' + parts.join(' · ');
+  if (badAt >= bad.length) badAt = -1;
+}
+$('warn').onclick = () => {      // swing the camera round to the next problem face
+  if (!bad.length) return; badAt = (badAt + 1) % bad.length; const f = F[bad[badAt].f]; if (!f) return;
+  const C = new THREE.Vector3(); f.forEach(v => C.add(new THREE.Vector3(...V[v]))); C.divideScalar(f.length);
+  const N = new THREE.Vector3(...fnorm(f)); if (N.dot(cam.position.clone().sub(C)) < 0) N.negate();
+  const dist = Math.max(size * .6, Math.min(size * 2, cam.position.distanceTo(controls.target)));
+  controls.target.copy(C); cam.position.copy(C).addScaledVector(N, dist); controls.update();
+  const what = { overlap: 'overlaps another face', fold: 'is folded back over its neighbour', twist: 'is twisted' }[bad[badAt].kind];
+  hint('Problem ' + (badAt + 1) + ' of ' + bad.length + ': this face ' + what, 4000);
+};
+// ---------- ring tool: hold a quad, tap an arrow ----------
+let ringAt = null;
+function holdQuad(x, y) {
+  rc.setFromCamera(new THREE.Vector2(x / innerWidth * 2 - 1, -y / innerHeight * 2 + 1), cam);
+  const h = rc.intersectObject(lowMesh, false)[0]; if (!h) return;
+  const fi = triFace[h.faceIndex], f = F[fi]; if (!f) return;
+  const n = h.face.normal.clone(); if (n.dot(rc.ray.direction) > 0) n.negate();
+  const canRing = f.length === 4 && !free();
+  ringAt = { fi, slot: refMode ? faceSlot(n) : null };
+  if (!canRing && !refMode) return hint(f.length !== 4 ? 'The ring tool starts from a quad' : 'The ring tool wraps around a sculpt: load one and keep snapping on', 4000);
+  const C = new THREE.Vector3(); f.forEach(v => C.add(new THREE.Vector3(...V[v]))); C.divideScalar(f.length); const c = scr(C.toArray());
+  const mid = (i, j) => new THREE.Vector3(...V[f[i]]).add(new THREE.Vector3(...V[f[j]])).multiplyScalar(.5);
+  const place = (id, axis) => { const btn = $(id); btn.hidden = !canRing; if (!canRing) return;
+    const a = axis === 0 ? [mid(0, 3), mid(1, 2)] : [mid(0, 1), mid(3, 2)], s0 = scr(a[0].toArray()), s1 = scr(a[1].toArray());
+    let dx = s1[0] - s0[0], dy = s1[1] - s0[1]; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+    const px = Math.max(28, Math.min(innerWidth - 28, c[0] + dx * 70)), py = Math.max(28, Math.min(innerHeight - 28, c[1] + dy * 70));
+    btn.style.left = (px - 22) + 'px'; btn.style.top = (py - 22) + 'px'; btn.firstChild.style.transform = 'rotate(' + Math.atan2(dy, dx) + 'rad)'; };
+  place('rA', 0); place('rB', 1);
+  $('rImg').hidden = !refMode; $('rImg').style.left = (c[0] - 22) + 'px'; $('rImg').style.top = (c[1] - 22) + 'px';
+  $('ringUI').hidden = false;
+  hint(canRing ? 'Tap an arrow to wrap a ring of quads that way' + (refMode ? ', or the picture for a drawing' : '') : 'Tap the picture to put a drawing on this side', 4000);
+}
+const hideRing = () => { $('ringUI').hidden = true; };
+$('rImg').onclick = () => { hideRing(); if (!ringAt) return; curSlot = ringAt.slot; hint('Choose the ' + curSlot + ' image'); $('refFile').click(); };
+function doRing(axis) {
+  hideRing(); const fi = ringAt && ringAt.fi; if (fi == null || !F[fi] || F[fi].length !== 4) return;
+  const sx = Math.sign(F[fi].reduce((s, v) => s + V[v][0], 0));
+  save(); const nV = V.length;
+  const surf = (p, n) => { const h = snapHit(p, n); if (!h) return null;
+    const N = h.face ? h.face.normal.clone().transformDirection(h.object.matrixWorld).normalize() : new THREE.Vector3(...n);
+    return { p: h.point.toArray(), n: N.toArray() }; };
+  const r = wrapRing(V, F, fi, axis, surf);
+  if (!r.made.length) { hist.pop(); return hint(r.why === 'edge' ? 'There is no sculpt that way to wrap onto' : 'Could not start a ring from this quad', 4000); }
+  let mirNote = '';
+  if (mirOn) {
+    const nR = V.length, crossed = sx !== 0 && V.slice(nV, nR).some(p => p[0] * sx < -CT());
+    if (crossed) mirNote = ' It crosses the centre line, so it was not mirrored.';
+    else { for (let j = nV; j < nR; j++) { if (Math.abs(V[j][0]) < CT()) V[j][0] = 0; else V.push(mp(V[j])); } r.made.forEach(f => addMirFace(f)); }
+  }
+  rebuild();
+  const nq = r.made.length + (r.closed ? 1 : 0);
+  const why = { closed: 'Ring closed: ' + nq + ' quads all the way round.', edge: 'Ring of ' + r.made.length + ' quads. It ran off the sculpt before it could close.',
+    spiral: 'Ring of ' + r.made.length + ' quads. It stopped before running over itself.', exists: 'Ring of ' + r.made.length + ' quads. It met faces that were already there.',
+    max: 'Ring of ' + r.made.length + ' quads.' }[r.why] || ('Ring of ' + r.made.length + ' quads.');
+  hint(why + mirNote, 5000);
+}
+$('rA').onclick = () => doRing(0); $('rB').onclick = () => doRing(1);
+
 function exportOBJ(){let s='# polygo export\n';const uv=texOn&&VU.length===V.length;V.forEach(p=>s+='v '+p.map(v=>v.toFixed(5)).join(' ')+'\n');
   if(uv)VU.forEach(u=>s+='vt '+u[0].toFixed(5)+' '+u[1].toFixed(5)+'\n');
   F.forEach(f=>s+='f '+f.map(i=>uv?(i+1)+'/'+(i+1):i+1).join(' ')+'\n');const a=document.createElement('a');
@@ -578,7 +1339,7 @@ function woodMove(e){if(!W)return;const h=woodHit(e.clientX,e.clientY);if(!h)ret
 function setWood(on){woodMode=on;wood.visible=on;[lowMesh,lines,pts,pendL].forEach(o=>o.visible=!on);
   if(high)high.visible=!on&&!$('bHi').classList.contains('off');
   $('woodBar').style.display=on?'flex':'none';$('bWood').classList.toggle('off',false);
-  if(on){$('bX').style.display='none';if(!setWood.made){newBlock();setWood.made=true}
+  if(on){$('bX').style.display='none';hideRing();runCheck();if(!setWood.made){newBlock();setWood.made=true}
     controls.target.set(0,0,0);hint('Drag on the wood to carve. The grain runs up and down: cutting across it can chip.')}
   else rebuild()}
 $('bWood').onclick=()=>setWood(!woodMode);
@@ -592,7 +1353,7 @@ function woodGeo(){const n=wood.count*3,g=new THREE.BufferGeometry();
 
 // ---------- touch gestures (registered before OrbitControls so we can claim a touch) ----------
 let TG=null,G=null,touches=0,lastTap={t:0,k:null};
-el.addEventListener('pointerdown',e=>{touches++;
+el.addEventListener('pointerdown',e=>{touches++;if(!$('ringUI').hidden)hideRing();
   if(touches>1){if(G){clearTimeout(G.lp);G=null}if(TG){if(TG.moved)TUTO.release();TG=null}W=null;controls.enabled=true;return}
   if(TUTO.hit(e.clientX,e.clientY)){TG={x:e.clientX,y:e.clientY,moved:false};controls.enabled=false;return}
   if(woodMode){woodDown(e);return}
@@ -600,7 +1361,7 @@ el.addEventListener('pointerdown',e=>{touches++;
   G={x,y,t:performance.now(),vi,ed,moved:false,saved:false,hitStart:hitScreen(x,y,ed?V[ed.a].map((v,k)=>(v+V[ed.b][k])/2):undefined)};
   controls.enabled=!(vi>=0||ed);
   G.lp=setTimeout(()=>{if(!G||G.moved)return;
-    if(G.vi>=0)delV(G.vi);else if(G.ed)loopCut(G.ed);else holdFace(G.x,G.y);G=null;controls.enabled=true},550)});
+    if(G.vi>=0)delV(G.vi);else if(G.ed)loopCut(G.ed);else holdQuad(G.x,G.y);G=null;controls.enabled=true},550)});
 el.addEventListener('pointermove',e=>{if(TG){if(!TG.moved&&Math.hypot(e.clientX-TG.x,e.clientY-TG.y)>7){TG.moved=true;TUTO.grabAt(TG.x,TG.y)}if(TG.moved)TUTO.dragTo(e.clientX,e.clientY);return}
   if(woodMode)return woodMove(e);if(!G)return;const dx=e.clientX-G.x,dy=e.clientY-G.y;
   if(!G.moved&&Math.hypot(dx,dy)>7){G.moved=true;clearTimeout(G.lp)}
@@ -645,7 +1406,7 @@ $('bTex').onclick=()=>{texOn=!texOn;$('bTex').classList.toggle('off',!texOn);
   if(texOn){sampleAll();if(!texMat)hint('No material found on the sculpt');else hint('Low-poly uses the sculpt texture')}else hint('Plain blue view');meshGeo()};
 $('bAuto').onclick=auto;$('bUndo').onclick=undo;$('bExp').onclick=()=>{const m=$('expMenu'),r=$('bExp').getBoundingClientRect();m.style.top=r.top+'px';m.style.display=m.style.display==='flex'?'none':'flex'};
 document.querySelectorAll('#expMenu button').forEach(b=>b.onclick=()=>{$('expMenu').style.display='none';exportAs(b.dataset.f)});
-const HELP='Poke Tuto to shoo him, drag him to carry him · Mirror button: copy edits across the centre · Tap sculpt: drop point (4 make a quad, tap the first to close a triangle) · Drag point or edge: move it on the surface · Double-tap edge: extrude · Hold edge: edge loop · Hold point: delete · One finger on empty space: orbit · Two fingers: zoom and pan';
+const HELP='Hold a quad: ring tool · Red faces overlap or fold, tap the warning to see each · Poke Tuto to shoo him, drag him to carry him · Mirror button: copy edits across the centre · Tap sculpt: drop point (4 make a quad, tap the first to close a triangle) · Drag point or edge: move it on the surface · Double-tap edge: extrude · Hold edge: edge loop · Hold point: delete · One finger on empty space: orbit · Two fingers: zoom and pan';
 $('bHelp').onclick=()=>hint(HELP);
 addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='z')undo()});
 
