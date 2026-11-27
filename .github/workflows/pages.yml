@@ -54,5 +54,12 @@ jobs:
         with:
           path: _site
       - uses: actions/deploy-pages@v4
+        id: deploy
         if: steps.pages.outcome == 'success'
         continue-on-error: true
+      # The deploy step sometimes can't see the artifact it was just given; wait and try once more.
+      - name: Wait before retrying deploy
+        if: steps.pages.outcome == 'success' && steps.deploy.outcome == 'failure'
+        run: sleep 20
+      - uses: actions/deploy-pages@v4
+        if: steps.pages.outcome == 'success' && steps.deploy.outcome == 'failure'
