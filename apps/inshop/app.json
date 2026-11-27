@@ -1,9 +1,15 @@
 {
   "title": "INshop",
-  "blurb": "Design your store, arcade or space in 3D: draw walls, cut doors and windows, drop in arcade cabinets, a curved bar, shelves, neon signs and your own 3D models and images, then walk through it on screen or in VR. Starts with the Mother Barbs underground arcade.",
+  "blurb": "Design a store, arcade, gallery, café, bookstore, makerspace, computer lab, toy store or lounge in 3D: draw rooms, hallways and floors, add stairs and stages, pick door and window styles, and place 90+ props, lights, posters with your own images and imported 3D models. Switch between day, overcast and night, then walk through it on screen or in VR.",
   "date": "2026-11-26",
-  "updated": "2026-11-26",
-  "tags": ["vr", "quest", "3d", "app", "design"],
+  "updated": "2026-11-27",
+  "tags": [
+    "vr",
+    "quest",
+    "3d",
+    "app",
+    "design"
+  ],
   "controls": "Add tab: click an item, then click the floor to place it. Drag to move, R rotates, W draws walls, Ctrl+Z undoes. Plan for top view, Walk for first person (WASD). Enter VR on a headset: trigger to teleport, left stick walks, right stick turns.",
   "artifact": "https://claude.ai/artifact/BmjpbPLeDrXbFfiKUGMndN"
 }
