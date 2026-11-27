@@ -1,6 +1,6 @@
 {
   "title": "Artome",
-  "blurb": "Make artbooks, sketch journals and process notebooks on your phone: spreads with photos, drawings, annotations, version strips, timelines, spec cards and diagrams, laid out in the style of Japanese game artbooks, with print-ready PDF export.",
+  "blurb": "Make artbooks, sketch journals and process notebooks on your phone: spreads with photos, drawings, annotations, version strips, timelines, spec cards and diagrams, laid out in the style of Japanese game artbooks. Flip through your book in 3D, place it on a table in AR, and export a print-ready PDF.",
   "date": "2026-11-26",
   "updated": "2026-11-26",
   "tags": [
@@ -9,6 +9,6 @@
     "artbook",
     "photo"
   ],
-  "controls": "Select: drag, corners to resize, round handle to rotate, double-tap to edit. Draw: pen, brush, pencil, marker, eraser (stylus pressure). Annotate: tap a spot and type. Add: elements and whole spread recipes. Frame icon on a photo to reframe it like a camera shot",
+  "controls": "Select: drag, corners to resize, round handle to rotate, double-tap to edit. Draw: pen, brush, pencil, marker, eraser (stylus pressure). Annotate: tap a spot and type. Add: elements and whole spread recipes. Frame icon on a photo to reframe it like a camera shot. Cube button: flip through the book in 3D (swipe or tap pages), then View in AR to place it on a table",
   "artifact": "https://claude.ai/artifact/BprgYT4zCCkrpKhprEacTC"
 }

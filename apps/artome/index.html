@@ -9,6 +9,7 @@
 <title>Artome — process books</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Archivo+Black&family=Anton&family=Bebas+Neue&family=Unbounded:wght@400;800&family=Space+Grotesk:wght@400;700&family=Dela+Gothic+One&family=Noto+Sans+JP:wght@400;700;900&family=Zen+Kaku+Gothic+New:wght@400;900&family=Noto+Serif+JP:wght@400;700&family=DM+Serif+Display:ital@0;1&family=Lora:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;700&family=Caveat:wght@400;700&family=Permanent+Marker&family=Kalam:wght@400;700&family=Klee+One:wght@400;600&family=Reenie+Beanie&family=Yusei+Magic&display=swap" rel="stylesheet">
@@ -118,6 +119,22 @@ select.fld{padding:8px}
 .spr.on{border-color:var(--acc)}
 .spr canvas{width:100%;display:block;border-radius:3px}
 :focus-visible{outline:2px solid var(--acc2);outline-offset:2px}
+@media(max-width:440px){.mark{display:none}}
+/* ---------- 3D book ---------- */
+#v3d{position:fixed;inset:0;z-index:36;background:radial-gradient(ellipse at 50% 42%,#3a3640 0,#1b1a1f 55%,#0e0d10 100%);touch-action:none}
+#v3d.xr{background:transparent}
+#v3cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.v3top{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 10px 8px;background:linear-gradient(#0e0d10cc,#0e0d1000)}
+.v3top b{flex:1;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v3bot{position:absolute;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:4px;background:rgba(23,22,26,.92);border:1px solid var(--line);border-radius:999px;padding:4px}
+.v3bot .ib{width:44px;height:44px;border-radius:999px}
+#v3lbl{min-width:92px;text-align:center;font-weight:700;font-size:13.5px;font-variant-numeric:tabular-nums}
+.v3tip{position:absolute;left:0;right:0;bottom:calc(76px + env(safe-area-inset-bottom));text-align:center;font-size:12px;color:var(--mut);pointer-events:none;padding:0 16px}
+#arUI{position:fixed;inset:0;z-index:60;pointer-events:none;font:600 14px Inter,system-ui,sans-serif;color:#fff}
+#arHint{position:absolute;left:50%;top:calc(18px + env(safe-area-inset-top));transform:translateX(-50%);background:rgba(0,0,0,.6);padding:8px 14px;border-radius:999px;white-space:nowrap}
+.arbar{position:absolute;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px;align-items:center;pointer-events:auto;background:rgba(0,0,0,.6);padding:6px;border-radius:999px}
+.arbar button{min-width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.15);color:#fff;font-weight:700;padding:0 12px}
+#arCount{min-width:70px;text-align:center}
 </style>
 </head>
 <body>
@@ -129,6 +146,7 @@ select.fld{padding:8px}
     <button class="ib" id="bUndo" title="Undo" aria-label="Undo"></button>
     <button class="ib" id="bRedo" title="Redo" aria-label="Redo"></button>
     <button class="ib" id="bBook" title="Pages and spreads" aria-label="Pages and spreads"></button>
+    <button class="ib" id="b3d" title="Flip through in 3D and AR" aria-label="Flip through in 3D and AR"></button>
     <button class="ib" id="bExport" title="Export" aria-label="Export"></button>
     <button class="ib" id="bMore" title="View and book settings" aria-label="View and book settings"></button>
   </header>
@@ -169,6 +187,13 @@ select.fld{padding:8px}
 </div></section>
 
 <div id="modal"><div class="box"><h4 id="mdT"></h4><p id="mdP"></p><input class="fld hide" id="mdI"><div class="row" style="justify-content:flex-end;margin-bottom:0"><button class="pill ghost" id="mdNo">Cancel</button><button class="pill acc" id="mdYes">OK</button></div></div></div>
+<section id="v3d" class="hide" aria-label="3D book">
+  <canvas id="v3cv"></canvas>
+  <div class="v3top"><button class="ib" id="v3close" aria-label="Close 3D view"></button><b id="v3t">Book</b><button class="pill acc" id="v3ar">View in AR</button></div>
+  <div class="v3tip">Swipe or tap a page to turn it · drag up or down to tilt · pinch to zoom</div>
+  <div class="v3bot"><button class="ib" id="v3prev" aria-label="Previous page"></button><span id="v3lbl">Cover</span><button class="ib" id="v3next" aria-label="Next page"></button></div>
+</section>
+<div id="arUI" class="hide"><div id="arHint">Point at a table and tap to place the book</div><div class="arbar"><button id="arPrev" aria-label="Previous page">‹</button><span id="arCount"></span><button id="arNext" aria-label="Next page">›</button><button id="arMove">Move</button><button id="arSize">Real size</button><button id="arExit">Exit</button></div></div>
 <div id="busy"><span id="busyT">Working…</span></div>
 <input type="file" id="fImg" accept="image/*" multiple class="hide">
 <input type="file" id="fCam" accept="image/*" capture="environment" class="hide">
@@ -210,7 +235,8 @@ const ICON={
  text:'<path d="M5 6V4h14v2M12 4v16M9 20h6"/>',
  link:'<path d="M9 15l6-6M10 6l1-1a4 4 0 0 1 6 6l-1 1M14 18l-1 1a4 4 0 0 1-6-6l1-1"/>',
  frame:'<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><circle cx="12" cy="12" r="2"/>',
- fit:'<path d="M4 12h16M12 4v16"/>'
+ fit:'<path d="M4 12h16M12 4v16"/>',
+ cube:'<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>'
 };
 const ic=(n,s)=>`<svg class="i" viewBox="0 0 24 24"${s?` style="width:${s}px;height:${s}px"`:''}>${ICON[n]||''}</svg>`;
 
@@ -1054,7 +1080,7 @@ Object.assign(ACT,{
    S.doc.pages.splice(S.page,1);S.page=Math.min(S.page,S.doc.pages.length-1);S.spread=spreadOfPage(S.page);select(null);commit();refreshAll();closeSheet()}});
 
 /* ================= book overview ================= */
-function openBook(){const n=spreads().length;let h=`<div class="row"><button class="chip" data-ov="rec">+ Spread from a recipe</button><button class="chip" data-ov="blank2">+ Blank spread</button><button class="chip" data-ov="blank1">+ Blank page</button></div><div class="ovw">`;
+function openBook(){const n=spreads().length;let h=`<div class="row"><button class="chip" data-ov="3d" style="background:var(--acc);color:#fff">Flip through in 3D / AR</button><button class="chip" data-ov="rec">+ Spread from a recipe</button><button class="chip" data-ov="blank2">+ Blank spread</button><button class="chip" data-ov="blank1">+ Blank page</button></div><div class="ovw">`;
   spreads().forEach((sp,i)=>{const lab=sp.filter(x=>x!=null).map(pageNum).join('–');const ttl=sp.map(x=>x!=null?pg(x).title:'').filter(Boolean).join(' / ');const stg=sp.map(x=>x!=null&&STAGES.find(s=>s[0]===pg(x).stage)).filter(Boolean);
     h+=`<button class="spr ${i===S.spread?'on':''}" data-sp="${i}"><canvas data-th="${i}"></canvas><div style="margin-top:4px;display:flex;gap:4px;justify-content:center;align-items:center">${stg.map(s=>`<i style="width:8px;height:8px;border-radius:50%;background:${s[2]}"></i>`).join('')}<b>${lab}</b></div><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ttl)||'&nbsp;'}</div></button>`});
   h+='</div>';openSheet('book',`${S.doc.pages.length} pages · ${n} spreads`,h);requestAnimationFrame(()=>$$('#shB canvas[data-th]').forEach(c=>drawThumb(c,+c.dataset.th,280)))}
@@ -1062,7 +1088,7 @@ function drawThumb(c,si,wpx){const f=S.doc.fmt,ww=2*f.w,k=wpx/ww;c.width=wpx;c.h
 function thumbURL(si,w){const c=document.createElement('canvas');const sp=spreads()[si];const f=S.doc.fmt;const k=w/(sp[0]==null||sp[1]==null?f.w:2*f.w);c.width=w;c.height=Math.round(f.h*k);const x=c.getContext('2d');x.scale(k,k);if(sp[0]==null)x.translate(-f.w,0);renderSpread(x,si,{});return c.toDataURL('image/jpeg',.7)}
 $('#shB').addEventListener('click',ev=>{if(SH.kind!=='book')return;const b=ev.target.closest('[data-sp],[data-ov]');if(!b)return;
   if(b.dataset.sp!=null){S.spread=+b.dataset.sp;const sp=spreads()[S.spread];S.page=sp[0]??sp[1];S.slot=sp[0]!=null?0:1;S.view={z:1,px:0,py:0};select(null);closeSheet();refreshAll();return}
-  const o=b.dataset.ov;if(o==='rec'){openSheet('add','Spread recipes',`<div class="grid">`+RECIPES.map(([k,n,d])=>`<button class="card" data-rec="${k}">${n}<small>${d}</small></button>`).join('')+'</div>');return}
+  const o=b.dataset.ov;if(o==='3d'){open3D();return}if(o==='rec'){openSheet('add','Spread recipes',`<div class="grid">`+RECIPES.map(([k,n,d])=>`<button class="card" data-rec="${k}">${n}<small>${d}</small></button>`).join('')+'</div>');return}
   const sp=spreads()[S.spread],at=Math.max(sp[0]??-1,sp[1]??-1)+1;const cnt=o==='blank2'?2:1;const add=[];for(let i=0;i<cnt;i++)add.push(newPage(S.doc));S.doc.pages.splice(at,0,...add);S.page=at;S.spread=spreadOfPage(at);commit();refreshAll();openBook()});
 
 /* ================= export ================= */
@@ -1101,8 +1127,114 @@ Object.assign(ACT,{
  async saveProj(){const blob=new Blob([JSON.stringify(Object.assign({app:'artome'},S.doc))],{type:'application/json'});await saveFile(fname()+'.artome.json',blob)},
  openProj(){$('#fProj').click()}});
 $('#fProj').onchange=async ev=>{const f=ev.target.files[0];ev.target.value='';if(!f)return;try{const d=JSON.parse(await f.text());if(!d.pages||!d.fmt)throw 0;d.id=d.id||uid();if(S.doc&&d.id===S.doc.id&&!await ask('Replace the open book?','This file is the same book. Opening it replaces what is on screen.'))return;openDoc(d);closeSheet();$('#lib').classList.add('hide');toast('Opened '+d.title)}catch(e){toast('That is not an Artome project file')}};
+/* ================= 3D book + AR ================= */
+const B3={THREE:null,ready:false,open:false,cur:0,L:0,leaves:[],tex:new Map(),anim:[],drag:null,el:58,zoom:1,tgtX:0,inXR:false,placed:false,size:1};
+const isIOS=()=>/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const inClaude=()=>!/github\.io$|^localhost$|^127\./.test(location.hostname)&&location.protocol!=='file:';
+function seq3(){const n=S.doc.pages.length,a=[];if(!S.doc.coverRight)a.push(null);for(let i=0;i<n;i++)a.push(i);if(a.length%2)a.push(null);return a}
+function pageCanvas(pi,hpx,mirror){const f=S.doc.fmt,dpi=hpx/f.h*72;const r=exportCanvas(spreadOfPage(pi),slotOf(pi),dpi,false,true).c;if(!mirror)return r;
+  const c=document.createElement('canvas');c.width=r.width;c.height=r.height;const x=c.getContext('2d');x.translate(c.width,0);x.scale(-1,1);x.drawImage(r,0,0);return c}
+async function open3D(){if(!S.doc)return;closeSheet();if(S.mode!=='select')setMode('select');
+  if(!B3.THREE){busy(true,'Loading 3D…');try{B3.THREE=await import('three')}catch(e){busy(false);toast('The 3D engine could not load. Check your connection and try again.');return}busy(false)}
+  $('#v3d').classList.remove('hide');B3.open=true;$('#v3t').textContent=S.doc.title||'Book';await document.fonts.ready;setup3D();build3D();
+  const s=seq3(),pi=S.page,k=s.indexOf(pi);B3.cur=Math.max(0,Math.min(B3.L,Math.ceil(k/2)));for(let i=0;i<B3.L;i++)B3.leaves[i].a=i<B3.cur?Math.PI:0;
+  B3.el=58;B3.zoom=1;label3();fitCam(true);wantTex();arAvail()}
+function close3D(){if(B3.inXR&&B3.session){B3.session.end()}B3.open=false;$('#v3d').classList.add('hide');if(B3.r)B3.r.setAnimationLoop(null);
+  const s=seq3();const pi=s[B3.cur*2]??s[B3.cur*2-1];if(pi!=null){S.page=pi;S.spread=spreadOfPage(pi);S.slot=slotOf(pi)}disposeTex();refreshAll()}
+function disposeTex(){for(const t of B3.tex.values())t.dispose();B3.tex.clear()}
+function setup3D(){const T=B3.THREE;if(B3.r){B3.r.setAnimationLoop(loop3);onResize3();return}
+  const cv=$('#v3cv');const r=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true});r.setPixelRatio(Math.min(devicePixelRatio||1,2));r.outputColorSpace=T.SRGBColorSpace;B3.r=r;
+  const sc=new T.Scene();B3.scene=sc;const cam=new T.PerspectiveCamera(35,1,.01,100);B3.cam=cam;
+  sc.add(new T.HemisphereLight(0xffffff,0x6a6470,2.1));const dl=new T.DirectionalLight(0xffffff,1.5);dl.position.set(-1.2,3,1.6);sc.add(dl);
+  // soft floor shadow
+  const sh=document.createElement('canvas');sh.width=sh.height=128;const sx=sh.getContext('2d');const g=sx.createRadialGradient(64,64,4,64,64,64);g.addColorStop(0,'rgba(0,0,0,.55)');g.addColorStop(1,'rgba(0,0,0,0)');sx.fillStyle=g;sx.fillRect(0,0,128,128);
+  B3.shadow=new T.Mesh(new T.PlaneGeometry(1,1),new T.MeshBasicMaterial({map:new T.CanvasTexture(sh),transparent:true,depthWrite:false}));B3.shadow.rotation.x=-Math.PI/2;B3.shadow.position.y=-.004;sc.add(B3.shadow);
+  // AR reticle
+  const ret=new T.Mesh(new T.RingGeometry(.07,.085,40).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:0xff3d7f}));ret.matrixAutoUpdate=false;ret.visible=false;sc.add(ret);B3.ret=ret;
+  r.setAnimationLoop(loop3);new ResizeObserver(onResize3).observe($('#v3d'));onResize3();bind3()}
+function onResize3(){if(!B3.r||B3.inXR)return;const el=$('#v3d'),w=el.clientWidth,h=el.clientHeight;B3.r.setSize(w,h,false);B3.cam.aspect=w/Math.max(1,h);B3.cam.updateProjectionMatrix();fitCam(true)}
+function build3D(){const T=B3.THREE;if(B3.book){B3.scene.remove(B3.book);B3.book.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose()})}disposeTex();
+  const f=S.doc.fmt,w=f.w/f.h,s=seq3(),L=s.length/2;B3.w=w;B3.L=L;B3.t=.0055;B3.leaves=[];
+  const book=new T.Group(),inner=new T.Group();inner.rotation.x=-Math.PI/2;book.add(inner);B3.book=book;B3.inner=inner;B3.scene.add(book);
+  const coverC=themeOf(pg(0)).ink,board=new T.MeshStandardMaterial({color:new T.Color(isLight(themeOf(pg(0)).ground)?themeOf(pg(0)).accent:coverC),roughness:.7});
+  const m=.012,bt=.012;const mkBoard=x=>{const b=new T.Mesh(new T.BoxGeometry(w+m,1+m*2,bt),board);b.position.set(x,0,-bt/2);inner.add(b);return b};B3.boardR=mkBoard(w/2+m/2);B3.boardL=mkBoard(-w/2-m/2);
+  const white=new T.MeshStandardMaterial({color:0xf3f0e8,roughness:.95});B3.blockR=new T.Mesh(new T.BoxGeometry(w*.992,.992,1),white);B3.blockL=new T.Mesh(new T.BoxGeometry(w*.992,.992,1),white);B3.blockR.position.x=w/2;B3.blockL.position.x=-w/2;inner.add(B3.blockR,B3.blockL);
+  const SEG=28;for(let i=0;i<L;i++){const geo=new T.PlaneGeometry(w,1,SEG,1);geo.translate(w/2,0,0);const pos=geo.attributes.position;const u=new Float32Array(pos.count);for(let k=0;k<pos.count;k++)u[k]=pos.getX(k)/w;
+    const fm=new T.MeshStandardMaterial({color:0xffffff,roughness:.88,side:T.FrontSide}),bm=new T.MeshStandardMaterial({color:0xffffff,roughness:.88,side:T.BackSide});
+    const g=new T.Group(),a=new T.Mesh(geo,fm),b=new T.Mesh(geo,bm);g.add(a,b);inner.add(g);B3.leaves.push({g,geo,u,fm,bm,front:s[i*2],back:s[i*2+1],a:0,shown:-1,SEG})}
+  B3.shadow.scale.set(w*2.6,1.5,1)}
+function texFor(pi,mirror){const k=pi+'|'+(mirror?1:0);if(B3.tex.has(k))return B3.tex.get(k);const T=B3.THREE;const hp=Math.min(1400,(B3.r.capabilities.maxTextureSize||4096));
+  const t=new T.CanvasTexture(pageCanvas(pi,innerWidth<700?1000:hp,mirror));t.colorSpace=T.SRGBColorSpace;t.anisotropy=Math.min(8,B3.r.capabilities.getMaxAnisotropy());B3.tex.set(k,t);return t}
+let texQ=[];function wantTex(){const need=new Set();for(let i=Math.max(0,B3.cur-2);i<=Math.min(B3.L-1,B3.cur+1);i++)need.add(i);
+  for(const i of need){const lf=B3.leaves[i];if(lf.shown===1)continue;lf.shown=1;texQ.push(lf)}
+  if(!wantTex.busy&&texQ.length){wantTex.busy=true;const step=()=>{const lf=texQ.shift();if(!lf){wantTex.busy=false;return}if(B3.open){if(lf.front!=null){lf.fm.map=texFor(lf.front,false);lf.fm.needsUpdate=true}if(lf.back!=null){lf.bm.map=texFor(lf.back,true);lf.bm.needsUpdate=true}}setTimeout(step,0)};setTimeout(step,0)}}
+function shape3(){const L=B3.L,t=B3.t,w=B3.w;let flipping=0;
+  B3.leaves.forEach((lf,i)=>{const th=lf.a,p=th/Math.PI;const bend=Math.sin(th)*.9*(lf.dir||1);const zR=(L-1-i)*t+t,zL=i*t+t,z=zR+(zL-zR)*p+Math.sin(th)*.004;if(th>.001&&th<Math.PI-.001)flipping++;
+    const SEG=lf.SEG,px=[0],pz=[0];for(let j=1;j<=SEG;j++){const uu=(j-.5)/SEG,ang=th-bend*uu*.6;px.push(px[j-1]+Math.cos(ang)*w/SEG);pz.push(pz[j-1]+Math.sin(ang)*w/SEG)}
+    const pos=lf.geo.attributes.position;for(let k=0;k<pos.count;k++){const j=Math.round(lf.u[k]*SEG);pos.setX(k,px[j]);pos.setZ(k,pz[j]+z)}pos.needsUpdate=true;lf.geo.computeVertexNormals();lf.geo.computeBoundingSphere()});
+  const rightN=B3.leaves.filter(l=>l.a<Math.PI/2).length,leftN=L-rightN;const setBlk=(b,n)=>{const th=Math.max(.0001,(n-1)*t);b.scale.z=th;b.position.z=th/2+t*.5;b.visible=n>1};setBlk(B3.blockR,rightN);setBlk(B3.blockL,leftN);
+  B3.boardL.visible=B3.leaves.length&&B3.leaves[0].a>Math.PI*.5}
+function animLeaf(i,to,dur=.55){const lf=B3.leaves[i];if(!lf)return;lf.from=lf.a;lf.to=to;lf.t0=performance.now();lf.dur=dur*1000;lf.dir=to>lf.from?1:-1;if(!B3.anim.includes(lf))B3.anim.push(lf)}
+function flip3(d){if(d>0&&B3.cur<B3.L){animLeaf(B3.cur,Math.PI);B3.cur++}else if(d<0&&B3.cur>0){B3.cur--;animLeaf(B3.cur,0)}label3();wantTex()}
+function label3(){const s=seq3(),l=s[B3.cur*2-1],r=s[B3.cur*2];const lab=[l,r].filter(x=>x!=null).map(pageNum).join('–');$('#v3lbl').textContent=B3.cur===0?'Cover':B3.cur===B3.L?'Back':`pp ${lab}`;$('#v3prev').disabled=B3.cur===0;$('#v3next').disabled=B3.cur===B3.L;
+  B3.tgtX=B3.cur===0?B3.w/2:B3.cur===B3.L?-B3.w/2:0;$('#arCount')&&($('#arCount').textContent=$('#v3lbl').textContent)}
+function fitCam(snap){const c=B3.cam,w=B3.w||.7,vis=(B3.cur===0||B3.cur===B3.L)?w*1.45:w*2.6,fovV=c.fov*D2R,fovH=2*Math.atan(Math.tan(fovV/2)*c.aspect);const D=Math.max((vis/2)/Math.tan(fovH/2),(1.5/2)/Math.tan(fovV/2))/B3.zoom;B3.D=D;if(snap)B3.cx=B3.tgtX}
+let last3=0;function loop3(t,frame){const now=performance.now(),dt=Math.min(.05,(now-(last3||now))/1000);last3=now;
+  for(const lf of B3.anim.slice()){const k=Math.min(1,(now-lf.t0)/lf.dur),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;lf.a=lf.from+(lf.to-lf.from)*e;if(k>=1)B3.anim.splice(B3.anim.indexOf(lf),1)}
+  shape3();
+  if(B3.inXR){arFrame(frame)}else{fitCam(false);B3.cx=(B3.cx??B3.tgtX)+(B3.tgtX-(B3.cx??0))*Math.min(1,dt*6);const el=B3.el*D2R,c=B3.cam;c.position.set(B3.cx,Math.sin(el)*B3.D,Math.cos(el)*B3.D);c.lookAt(B3.cx,0,0);B3.shadow.position.x=B3.cx*.5}
+  B3.r.render(B3.scene,B3.cam)}
+function bind3(){const cv=$('#v3cv'),P=new Map();let g=null;
+  cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);P.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(P.size===2){const[a,b]=[...P.values()];g={k:'pinch',d0:Math.hypot(a.x-b.x,a.y-b.y),z0:B3.zoom};return}g={k:'?',x0:e.clientX,y0:e.clientY,el0:B3.el}});
+  cv.addEventListener('pointermove',e=>{const p=P.get(e.pointerId);if(!p||!g)return;p.x=e.clientX;p.y=e.clientY;
+    if(g.k==='pinch'&&P.size>=2){const[a,b]=[...P.values()];B3.zoom=clamp(g.z0*Math.hypot(a.x-b.x,a.y-b.y)/g.d0,.6,4);return}
+    const dx=e.clientX-g.x0,dy=e.clientY-g.y0;
+    if(g.k==='?'&&Math.hypot(dx,dy)>8){if(Math.abs(dx)>Math.abs(dy)){const d=dx<0?1:-1;const i=d>0?B3.cur:B3.cur-1;if(i<0||i>=B3.L||B3.anim.length){g.k='none';return}g.k='flip';g.d=d;g.i=i;const lf=B3.leaves[i];lf.dir=d;if(d>0)wantTexAt(i+1);else wantTexAt(i-1)}else g.k='tilt'}
+    if(g.k==='tilt')B3.el=clamp(g.el0-dy*.25,12,89);
+    if(g.k==='flip'){const p=clamp(Math.abs(dx)/(cv.clientWidth*.55),0,1);B3.leaves[g.i].a=g.d>0?p*Math.PI:Math.PI-p*Math.PI;g.p=p}});
+  const up=e=>{P.delete(e.pointerId);if(!g)return;if(g.k==='pinch'){if(P.size<2)g=null;return}
+    if(g.k==='?'){const r=cv.getBoundingClientRect();flip3(e.clientX-r.left>r.width/2?1:-1)}
+    else if(g.k==='flip'){if((g.p||0)>.3){if(g.d>0){animLeaf(g.i,Math.PI,.35);B3.cur++}else{animLeaf(g.i,0,.35);B3.cur--}label3();wantTex()}else animLeaf(g.i,g.d>0?0:Math.PI,.3)}g=null};
+  cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+  cv.addEventListener('wheel',e=>{e.preventDefault();B3.zoom=clamp(B3.zoom*Math.exp(-e.deltaY*.0015),.6,4)},{passive:false});
+  $('#v3prev').onclick=()=>flip3(-1);$('#v3next').onclick=()=>flip3(1);$('#v3close').onclick=close3D;$('#v3ar').onclick=startAR;
+  document.addEventListener('keydown',e=>{if(!B3.open)return;if(e.key==='ArrowRight')flip3(1);if(e.key==='ArrowLeft')flip3(-1);if(e.key==='Escape')close3D()});
+  $('#arPrev').onclick=()=>flip3(-1);$('#arNext').onclick=()=>flip3(1);$('#arExit').onclick=()=>B3.session&&B3.session.end();
+  $('#arMove').onclick=()=>{B3.placed=false;B3.book.visible=false;B3.shadow.visible=false;arHint('Point at a table and tap to place the book')};
+  $('#arSize').onclick=()=>{B3.size=B3.size===1?2:B3.size===2?4:1;$('#arSize').textContent=B3.size===1?'Real size':B3.size===2?'×2':'×4';if(B3.placed)B3.book.scale.setScalar(B3.real*B3.size)};
+  $('#arUI').addEventListener('beforexrselect',e=>e.preventDefault())}
+function wantTexAt(i){const lf=B3.leaves[i];if(!lf||lf.shown===1)return;lf.shown=1;if(lf.front!=null){lf.fm.map=texFor(lf.front,false);lf.fm.needsUpdate=true}if(lf.back!=null){lf.bm.map=texFor(lf.back,true);lf.bm.needsUpdate=true}}
+/* ---------- AR ---------- */
+async function arAvail(){const b=$('#v3ar');b.dataset.mode='';try{if(navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar')){b.dataset.mode='xr';return}}catch(e){}if(isIOS())b.dataset.mode='ql'}
+async function startAR(){const m=$('#v3ar').dataset.mode;if(m==='xr')return startXR();if(m==='ql')return quickLook();
+  const url='https://itemnautsoft.github.io/Soft/apps/artome/';openSheet('arhelp','View in AR',`<div style="font-size:14px;line-height:1.55">
+   <p>${inClaude()?'AR can’t start inside Claude, because the page runs in a frame that has no camera access.':'This browser doesn’t offer AR.'} Open Artome on your phone:</p>
+   <p><a href="${url}" style="color:var(--acc2);font-weight:700">${url}</a></p>
+   <p><b>Android:</b> Chrome on a phone with Google Play Services for AR. Point at a table, tap to place the book, then tap the page or use the arrows to turn pages.</p>
+   <p><b>iPhone and iPad:</b> Safari opens the book in AR Quick Look, open at the spread you’re on. Turn pages in 3D, then tap AR again to see another spread.</p>
+   <p style="color:var(--mut)">Your books live on each device. To move one, use Export → Save project file, then Open a project file on the phone.</p></div>`);
+  $('#sheet').style.zIndex='45'}
+function arHint(t){$('#arHint').textContent=t}
+async function startXR(){const T=B3.THREE,r=B3.r;let ses;try{ses=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['hit-test'],optionalFeatures:['dom-overlay','local-floor'],domOverlay:{root:$('#arUI')}})}catch(e){toast('AR could not start: '+(e.message||e));return}
+  B3.session=ses;B3.inXR=true;B3.placed=false;$('#arUI').classList.remove('hide');arHint('Point at a table and tap to place the book');
+  r.xr.enabled=true;r.xr.setReferenceSpaceType('local');await r.xr.setSession(ses);
+  const vs=await ses.requestReferenceSpace('viewer');B3.hitSrc=await ses.requestHitTestSource({space:vs});
+  B3.book.visible=false;B3.shadow.visible=false;B3.prevBg=B3.scene.background;B3.scene.background=null;$('#v3d').classList.add('xr');
+  B3.real=S.doc.fmt.h/72*.0254;
+  ses.addEventListener('select',()=>{if(!B3.placed){if(!B3.ret.visible)return;const p=new T.Vector3().setFromMatrixPosition(B3.ret.matrix);const cam=r.xr.getCamera(),cp=new T.Vector3().setFromMatrixPosition(cam.matrixWorld);
+      B3.book.position.copy(p);B3.book.position.x-=0;B3.book.rotation.set(0,Math.atan2(cp.x-p.x,cp.z-p.z),0);B3.book.scale.setScalar(B3.real*B3.size);B3.book.visible=true;B3.shadow.visible=false;B3.placed=true;B3.ret.visible=false;arHint('Tap the page or use the arrows to turn pages');if(B3.cur===0)flip3(1)}
+    else flip3(1)});
+  ses.addEventListener('end',()=>{B3.inXR=false;B3.session=null;B3.hitSrc=null;r.xr.enabled=false;$('#arUI').classList.add('hide');$('#v3d').classList.remove('xr');B3.book.position.set(0,0,0);B3.book.rotation.set(0,0,0);B3.book.scale.setScalar(1);B3.book.visible=true;B3.shadow.visible=true;B3.ret.visible=false;onResize3()})}
+function arFrame(frame){if(!frame||!B3.hitSrc||B3.placed)return;const hits=frame.getHitTestResults(B3.hitSrc);if(hits.length){const pose=hits[0].getPose(B3.r.xr.getReferenceSpace());if(pose){B3.ret.visible=true;B3.ret.matrix.fromArray(pose.transform.matrix)}}else B3.ret.visible=false}
+async function quickLook(){busy(true,'Preparing AR…');try{const T=B3.THREE;const{USDZExporter}=await import('three/addons/exporters/USDZExporter.js');const s=seq3(),l=s[B3.cur*2-1],rp=s[B3.cur*2],w=B3.w,real=S.doc.fmt.h/72*.0254;
+    const sc=new T.Scene(),g=new T.Group();sc.add(g);const mk=(pi,x)=>{if(pi==null)return;const c=pageCanvas(pi,1024,false),t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;const m=new T.Mesh(new T.PlaneGeometry(w*real,real),new T.MeshStandardMaterial({map:t,roughness:.9}));m.rotation.x=-Math.PI/2;m.position.set(x*real,.004,0);g.add(m)};
+    mk(l,-w/2);mk(rp,w/2);const bd=new T.Mesh(new T.BoxGeometry((l!=null&&rp!=null?2*w:w)*real+.01,.006,real+.01),new T.MeshStandardMaterial({color:new T.Color(themeOf(pg(0)).ink),roughness:.7}));bd.position.set(l!=null&&rp!=null?0:(rp!=null?w/2:-w/2)*real,0,0);g.add(bd);
+    const ex=new USDZExporter();const arr=await ex.parseAsync(sc,{quickLookCompatible:true,maxTextureSize:2048});const url=URL.createObjectURL(new Blob([arr],{type:'model/vnd.usdz+zip'}));
+    busy(false);const a=document.createElement('a');a.rel='ar';a.href=url;a.download=fname()+'.usdz';a.appendChild(document.createElement('img'));document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},60000)}
+  catch(e){busy(false);console.error(e);toast('AR Quick Look failed: '+(e.message||e))}}
 /* ================= chrome wiring ================= */
-$('#bLib').innerHTML=ic('lib');$('#bUndo').innerHTML=ic('undo');$('#bRedo').innerHTML=ic('redo');$('#bBook').innerHTML=ic('book');$('#bExport').innerHTML=ic('exp');$('#bMore').innerHTML=ic('more');
+$('#bLib').innerHTML=ic('lib');$('#bUndo').innerHTML=ic('undo');$('#bRedo').innerHTML=ic('redo');$('#bBook').innerHTML=ic('book');$('#bExport').innerHTML=ic('exp');$('#bMore').innerHTML=ic('more');$('#b3d').innerHTML=ic('cube');$('#b3d').onclick=open3D;$('#v3close').innerHTML=ic('x');$('#v3prev').innerHTML=ic('prev',22);$('#v3next').innerHTML=ic('next',22);
 $('#bPrev').innerHTML=ic('prev',20);$('#bNext').innerHTML=ic('next',20);$('#shClose').innerHTML=ic('x',20);
 $('#mSelect').innerHTML=ic('sel')+'Select';$('#mDraw').innerHTML=ic('draw')+'Draw';$('#mAdd').innerHTML='<span class="dot">'+ic('plus')+'</span>Add';$('#mPin').innerHTML=ic('pin')+'Annotate';$('#mLayers').innerHTML=ic('layers')+'Layers';$('#mPage').innerHTML=ic('page')+'Page';
 $$('#tray [data-mode]').forEach(b=>b.onclick=()=>setMode(S.mode===b.dataset.mode&&b.dataset.mode!=='select'?'select':b.dataset.mode));
@@ -1125,7 +1257,7 @@ Object.assign(ACT,{fit(){S.view={z:1,px:0,py:0};req()},help(){openSheet('help','
  <p><b>Framing</b> — on a photo, tap the frame icon or Edit → Framing. Pick a frame shape (1:1, 16:9, Scope…), a shot size from wide to extreme close-up, set the subject point and add a dutch tilt. Thirds or golden guides show while you drag.</p>
  <p><b>Colours</b> follow the page's ground. Change the ground in Page and every Ink and Accent colour on it changes with it.</p>
  <p><b>Saving</b> — the book saves itself on this device. Use Export → Project file to move it to another device, or export pages as PNG, JPEG or a print PDF with bleed.</p></div>`)}});
-document.addEventListener('keydown',ev=>{if(!S.doc||!$('#lib').classList.contains('hide'))return;const tag=(ev.target.tagName||'').toLowerCase();if(tag==='input'||tag==='textarea'||tag==='select')return;const m=ev.metaKey||ev.ctrlKey;
+document.addEventListener('keydown',ev=>{if(B3.open)return;if(!S.doc||!$('#lib').classList.contains('hide'))return;const tag=(ev.target.tagName||'').toLowerCase();if(tag==='input'||tag==='textarea'||tag==='select')return;const m=ev.metaKey||ev.ctrlKey;
   if(m&&ev.key.toLowerCase()==='z'){ev.preventDefault();ev.shiftKey?redo():undo();return}if(m&&ev.key.toLowerCase()==='y'){ev.preventDefault();redo();return}
   if(m&&ev.key.toLowerCase()==='d'){ev.preventDefault();duplicate();return}if(ev.key==='Escape'){if(S.mode!=='select')setMode('select');else{select(null);closeSheet()}return}
   const F=selEl();if(!F){if(ev.key==='ArrowRight')step(1);if(ev.key==='ArrowLeft')step(-1);return}
@@ -1180,7 +1312,7 @@ function drawHero(){const c=$('#heroArt'),x=c.getContext('2d'),W=c.width,H=c.hei
 /* ================= boot ================= */
 (async()=>{resize();await idb();let last=null;try{last=localStorage.getItem('artome.last')}catch(e){}const all=await dbAll();const rec=all.find(r=>r.id===last)||null;
   if(rec&&rec.doc)openDoc(rec.doc);else showLib();
-  if(/[?&#]autotest/.test(location.href))window.__A={S,w2s,elWorld,createBook,insertRecipe,openInspector,openAdd,select,render,spreads,exportCanvas,buildPDF,openExport,openPage,openBook,openLayers,setMode,addEl,recipe,pg,findEl,commit,undo,redo,trimDraw,ACT,G0,mk,openNew,showLib};
+  if(/[?&#]autotest/.test(location.href))window.__A={B3,open3D,flip3,S,w2s,elWorld,createBook,insertRecipe,openInspector,openAdd,select,render,spreads,exportCanvas,buildPDF,openExport,openPage,openBook,openLayers,setMode,addEl,recipe,pg,findEl,commit,undo,redo,trimDraw,ACT,G0,mk,openNew,showLib};
 })();
 }
 </script>
