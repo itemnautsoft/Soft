@@ -2287,7 +2287,7 @@ const padEnd = e => { if (e.pointerId !== PAD.id) return; PAD.id = null; $('padK
 $('padRing').addEventListener('pointerup', padEnd); $('padRing').addEventListener('pointercancel', padEnd);
 
 // ---------- floor: a soft reflection and real shadows under the model ----------
-// Three stacked discs: a mirror, a floor-coloured cover that lets ~20% of the reflection through in the middle and
+// Three stacked discs: a mirror, a floor-coloured cover that lets ~10% of the reflection through in the middle and
 // none at the rim (so it melts into the background), and a shadow catcher. Only solid things (sculpt, low-poly faces,
 // Tuto) are reflected: overlays live on layer 1, which the main camera sees and the mirror's camera doesn't.
 cam.layers.enable(1);
@@ -2301,7 +2301,7 @@ const mirror = new Reflector(new THREE.CircleGeometry(1, 72), { clipBias: 0.003,
 mirror.rotation.x = -Math.PI / 2; floorG.add(mirror);
 const fade = document.createElement('canvas'); fade.width = fade.height = 256;
 { const g = fade.getContext('2d'), r = g.createRadialGradient(128, 128, 0, 128, 128, 128);
-  r.addColorStop(0, 'rgb(204,204,204)'); r.addColorStop(0.35, 'rgb(212,212,212)'); r.addColorStop(0.85, 'rgb(255,255,255)'); r.addColorStop(1, 'rgb(255,255,255)');
+  r.addColorStop(0, 'rgb(230,230,230)'); r.addColorStop(0.35, 'rgb(234,234,234)');   // ~10% reflection in the middle (halved) r.addColorStop(0.85, 'rgb(255,255,255)'); r.addColorStop(1, 'rgb(255,255,255)');
   g.fillStyle = r; g.fillRect(0, 0, 256, 256); }
 const floorTint = new THREE.Mesh(new THREE.CircleGeometry(1, 72), new THREE.MeshBasicMaterial({ transparent: true, alphaMap: new THREE.CanvasTexture(fade), depthWrite: false }));
 floorTint.rotation.x = -Math.PI / 2; floorTint.position.y = 0.0015; floorTint.renderOrder = 1; floorG.add(floorTint);
