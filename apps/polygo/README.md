@@ -37,6 +37,10 @@ the old address `apps/retopo-studio/` redirects here.
   lasso catch, or on the whole low-poly mesh when nothing is caught. With snapping on, points press back onto the
   sculpt when you let go (very large moves on very dense sculpts skip this, and say so). The 🏀 and ➰ buttons sit
   above it.
+- **Floor:** the model stands on a soft reflective floor. A mirror disc sits under a floor-coloured cover that lets
+  about a fifth of the reflection through in the middle and fades it out at the rim, so the floor melts into the
+  background. The main light casts real shadows from the sculpt, the low-poly faces and Tuto (onto the floor and onto
+  the sculpt). Wires, points and highlights aren't reflected. The floor follows the lowest point of the model.
 - **Look:** red, white and yellow, after itemnaut's reference board (RX-78 Gundam, Sakura, Sailor Moon, the Playskool
   tape player), with the poster's deep navy for dark mode. Tuto wears the sketched outfit: white body, yellow shoulder
   pads, a red V across the chest, navy trousers, red boots, gloves and joystick (only this app's copy of him).

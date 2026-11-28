@@ -616,6 +616,7 @@ import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 import {STLExporter} from 'three/addons/exporters/STLExporter.js';
 import {PLYExporter} from 'three/addons/exporters/PLYExporter.js';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
+import {Reflector} from 'three/addons/objects/Reflector.js';
 import {SimplifyModifier} from 'three/addons/modifiers/SimplifyModifier.js';
 import {mergeVertices,mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -660,6 +661,7 @@ function setHigh(root){
   root.updateMatrixWorld(true);const bb=new THREE.Box3().setFromObject(root),c=new THREE.Vector3(),sz=new THREE.Vector3();
   bb.getCenter(c);bb.getSize(sz);const k=2/Math.max(sz.x,sz.y,sz.z);
   const w=new THREE.Group();w.add(root);w.scale.setScalar(k);w.position.copy(c).multiplyScalar(-k);
+  w.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
   scene.add(w);w.updateMatrixWorld(true);high=w;highGeo=null;size=2;
   V=[];F=[];VU=[];pend=[];hist=[];rebuild();
 }
@@ -1325,7 +1327,7 @@ const lerp = (a, b, k) => a + (b - a) * k;
 // Tuto Maker's default ball colour (yellow), with ink seams
 const mkSeamMat = new THREE.MeshBasicMaterial({ color: 0x161216 });
 function mkMakeBall(r) {
-  const g = new THREE.Group(); g.add(mesh(new THREE.SphereGeometry(r, 22, 16), 0xFFE45E));
+  const g = new THREE.Group(); const body = mesh(new THREE.SphereGeometry(r, 22, 16), 0xFFE45E); body.castShadow = true; g.add(body);
   for (const [rx, ry] of [[0, 0], [Math.PI / 2, 0], [0, Math.PI / 2]]) { const t = new THREE.Mesh(new THREE.TorusGeometry(r * 1.004, r * 0.05, 6, 30), mkSeamMat); t.rotation.set(rx, ry, 0); g.add(t); }
   return g;
 }
@@ -1793,10 +1795,11 @@ function dressTuto(h) {
   const v = mesh(g, 0xE0182D); v.position.y = 0.01; P.torso.add(v);
   return h;
 }
-const hero = dressTuto(buildCharacter()); hero.anim = newAnim(); hero.root.scale.setScalar(TS); scene.add(hero.root); TU.hero = hero;
+const hero = dressTuto(buildCharacter()); hero.anim = newAnim();
+hero.root.traverse(o => { if (o.isMesh) o.castShadow = o.material !== OL; });   /* real shadows; the outline shell doesn't need one */ hero.root.scale.setScalar(TS); scene.add(hero.root); TU.hero = hero;
 const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.42 * TS * 1.6, 24).rotateX(-Math.PI / 2),
   new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }));
-scene.add(shadow);
+shadow.visible = false; scene.add(shadow);   // the floor now catches real shadows, so the painted blob stays hidden
 const box = new THREE.Box3(), _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
 const ST = { mode: 'walk', pos: new THREE.Vector3(0, -1, 1.2), face: 0, s: 0, sT: 0, pause: 1, timer: 4, leap: null, grip: null,
   theta: 0, omega: 0, vy: 0, airT: 0, held: null, t: 0, mag: 0, mx: 0, mz: 1, grab: 0, offPath: false, hangT: 0, floor: -1, boxT: 0,
@@ -1986,7 +1989,7 @@ function dragTo(x, y) {
   if (_ray.ray.intersectPlane(dragPlane, _w)) { ST.pos.copy(_w).add(dragOff); ST.pos.y = Math.max(ST.pos.y, ST.floor); }
 }
 function release() { if (ST.mode === 'held') { ST.mode = 'fall'; ST.vy = 0.6; } }
-function setOn(on) { ST.on = on; hero.root.visible = shadow.visible = on; if (on) { refreshBox(); ST.floor = floorY(); ST.mode = 'walk'; ST.grip = null; ST.s = ST.sT = nearestS(ST.pos.x, ST.pos.z); ST.offPath = true; } }
+function setOn(on) { ST.on = on; hero.root.visible = on; if (on) { refreshBox(); ST.floor = floorY(); ST.mode = 'walk'; ST.grip = null; ST.s = ST.sT = nearestS(ST.pos.x, ST.pos.z); ST.offPath = true; } }
 refreshBox(); ST.floor = floorY(); ST.s = ST.sT = perim() * 0.1; atS(ST.s, ST.pos).setY(ST.floor);
 // ---- lasso Tuto: a second Tuto drawn over the screen's bottom-left corner. He spins a rope loop over his head,
 // throws it when a selection is drawn, then holds the rope while the selection is in use.
@@ -2283,10 +2286,54 @@ $('padRing').addEventListener('pointermove', e => {
 const padEnd = e => { if (e.pointerId !== PAD.id) return; PAD.id = null; $('padKnob').style.transition = ''; $('padKnob').style.transform = ''; if (LS.drag) endDrag(); };
 $('padRing').addEventListener('pointerup', padEnd); $('padRing').addEventListener('pointercancel', padEnd);
 
-function resize(){hudResize();renderer.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+// ---------- floor: a soft reflection and real shadows under the model ----------
+// Three stacked discs: a mirror, a floor-coloured cover that lets ~20% of the reflection through in the middle and
+// none at the rim (so it melts into the background), and a shadow catcher. Only solid things (sculpt, low-poly faces,
+// Tuto) are reflected: overlays live on layer 1, which the main camera sees and the mirror's camera doesn't.
+cam.layers.enable(1);
+const noReflect = o => o.traverse(c => c.layers.set(1));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false;
+dl.castShadow = true; dl.shadow.mapSize.set(1536, 1536); dl.shadow.bias = -0.0004; dl.shadow.normalBias = 0.02; scene.add(dl.target);
+const LIGHT_DIR = new THREE.Vector3(2, 3, 4).normalize();
+const floorG = new THREE.Group(); scene.add(floorG);
+const mirrorRes = () => [Math.max(256, Math.round(innerWidth * renderer.getPixelRatio() * 0.5)), Math.max(256, Math.round(innerHeight * renderer.getPixelRatio() * 0.5))];
+const mirror = new Reflector(new THREE.CircleGeometry(1, 72), { clipBias: 0.003, textureWidth: mirrorRes()[0], textureHeight: mirrorRes()[1], color: 0x9a9fab });
+mirror.rotation.x = -Math.PI / 2; floorG.add(mirror);
+const fade = document.createElement('canvas'); fade.width = fade.height = 256;
+{ const g = fade.getContext('2d'), r = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  r.addColorStop(0, 'rgb(204,204,204)'); r.addColorStop(0.35, 'rgb(212,212,212)'); r.addColorStop(0.85, 'rgb(255,255,255)'); r.addColorStop(1, 'rgb(255,255,255)');
+  g.fillStyle = r; g.fillRect(0, 0, 256, 256); }
+const floorTint = new THREE.Mesh(new THREE.CircleGeometry(1, 72), new THREE.MeshBasicMaterial({ transparent: true, alphaMap: new THREE.CanvasTexture(fade), depthWrite: false }));
+floorTint.rotation.x = -Math.PI / 2; floorTint.position.y = 0.0015; floorTint.renderOrder = 1; floorG.add(floorTint);
+const catcher = new THREE.Mesh(new THREE.CircleGeometry(1, 72), new THREE.ShadowMaterial({ opacity: 0.22, depthWrite: false }));
+catcher.rotation.x = -Math.PI / 2; catcher.position.y = 0.003; catcher.receiveShadow = true; catcher.renderOrder = 2; floorG.add(catcher);
+noReflect(floorTint); noReflect(catcher);
+function floorColor() { const c = getComputedStyle(document.documentElement).getPropertyValue('--scene').trim(); floorTint.material.color.set(c || '#eceef2'); }
+floorColor(); try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', floorColor); } catch (e) {}
+new MutationObserver(floorColor).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+// sit the floor under whatever is lowest (sculpt, mesh or grid) - the same rule Tuto walks by - and aim the shadows
+const _fb = new THREE.Box3(), _fc = new THREE.Vector3(), _fv = new THREE.Vector3();
+function placeFloor() {
+  _fb.makeEmpty(); if (high) _fb.setFromObject(high); for (const p of V) _fb.expandByPoint(_fv.set(p[0], p[1], p[2]));
+  if (_fb.isEmpty()) _fb.set(_fv.set(-0.4, -1, -0.4), new THREE.Vector3(0.4, -0.3, 0.4));
+  let y = _fb.min.y; if (grid.visible) y = Math.min(y, grid.position.y);
+  _fb.getCenter(_fc); const R = size * 3;
+  floorG.position.set(_fc.x, y - 0.002, _fc.z); floorG.scale.set(R, 1, R); floorG.updateMatrixWorld(true);
+  const ext = Math.max(_fb.max.x - _fb.min.x, _fb.max.y - _fb.min.y, _fb.max.z - _fb.min.z, size) * 0.9 + 0.5;
+  dl.target.position.copy(_fc); dl.position.copy(_fc).addScaledVector(LIGHT_DIR, ext * 3);
+  const sc = dl.shadow.camera; sc.left = sc.bottom = -ext; sc.right = sc.top = ext; sc.near = 0.05; sc.far = ext * 6; sc.updateProjectionMatrix();
+}
+function placeFloorSoon() { if (placeFloor.t) return; placeFloor.t = setTimeout(() => { placeFloor.t = 0; placeFloor(); }, 200); }
+rebuildHooks.push(placeFloorSoon);
+grid.position.y += 0.004;   // keep the free-modelling grid just above the floor
+for (const o of [lines, pts, pendL, mirPlane, grid, badMesh, selPts, selFaces]) noReflect(o);
+lowMesh.castShadow = true;
+placeFloor();
+
+function resize(){hudResize();mirror.getRenderTarget().setSize(...mirrorRes());renderer.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
 addEventListener('resize',resize);resize();demo();TUTO.setOn(true);hint(HELP);
 const clock=new THREE.Clock();
-renderer.setAnimationLoop(()=>{const dt=clock.getDelta();controls.update();TUTO.update(dt);renderer.render(scene,cam);
+renderer.setAnimationLoop(()=>{const dt=clock.getDelta();controls.update();TUTO.update(dt);renderer.shadowMap.needsUpdate=true;renderer.render(scene,cam);
   if(LS.on){lassoFrame(dt);renderer.autoClear=false;renderer.clearDepth();renderer.render(hudScene,hudCam);renderer.autoClear=true}});
 </script>
 </body>
