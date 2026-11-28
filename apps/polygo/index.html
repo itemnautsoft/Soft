@@ -28,7 +28,8 @@ canvas{display:block;position:fixed;inset:0}
 .b.on{background:var(--accent);color:#fff}
 #lassoSvg{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:6;overflow:visible}
 #lassoSvg .rope{fill:none;stroke:#c9a06a;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
-#lassoSvg #lsPath{fill:rgba(201,160,106,.08)}
+#lassoSvg #lsPath{fill:rgba(255,138,31,.2)}
+#lassoSvg.drawing #lsPath{stroke:#ff8a1f;stroke-width:3}#lassoSvg.drawing #lsPath2{stroke:#b35400}
 #lassoSvg .ropeTwist{fill:none;stroke:#7d5d2e;stroke-width:4;stroke-dasharray:2 7;stroke-linecap:round;stroke-linejoin:round}
 #lassoBar{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;max-width:calc(100% - 92px);z-index:8}
 #lassoBar button{min-height:40px;padding:6px 14px;border:none;border-radius:20px;background:var(--panel);color:var(--fg);box-shadow:0 2px 6px var(--shadow);font-size:14px;cursor:pointer;touch-action:none}
@@ -1996,13 +1997,13 @@ function pointInPoly(x, y, poly) {
   return c;
 }
 function polyArea(poly) { let a = 0; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) a += (poly[j][0] + poly[i][0]) * (poly[j][1] - poly[i][1]); return Math.abs(a / 2); }
-// toScreen(p) -> [x, y, z]; facing(fi) -> true if that face looks towards the camera (so hidden sides aren't caught)
-function lassoPick(V, F, poly, kind, toScreen, facing) {
-  const fv = new Map(); F.forEach((f, fi) => { for (const v of f) (fv.get(v) || fv.set(v, []).get(v)).push(fi); });
+// toScreen(p) -> [x, y, z]; visible(p) -> false if the figure hides p from the camera; facing(fi) -> true if that face
+// looks towards the camera. Points must be visible; faces must face you and have a visible centre.
+function lassoPick(V, F, poly, kind, toScreen, visible, facing) {
   const out = new Set();
-  if (kind === 'pts') V.forEach((p, i) => { const s = toScreen(p); if (s[2] > 1 || !pointInPoly(s[0], s[1], poly)) return; const fs = fv.get(i); if (fs && !fs.some(facing)) return; out.add(i); });
+  if (kind === 'pts') V.forEach((p, i) => { const s = toScreen(p); if (s[2] > 1 || !pointInPoly(s[0], s[1], poly) || !visible(p)) return; out.add(i); });
   else F.forEach((f, fi) => { const c = [0, 1, 2].map(k => f.reduce((a, v) => a + V[v][k], 0) / f.length), s = toScreen(c);
-    if (s[2] <= 1 && pointInPoly(s[0], s[1], poly) && facing(fi)) out.add(fi); });
+    if (s[2] <= 1 && pointInPoly(s[0], s[1], poly) && facing(fi) && visible(c)) out.add(fi); });
   return out;
 }
 function selVerts(F, sel, kind) { if (kind === 'pts') return [...sel]; const s = new Set(); for (const fi of sel) if (F[fi]) for (const v of F[fi]) s.add(v); return [...s]; }
@@ -2031,12 +2032,41 @@ hudScene.add(new THREE.HemisphereLight(0xffffff, 0x888899, 2.2));
 { const l = new THREE.DirectionalLight(0xffffff, 1.4); l.position.set(-200, 400, 600); hudScene.add(l); }
 const hudCam = new THREE.OrthographicCamera(0, 1, 1, 0, 1, 2000); hudCam.position.set(0, 0, 625);
 function hudResize() { hudCam.right = innerWidth; hudCam.top = innerHeight; hudCam.updateProjectionMatrix(); }
-const LS = { on: false, kind: 'pts', sel: new Set(), poly: null, phase: 'idle', pt: 0, hud: null, ver: -1, tutoWas: true, drag: null, pending: null, fade: 0 };
+const LS = { on: false, kind: 'pts', sel: new Set(), poly: null, phase: 'idle', pt: 0, hud: null, ver: -1, tutoWas: true, drag: null, pending: null, preview: null, pvT: 0, press: null, fade: 0 };
 const selPts = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ color: 0xff8a1f, size: 12, sizeAttenuation: false, depthTest: false }));
 const selFaces = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xff8a1f, transparent: true, opacity: .45, side: THREE.DoubleSide,
   depthWrite: false, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 }));
 selPts.renderOrder = 7; selFaces.renderOrder = 4; scene.add(selPts, selFaces);
 const lsPath = $('lsPath'), lsPath2 = $('lsPath2'), lsTether = $('lsTether');
+// What the camera can actually see: a quick snapshot of the distance to the sculpt (and low-poly) at every pixel,
+// taken when a loop starts. Anything farther than that surface at its pixel is hidden behind the figure.
+const depthRT = new THREE.WebGLRenderTarget(1, 1);
+const depthMat = new THREE.ShaderMaterial({ side: THREE.DoubleSide, uniforms: { uMax: { value: 10 } },
+  vertexShader: 'varying float vz;void main(){vec4 p=modelViewMatrix*vec4(position,1.);vz=-p.z;gl_Position=projectionMatrix*p;}',
+  fragmentShader: 'uniform float uMax;varying float vz;void main(){float d=clamp(vz/uMax,0.,1.)*255.;gl_FragColor=vec4(floor(d)/255.,fract(d),0.,1.);}' });
+let depth = null;
+function captureDepth() {
+  const w = Math.max(1, Math.round(innerWidth / 2)), h = Math.max(1, Math.round(innerHeight / 2)), uMax = cam.position.length() + 6 * size;
+  depthRT.setSize(w, h); depthMat.uniforms.uMax.value = uMax;
+  const keep = scene.children.map(o => [o, o.visible]);
+  scene.children.forEach(o => { o.visible = (o === lowMesh && F.length > 0) || (o === high && o.visible); });
+  const bg = scene.background, cc = renderer.getClearColor(new THREE.Color()), ca = renderer.getClearAlpha();
+  scene.background = null; scene.overrideMaterial = depthMat;
+  renderer.setRenderTarget(depthRT); renderer.setClearColor(0xffffff, 1); renderer.clear(); renderer.render(scene, cam);
+  renderer.setRenderTarget(null); renderer.setClearColor(cc, ca); scene.overrideMaterial = null; scene.background = bg; keep.forEach(([o, v]) => o.visible = v);
+  const buf = new Uint8Array(w * h * 4); renderer.readRenderTargetPixels(depthRT, 0, 0, w, h, buf); depth = { buf, w, h, uMax };
+}
+const _vp = new THREE.Vector3();
+function visibleNow(p) {
+  if (!depth) return true;
+  _vp.set(p[0], p[1], p[2]).project(cam); if (_vp.z > 1 || Math.abs(_vp.x) > 1 || Math.abs(_vp.y) > 1) return false;
+  const px = Math.floor((_vp.x * 0.5 + 0.5) * depth.w), py = Math.floor((_vp.y * 0.5 + 0.5) * depth.h);
+  let far = 0;                                         // farthest surface in a 3x3 patch, so points right on an edge still count
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = Math.min(depth.w - 1, Math.max(0, px + dx)), y = Math.min(depth.h - 1, Math.max(0, py + dy)), i = (y * depth.w + x) * 4;
+    const d = (depth.buf[i] + depth.buf[i + 1] / 255) / 255 * depth.uMax; if (d > far) far = d; }
+  _vp.set(p[0], p[1], p[2]).applyMatrix4(cam.matrixWorldInverse);
+  return -_vp.z <= far + 0.025 * size;
+}
 const facesToward = fi => { const f = F[fi]; if (!f) return false; const n = fnorm(f), c = [0, 1, 2].map(k => f.reduce((a, v) => a + V[v][k], 0) / f.length);
   return n[0] * (cam.position.x - c[0]) + n[1] * (cam.position.y - c[1]) + n[2] * (cam.position.z - c[2]) > 0; };
 const handXY = () => [LS.hud.hand.x, innerHeight - LS.hud.hand.y];
@@ -2050,21 +2080,21 @@ function drawPath(close) {
 function lassoRefresh() {
   if (!LS.on) { selPts.visible = selFaces.visible = false; return; }
   if (LS.sel.size && LS.ver !== meshVer && !LS.drag) LS.sel.clear();       // the mesh changed under us (undo, import): let go
-  const ids = selVerts(F, LS.sel, LS.kind).filter(i => V[i]);
+  const shown = LS.preview || LS.pending || LS.sel, ids = selVerts(F, shown, LS.kind).filter(i => V[i]);
   selPts.geometry.dispose(); selPts.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(ids.flatMap(i => V[i]), 3));
-  const tp = []; if (LS.kind === 'faces') for (const fi of LS.sel) { const f = F[fi]; if (f) for (let i = 1; i < f.length - 1; i++) tp.push(...V[f[0]], ...V[f[i]], ...V[f[i + 1]]); }
+  const tp = []; if (LS.kind === 'faces') for (const fi of shown) { const f = F[fi]; if (f) for (let i = 1; i < f.length - 1; i++) tp.push(...V[f[0]], ...V[f[i]], ...V[f[i + 1]]); }
   selFaces.geometry.dispose(); selFaces.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(tp, 3));
   selPts.visible = ids.length > 0; selFaces.visible = tp.length > 0;
   $('lsScale').disabled = $('lsDel').disabled = !LS.sel.size;
-  $('lsCount').textContent = LS.sel.size ? LS.sel.size + (LS.kind === 'pts' ? (LS.sel.size === 1 ? ' point' : ' points') : (LS.sel.size === 1 ? ' face' : ' faces')) : '';
+  const n = shown.size; $('lsCount').textContent = n ? n + (LS.kind === 'pts' ? (n === 1 ? ' point' : ' points') : (n === 1 ? ' face' : ' faces')) : '';
 }
 rebuildHooks.push(lassoRefresh);
-function clearSel() { LS.sel.clear(); LS.pending = null; LS.phase = 'idle'; LS.poly = null; drawPath(); lsTether.setAttribute('d', ''); if (LS.hud) LS.hud.setMode('swing'); lassoRefresh(); }
+function clearSel() { LS.sel.clear(); LS.pending = null; LS.preview = null; LS.phase = 'idle'; LS.poly = null; drawPath(); lsTether.setAttribute('d', ''); if (LS.hud) LS.hud.setMode('swing'); lassoRefresh(); }
 function lassoOn() {
   LS.on = true; $('bLasso').classList.add('on'); $('lassoBar').hidden = false; $('lassoSvg').hidden = false; hideRing(); $('bX').style.display = 'none';
   if (!LS.hud) LS.hud = TUTO.makeLassoHud(hudScene);
   LS.hud.root.visible = true; LS.tutoWas = TUTO.on; if (TUTO.on) TUTO.setOn(false);
-  clearSel(); hint('Draw a loop around the ' + (LS.kind === 'pts' ? 'points' : 'faces') + ' you want, and Tuto will rope them in', 5000);
+  clearSel(); hint('Draw a loop around the ' + (LS.kind === 'pts' ? 'points' : 'faces') + ' you want, or tap them one by one. Tap again to let one go', 5500);
 }
 function lassoOff() {
   LS.on = false; LS.drag = null; $('bLasso').classList.remove('on'); $('lassoBar').hidden = true; $('lassoSvg').hidden = true;
@@ -2074,28 +2104,48 @@ $('bLasso').onclick = () => LS.on ? lassoOff() : lassoOn();
 $('lsDone').onclick = lassoOff;
 document.querySelectorAll('#lsMode button').forEach(b => b.onclick = () => { LS.kind = b.dataset.k;
   document.querySelectorAll('#lsMode button').forEach(x => x.classList.toggle('on', x === b)); clearSel(); });
-// drawing, throwing, catching
+// touches: a tap toggles one point (or face); a drag that starts on the catch moves it; any other drag draws a loop
 function lsDown(e) {
-  const x = e.clientX, y = e.clientY;
-  if (LS.sel.size && LS.phase === 'held' && onSel(x, y)) return startMove(x, y);
-  LS.phase = 'draw'; LS.poly = [[x, y]]; LS.pending = null; LS.sel.clear(); lassoRefresh(); LS.hud.setMode('swing');
-  lsPath.style.opacity = 1; lsPath2.style.opacity = 1; lsPath.removeAttribute('transform'); lsPath2.removeAttribute('transform');
-  lsPath.style.strokeDasharray = ''; lsPath.style.strokeDashoffset = ''; controls.enabled = false; drawPath();
+  LS.press = { x: e.clientX, y: e.clientY, onSel: LS.sel.size > 0 && LS.phase === 'held' && onSel(e.clientX, e.clientY), moved: false };
+  controls.enabled = false;
 }
 function lsMove(e) {
   if (LS.drag) return dragSel(e.clientX, e.clientY);
+  const P = LS.press; if (!P) return;
+  if (!P.moved) { if (Math.hypot(e.clientX - P.x, e.clientY - P.y) < 8) return; P.moved = true;
+    if (P.onSel) { beginEdit('move', P.x, P.y); return dragSel(e.clientX, e.clientY); }
+    startDraw(P.x, P.y); }
   if (LS.phase !== 'draw') return;
   const last = LS.poly[LS.poly.length - 1]; if (Math.hypot(e.clientX - last[0], e.clientY - last[1]) < 4) return;
   LS.poly.push([e.clientX, e.clientY]); drawPath(); ropeTo(e.clientX, e.clientY);
+  const now = performance.now(); if (now - LS.pvT > 90 && LS.poly.length > 3) { LS.pvT = now; LS.preview = lassoPick(V, F, LS.poly, LS.kind, scr, visibleNow, facesToward); lassoRefresh(); }
 }
 function lsUp() {
+  const P = LS.press; LS.press = null; setTimeout(() => controls.enabled = true, 0);
   if (LS.drag) return endDrag();
+  if (!P) return;
+  if (!P.moved) return tapToggle(P.x, P.y);
   if (LS.phase !== 'draw') return;
-  setTimeout(() => controls.enabled = true, 0);
-  if (LS.poly.length < 6 || polyArea(LS.poly) < 400) { clearSel(); return; }     // a tap or a scribble: let go of everything
-  LS.pending = lassoPick(V, F, LS.poly, LS.kind, scr, facesToward);
-  LS.phase = 'throw'; LS.pt = 0; LS.hud.setMode('throw'); drawPath(true);
+  if (LS.poly.length < 6 || polyArea(LS.poly) < 400) { LS.preview = null; LS.phase = LS.sel.size ? 'held' : 'idle'; drawPath(); lassoRefresh(); return; }
+  LS.pending = lassoPick(V, F, LS.poly, LS.kind, scr, visibleNow, facesToward); LS.preview = null;
+  LS.phase = 'throw'; LS.pt = 0; LS.hud.setMode('throw'); drawPath(true); $('lassoSvg').classList.remove('drawing');
   const len = lsPath.getTotalLength ? lsPath.getTotalLength() : 1000; lsPath.style.strokeDasharray = len; lsPath.style.strokeDashoffset = len; lsPath2.style.opacity = 0;
+}
+function startDraw(x, y) {
+  LS.phase = 'draw'; LS.poly = [[x, y]]; LS.pending = null; LS.sel.clear(); LS.preview = new Set(); LS.pvT = 0; LS.hud.setMode('swing');
+  captureDepth();
+  $('lassoSvg').classList.add('drawing'); lsPath.style.opacity = 1; lsPath2.style.opacity = 1; lsPath.removeAttribute('transform'); lsPath2.removeAttribute('transform');
+  lsPath.style.strokeDasharray = ''; lsPath.style.strokeDashoffset = ''; drawPath(); lassoRefresh();
+}
+function tapToggle(x, y) {
+  let hit = -1;
+  if (LS.kind === 'pts') hit = pickV(x, y, 26);
+  else { rc.setFromCamera(new THREE.Vector2(x / innerWidth * 2 - 1, -y / innerHeight * 2 + 1), cam); const h = rc.intersectObject(lowMesh, false)[0];
+    if (h && (!high || !high.visible || (() => { const s = rc.intersectObject(high, true)[0]; return !s || s.distance > h.distance - 0.02 * size; })())) hit = triFace[h.faceIndex]; }
+  if (hit < 0 || hit === undefined) { if (LS.sel.size) { clearSel(); hint('Let go of everything', 1800); } return; }
+  if (LS.sel.has(hit)) LS.sel.delete(hit); else LS.sel.add(hit);
+  LS.ver = meshVer; LS.pending = LS.preview = null; LS.poly = null; drawPath(); lsPath.style.opacity = 0; lsPath2.style.opacity = 0;
+  LS.phase = LS.sel.size ? 'held' : 'idle'; LS.hud.setMode(LS.sel.size ? 'hold' : 'swing'); lassoRefresh();
 }
 function lassoFrame(dt) {
   if (!LS.hud) return;
@@ -2111,11 +2161,11 @@ function lassoFrame(dt) {
     LS.pt += dt; const u = Math.min(1, LS.pt / 0.2), cx = LS.poly.reduce((a, p) => a + p[0], 0) / LS.poly.length, cy = LS.poly.reduce((a, p) => a + p[1], 0) / LS.poly.length, sc = 1 - 0.06 * u;
     const tf = `translate(${cx} ${cy}) scale(${sc}) translate(${-cx} ${-cy})`; lsPath.setAttribute('transform', tf); lsPath2.setAttribute('transform', tf);
     ropeTo(cx, cy);
-    if (u >= 1) { LS.sel = LS.pending || new Set(); LS.pending = null; LS.ver = meshVer; LS.phase = 'held'; LS.fade = 0.45; lassoRefresh();
+    if (u >= 1) { LS.sel = LS.pending || new Set(); LS.pending = null; LS.ver = meshVer; LS.phase = 'held'; LS.fade = 0.6; lassoRefresh();
       if (LS.sel.size) { LS.hud.setMode('hold'); hint('Caught ' + $('lsCount').textContent + '. Drag them to move, use Scale, or Delete', 4500); }
       else { LS.hud.setMode('swing'); hint('Nothing inside that loop. Try again', 3000); } }
   } else if (LS.phase === 'held') {
-    if (LS.fade > 0) { LS.fade = Math.max(0, LS.fade - dt); const o = LS.fade / 0.45; lsPath.style.opacity = o; lsPath2.style.opacity = o; }
+    if (LS.fade > 0) { LS.fade = Math.max(0, LS.fade - dt); const o = LS.fade / 0.6; lsPath.style.opacity = o; lsPath2.style.opacity = o; }
     const ids = selVerts(F, LS.sel, LS.kind).filter(i => V[i]);
     if (ids.length) { const s = scr(centroidOf(ids)); ropeTo(s[0], s[1]); } else { lsTether.setAttribute('d', ''); if (LS.hud.mode !== 'swing') LS.hud.setMode('swing'); }
   }
@@ -2136,7 +2186,6 @@ function beginEdit(kind, x, y) {
   controls.enabled = false;
 }
 function rayPlane(x, y, plane) { rc.setFromCamera(new THREE.Vector2(x / innerWidth * 2 - 1, -y / innerHeight * 2 + 1), cam); return rc.ray.intersectPlane(plane, new THREE.Vector3()); }
-function startMove(x, y) { beginEdit('move', x, y); }
 function dragSel(x, y) {
   const D = LS.drag; if (!D) return;
   if (D.kind === 'move') { const p = rayPlane(x, y, D.plane); if (!p || !D.start) return; const d = p.sub(D.start);

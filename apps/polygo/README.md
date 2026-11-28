@@ -25,11 +25,13 @@ the old address `apps/retopo-studio/` redirects here.
   sculpt along each side of the quad, then lays evenly spaced quads along those two slice loops. A slice through a
   closed sculpt is always a closed loop, so the ring always reconnects exactly onto the first quad. On an open sculpt
   where the slice has a gap it says so instead of leaving half a ring. Works with mirror.
-- **Lasso (➰):** Tuto jumps to the bottom-left corner and swings a lasso. Pick *Points* or *Faces*, draw a loop, and
-  when you let go Tuto throws the rope, it pulls tight, and everything inside (on the side facing you) is caught. He
-  keeps hold of the rope while you work: drag the catch to move it, drag the *Scale* button left or right to shrink or
-  grow it, or *Delete* it. Mirror keeps the other side matched, and with snapping on the catch is pressed back onto the
-  sculpt when you let go. *Done* puts Tuto back in the scene.
+- **Lasso (➰):** Tuto jumps to the bottom-left corner and swings a lasso. Pick *Points* or *Faces*, then draw a loop:
+  it gets an orange outline and fills with orange as you draw, and what it will catch lights up live. When you let go
+  Tuto throws the rope, it pulls tight, and the catch is his. Only what you can see is caught: a depth snapshot taken
+  when the loop starts leaves out anything hidden behind the figure. You can also tap points (or faces) one by one to
+  add them, and tap again to let one go; tapping empty space lets go of everything. Drag the catch to move it, drag the
+  *Scale* button left or right to shrink or grow it, or *Delete* it. Mirror keeps the other side matched, and with
+  snapping on the catch is pressed back onto the sculpt when you let go. *Done* puts Tuto back in the scene.
 
 ## Tuto
 Tuto from [Tuto](https://github.com/itemnautsoft/Tuto) lives in the app, with his body, poses and basketball dribble
