@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Stacks — digital library</title>
+<meta name="theme-color" content="#231a1e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Stacks">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;0,7..72,700;1,7..72,400&display=swap">
+<style>
+/* VOICE: a quiet reading room tool, tactile, never fussy
+   IDEA: a reading table where your books lie in piles you build by hand
+   PICTURE: real 3D books whose thickness is their page count; stacks are piles you swipe through
+   COLOUR and TYPE: plum bookcloth ground, paper pages, vermilion ribbon-marker accent; Literata + Figtree
+   LAYOUT: sticky bar, table grid of books and piles, sheets slide up, reader takes the whole screen */
+:root{color-scheme:light dark;
+ --bg:light-dark(#efe8e1,#231a1e);--bg2:light-dark(#e4dbd2,#2e2328);--panel:light-dark(#fbf8f4,#33282d);
+ --ink:light-dark(#2a1f24,#f3ece6);--mute:light-dark(#76676d,#b5a6ab);--line:light-dark(#d6cbc2,#4a3c42);
+ --acc:#e8462a;--acc2:light-dark(#b8321b,#ff7a5c);--paper:#f7f2e8;--paper2:#ddd3c2;--shadow:light-dark(rgba(60,30,30,.28),rgba(0,0,0,.55));
+ --ui:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;--read:'Literata',Georgia,'Times New Roman',serif}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+@supports not (color:light-dark(#000,#fff)){:root{--bg:#efe8e1;--bg2:#e4dbd2;--panel:#fbf8f4;--ink:#2a1f24;--mute:#76676d;--line:#d6cbc2;--acc2:#b8321b;--shadow:rgba(60,30,30,.28)}@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#231a1e;--bg2:#2e2328;--panel:#33282d;--ink:#f3ece6;--mute:#b5a6ab;--line:#4a3c42;--acc2:#ff7a5c;--shadow:rgba(0,0,0,.55)}}:root[data-theme=dark]{--bg:#231a1e;--bg2:#2e2328;--panel:#33282d;--ink:#f3ece6;--mute:#b5a6ab;--line:#4a3c42;--acc2:#ff7a5c;--shadow:rgba(0,0,0,.55)}}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--ui);overflow-x:clip;-webkit-tap-highlight-color:transparent}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+.btn{min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--panel);display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:15px;white-space:nowrap}
+.btn:hover{border-color:var(--mute)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.pri:hover{background:var(--acc2);border-color:var(--acc2)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.sm{min-height:36px;padding:0 12px;font-size:14px;border-radius:10px}
+.ico{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+input[type=search],input[type=text],select{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--panel);padding:0 12px;font-size:16px}
+/* top bar */
+.bar{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:max(10px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 10px max(16px,env(safe-area-inset-left));background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.brand b{font:700 24px/1 var(--read);letter-spacing:-.01em}
+.brand small{color:var(--mute);font-size:13px}
+.logo{width:30px;height:30px}
+.bar .search{flex:1 1 220px;max-width:360px}
+.savechip{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--mute);background:none;border:0;min-height:44px;padding:0 6px}
+.savechip i{width:8px;height:8px;border-radius:50%;background:#3fa36b;display:inline-block}
+.savechip.busy i{background:var(--acc);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.banner{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px max(16px,env(safe-area-inset-left)) 0;padding:10px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line);font-size:15px}
+.banner:empty{display:none}
+.banner .grow{flex:1 1 220px}
+.prog{height:4px;border-radius:4px;background:var(--line);overflow:hidden;flex:1 1 120px;max-width:220px}
+.prog i{display:block;height:100%;background:var(--acc);width:0;transition:width .3s}
+/* table */
+.table{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px 14px;padding:20px max(16px,env(safe-area-inset-right)) 120px max(16px,env(safe-area-inset-left));max-width:1400px;margin:0 auto}
+.tile{position:relative;height:262px;display:grid;grid-template-rows:1fr auto;border-radius:16px;padding:6px 4px 8px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;content-visibility:auto;contain-intrinsic-size:150px 262px;cursor:pointer;outline-offset:-2px}
+.tile:hover{background:color-mix(in srgb,var(--ink) 4%,transparent)}
+.tile.drop{background:color-mix(in srgb,var(--acc) 16%,transparent);box-shadow:inset 0 0 0 2px var(--acc)}
+.tile.before::before,.tile.after::after{content:"";position:absolute;top:20px;bottom:40px;width:4px;border-radius:4px;background:var(--acc)}
+.tile.before::before{left:-9px}.tile.after::after{right:-9px}
+.tile.dragging{opacity:.25}
+.tile.missing .scene{opacity:.45;filter:grayscale(.7)}
+.scene{position:relative;perspective:900px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:12px}
+.scene::after{content:"";position:absolute;left:18%;right:18%;bottom:6px;height:14px;border-radius:50%;background:radial-gradient(closest-side,var(--shadow),transparent);z-index:-1}
+.cap{position:relative;z-index:2;padding:0 4px;text-align:center;line-height:1.25}
+.cap b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;font-size:14px}
+.cap span{display:block;color:var(--mute);font-size:12.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{position:absolute;top:8px;left:8px;z-index:3;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--panel);border:1px solid var(--line);color:var(--mute)}
+.badge.n{left:auto;right:8px;background:var(--acc);border-color:var(--acc);color:#fff}
+.more{position:absolute;top:2px;right:2px;z-index:4;width:36px;height:36px;border-radius:10px;border:0;background:transparent;color:var(--mute);opacity:0;display:grid;place-items:center}
+.tile:hover .more,.tile:focus-within .more{opacity:1}
+@media(hover:none){.more{opacity:.8}}
+/* 3D boxes */
+.bx{position:relative;transform-style:preserve-3d}
+.fc{position:absolute;left:0;top:0;overflow:hidden}
+.fc img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.cov::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(255,255,255,.12) 4%,rgba(0,0,0,.06) 7%,transparent 12%,transparent 85%,rgba(255,255,255,.08));pointer-events:none}
+.pgV{background:repeating-linear-gradient(90deg,var(--paper) 0 1.2px,var(--paper2) 1.2px 2px);box-shadow:inset 0 0 6px rgba(0,0,0,.18)}
+.pgH{background:repeating-linear-gradient(0deg,var(--paper) 0 1.2px,var(--paper2) 1.2px 2px);box-shadow:inset 0 0 6px rgba(0,0,0,.18)}
+.spn{background:var(--c,#6b3b48);filter:brightness(.72);display:flex;align-items:center;justify-content:center;color:#fff}
+.spn span{writing-mode:vertical-rl;font:600 9px/1 var(--ui);white-space:nowrap;overflow:hidden;max-height:90%;opacity:.9}
+.spnH span{writing-mode:horizontal-tb;font-size:8px;max-width:92%;text-overflow:ellipsis}
+.gen{width:100%;height:100%;background:var(--c,#6b3b48);color:#fff;padding:12% 10%;display:flex;flex-direction:column;justify-content:space-between;position:relative}
+.gen::before{content:"";position:absolute;inset:6%;border:1px solid rgba(255,255,255,.35)}
+.gen b{font:600 13px/1.15 var(--read);display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;position:relative}
+.gen small{font:600 9px/1.2 var(--ui);opacity:.8;letter-spacing:.04em;position:relative}
+.stand,.slab{transform-style:preserve-3d}
+.stand{transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.tile:hover .stand{transform:rotateY(10deg) translateY(-4px)!important}
+.pile{margin-bottom:26px;position:relative;transform-style:preserve-3d;transform:rotateX(-26deg) rotateY(-26deg);transition:transform .35s}
+.tile:hover .pile{transform:rotateX(-34deg) rotateY(-18deg)}
+.slab{position:absolute;left:50%;bottom:0}
+/* empty */
+.empty{max-width:880px;margin:24px auto;padding:0 20px 80px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:center}
+.empty h1{font:700 clamp(32px,5vw,46px)/1.05 var(--read);margin:0 0 12px;text-wrap:balance}
+.empty p{color:var(--mute);margin:0 0 16px;max-width:60ch}
+.empty .acts{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+.fmts{display:flex;flex-wrap:wrap;gap:6px}
+.fmts span{font-size:12.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid var(--line);color:var(--mute)}
+.hero{height:340px;perspective:1100px;display:flex;align-items:flex-end;justify-content:center;gap:0;padding-bottom:30px;position:relative}
+.hero::after{content:"";position:absolute;left:8%;right:8%;bottom:16px;height:30px;border-radius:50%;background:radial-gradient(closest-side,var(--shadow),transparent);z-index:-1}
+@media(max-width:700px){.empty{grid-template-columns:minmax(0,1fr)}.hero{height:260px;order:-1}}
+/* sheets */
+.scrim{position:fixed;inset:0;z-index:50;background:rgba(15,8,10,.5);display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .2s}
+.scrim.on{opacity:1}
+.sheet{width:min(640px,100%);max-height:88vh;overflow:auto;background:var(--panel);border-radius:22px 22px 0 0;padding:18px 20px max(20px,env(safe-area-inset-bottom));transform:translateY(30px);transition:transform .25s cubic-bezier(.2,.8,.2,1);box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+.scrim.on .sheet{transform:none}
+@media(min-width:700px){.scrim{align-items:center}.sheet{border-radius:22px}}
+.sheet h2{font:700 24px/1.1 var(--read);margin:4px 0 12px}
+.sheet h3{font-size:14px;color:var(--mute);margin:18px 0 6px;font-weight:600}
+.sheet p{margin:6px 0;color:var(--mute);font-size:15px}
+.sheet .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.list li .grow{flex:1;min-width:0}
+.list li b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list li small{color:var(--mute);font-size:13px}
+.menu{display:grid;gap:2px}
+.menu button{min-height:46px;text-align:left;border:0;background:none;border-radius:10px;padding:0 12px;display:flex;align-items:center;gap:12px;font-size:16px}
+.menu button:hover{background:var(--bg2)}
+.menu button.dang{color:var(--acc2)}
+.menu hr{border:0;border-top:1px solid var(--line);margin:6px 0}
+.sheet .x{float:right;margin:-4px -6px 0 0}
+.field{width:100%}
+.toast{position:fixed;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);z-index:90;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:15px;opacity:0;pointer-events:none;transition:.25s;max-width:90vw}
+.toast.on{opacity:1;transform:translateX(-50%)}
+/* drag */
+.dragghost{position:fixed;z-index:80;pointer-events:none;width:150px;height:220px;margin:-150px 0 0 -75px;transform:scale(1.06) rotate(-4deg);filter:drop-shadow(0 18px 18px rgba(0,0,0,.35));display:flex;align-items:flex-end;justify-content:center;perspective:900px}
+.dropbar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:14px 16px max(14px,env(safe-area-inset-bottom));background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--line);transform:translateY(110%);transition:transform .2s}
+.dropbar.on{transform:none}
+.dz{min-height:56px;padding:0 18px;border-radius:14px;border:2px dashed var(--line);display:flex;align-items:center;gap:8px;font-weight:600;color:var(--mute)}
+.dz.hot{border-color:var(--acc);color:var(--acc2);background:color-mix(in srgb,var(--acc) 12%,transparent)}
+/* stack view */
+.sv{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column;opacity:0;transform:scale(.98);transition:.22s;pointer-events:none}
+.sv.on{opacity:1;transform:none;pointer-events:auto}
+.svhead{display:flex;align-items:center;gap:10px;padding:max(10px,env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--line)}
+.svhead input{font:700 22px/1.1 var(--read);border:0;background:transparent;min-height:44px;padding:0 6px;border-radius:10px;flex:1}
+.svhead input:hover,.svhead input:focus{background:var(--panel)}
+.svhead small{color:var(--mute);white-space:nowrap}
+.flow-car{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 calc(50% - var(--sw,220px)/2);align-items:center;scrollbar-width:none;perspective:1200px;min-height:300px}
+.flow-car::-webkit-scrollbar{display:none}
+.slide{flex:none;width:var(--sw,220px);height:100%;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;transform-style:preserve-3d;position:relative}
+.slide .scene{height:340px;perspective:none;transform-style:preserve-3d;cursor:pointer}
+.svinfo{padding:12px 20px max(18px,env(safe-area-inset-bottom));display:grid;gap:8px;justify-items:center;text-align:center}
+.svinfo h3{margin:0;font:600 22px/1.2 var(--read);text-wrap:balance;max-width:640px}
+.svinfo p{margin:0;color:var(--mute);font-size:14px}
+.svinfo .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.dots{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;max-width:90vw}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--acc)}
+.navb{position:absolute;top:50%;z-index:3;width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;transform:translateY(-50%)}
+.navb.l{left:12px}.navb.r{right:12px}
+@media(max-width:600px){.navb{display:none}}
+/* reader */
+.rd{position:fixed;inset:0;z-index:60;background:#17110f;color:#efe7df;display:none;flex-direction:column;--fs-scale:1}
+.rd.on{display:flex}
+.rd.light{background:#e9e3da;color:#2a1f24}
+.rbar{display:flex;align-items:center;gap:6px;padding:max(8px,env(safe-area-inset-top)) 10px 8px;flex-wrap:wrap;transition:opacity .25s}
+.rbar .t{flex:1 1 160px;font:600 16px/1.2 var(--read);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
+.rbar .btn{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.12);min-height:40px;padding:0 11px}
+.rfoot .btn{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.12);min-height:40px;padding:0 11px}
+.rd.light .rfoot .btn,.rd.light .rbar .btn{background:rgba(0,0,0,.05);border-color:rgba(0,0,0,.12)}
+.seg{display:inline-flex;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.14)}
+.rd.light .seg{border-color:rgba(0,0,0,.14)}
+.seg button{min-height:40px;padding:0 12px;border:0;background:transparent;font-weight:600;font-size:14px}
+.seg button.on{background:var(--acc);color:#fff}
+.seg button:disabled{opacity:.35;cursor:default}
+.rstage{flex:1;position:relative;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+.rfoot{display:flex;align-items:center;gap:12px;padding:8px 16px max(10px,env(safe-area-inset-bottom));transition:opacity .25s}
+.rfoot input[type=range]{flex:1;accent-color:var(--acc);min-height:36px}
+.rfoot .pg{font-variant-numeric:tabular-nums;font-size:14px;white-space:nowrap;min-width:84px;text-align:right}
+.rd.calm .rbar,.rd.calm .rfoot{opacity:0;pointer-events:none}
+.rmsg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;color:inherit}
+.rmsg div{max-width:440px}
+.rmsg b{display:block;font:600 22px/1.25 var(--read);margin-bottom:8px}
+.rmsg p{opacity:.75;margin:0 0 6px}
+.spin{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.2);border-top-color:var(--acc);animation:sp 0.9s linear infinite;margin:0 auto 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* page faces */
+.face{position:absolute;inset:0;overflow:hidden;background:var(--paper);backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.face>img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;-webkit-user-drag:none}
+.face.blank{background:var(--paper)}
+.face.cover>img{object-fit:cover}
+.fpage{position:absolute;left:0;top:0;transform-origin:0 0;transform:scale(var(--fs-scale));background:var(--paper);color:#241b16}
+.fclip{position:absolute;overflow:hidden}
+.flow{column-gap:0;column-fill:auto;font-family:var(--read);text-align:justify;hyphens:auto;-webkit-hyphens:auto;overflow-wrap:break-word;orphans:2;widows:2;color:#241b16}
+.flow *{max-width:100%}
+.flow p{margin:0 0 .25em;text-indent:1.3em}
+.flow p:first-child,.flow h1+p,.flow h2+p,.flow h3+p,.flow hr+p{text-indent:0}
+.flow h1,.flow h2,.flow h3,.flow h4,.flow h5,.flow h6{font-family:var(--read);text-align:left;line-height:1.2;break-after:avoid;margin:.9em 0 .5em;text-indent:0;hyphens:none}
+.flow h1{font-size:1.6em}.flow h2{font-size:1.35em}.flow h3{font-size:1.15em}.flow h4,.flow h5,.flow h6{font-size:1em}
+.flow img{max-height:var(--fh,560px);display:block;height:auto;margin:.6em auto;break-inside:avoid;object-fit:contain}
+.flow blockquote{margin:.6em 1.2em;font-style:italic}
+.flow pre{white-space:pre-wrap;font-size:.82em;text-align:left;font-family:ui-monospace,Menlo,monospace}
+.flow table{border-collapse:collapse;font-size:.85em;margin:.6em 0;break-inside:avoid}
+.flow td,.flow th{border:1px solid #cfc5b5;padding:2px 5px;text-align:left}
+.flow hr{border:0;text-align:center;margin:1em 0}.flow hr::after{content:"⁂";color:#9a8b7d}
+.flow li p{text-indent:0}
+.flow .pb{break-before:column}
+.folio{position:absolute;left:0;right:0;bottom:18px;text-align:center;font:12px var(--read);color:#9a8b7d}
+/* 3D book */
+.r3d{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;perspective:2400px}
+.bk{position:relative;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.board{position:absolute;background:#3a2328;border-radius:3px;transform:translateZ(var(--bz));box-shadow:0 30px 60px rgba(0,0,0,.5)}
+.stackp{position:absolute;top:0;transform-style:preserve-3d}
+.stackp .top{position:absolute;inset:0;background:var(--paper2)}
+.stackp .edge{position:absolute;left:0;right:0;bottom:0;transform-origin:50% 100%;transform:rotateX(-90deg)}
+.stackp .side{position:absolute;top:0;bottom:0;transform-origin:0 50%}
+.leaf{position:absolute;top:0;transform-style:preserve-3d;transform-origin:0 50%;will-change:transform}
+.leaf.anim{transition:transform .55s cubic-bezier(.3,.7,.25,1)}
+.leaf .face.back{transform:rotateY(180deg)}
+.leaf .shade{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s}
+.leaf .face.front .shade{background:linear-gradient(90deg,rgba(0,0,0,.35),rgba(0,0,0,0) 40%,rgba(255,255,255,.08))}
+.leaf .face.back .shade{background:linear-gradient(270deg,rgba(0,0,0,.35),rgba(0,0,0,0) 40%)}
+.leaf.moving .shade{opacity:1}
+.gutter{position:absolute;top:0;bottom:0;pointer-events:none;z-index:2}
+.face.front .gutter{left:0;width:12%;background:linear-gradient(90deg,rgba(0,0,0,.22),transparent)}
+.face.back .gutter{right:0;width:12%;background:linear-gradient(270deg,rgba(0,0,0,.22),transparent)}
+.rtl .face.front .gutter{left:auto;right:0;background:linear-gradient(270deg,rgba(0,0,0,.22),transparent)}
+.rtl .face.back .gutter{right:auto;left:0;background:linear-gradient(90deg,rgba(0,0,0,.22),transparent)}
+/* flat viewer */
+.rflat{position:absolute;inset:0;overflow:hidden}
+.fwrap{position:absolute;left:0;top:0;transform-origin:0 0;display:flex;gap:0;will-change:transform}
+.fwrap.anim{transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.fsp{position:absolute;left:0;top:0;display:inline-flex;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+.fsp .face{position:relative;inset:auto;flex:none}
+.tapzone{position:absolute;top:0;bottom:0;width:22%;z-index:2}
+.ropt{position:absolute;right:10px;top:calc(max(8px,env(safe-area-inset-top)) + 54px);z-index:5;width:min(320px,calc(100vw - 20px));background:#2a201d;color:#efe7df;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:12px;display:grid;gap:10px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.rd.light .ropt{background:#fbf8f4;color:#2a1f24;border-color:rgba(0,0,0,.12)}
+.ropt[hidden]{display:none}
+.ropt .orow{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:15px}
+.ropt .orow>span{opacity:.8}
+.ropt .btn{background:rgba(127,127,127,.12);border-color:rgba(127,127,127,.25);min-height:40px}
+.ropt .seg button{min-height:38px}
+@media(prefers-reduced-motion:reduce){*{transition-duration:0s!important;animation-duration:0s!important}}
+@media(max-width:600px){.bar .search{order:5;flex-basis:100%;max-width:none}.brand small{display:none}.table{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:4px 8px}.tile{height:236px}.rbar .hide-s{display:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+ <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+ <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+ <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+ <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+ <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+ <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+ <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></symbol>
+ <symbol id="i-book" viewBox="0 0 24 24"><path d="M3 5.5C5.5 4 9 4 12 6c3-2 6.5-2 9-.5V19c-2.5-1.5-6-1.5-9 .5-3-2-6.5-2-9-.5z"/><path d="M12 6v13.5"/></symbol>
+ <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></symbol>
+ <symbol id="i-pages" viewBox="0 0 24 24"><rect x="3" y="5" width="8" height="14" rx="1"/><rect x="13" y="5" width="8" height="14" rx="1"/></symbol>
+ <symbol id="i-stack" viewBox="0 0 24 24"><path d="M4 16h16v3H4zM5 11.5h14v3H5zM3.5 7h15v3h-15z"/></symbol>
+ <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M8 3v5h7M7 21v-7h10v7"/></symbol>
+ <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+ <symbol id="i-rtl" viewBox="0 0 24 24"><path d="M20 12H5M10 6l-6 6 6 6"/></symbol>
+ <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+ <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5M11 8v6M8 11h6"/></symbol>
+ <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></symbol>
+</svg>
+
+<header class="bar">
+ <div class="brand">
+  <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="21" width="24" height="6" rx="1.5" fill="#e8462a"/><rect x="6" y="14.5" width="21" height="6" rx="1.5" fill="#c9a24a" transform="rotate(-3 16 17)"/><rect x="5" y="8" width="20" height="6" rx="1.5" fill="#6d8fa8" transform="rotate(2 15 11)"/></svg>
+  <div><b>Stacks</b> <small id="count"></small></div>
+ </div>
+ <input id="q" class="search" type="search" placeholder="Search titles, authors, folders" aria-label="Search library">
+ <select id="sort" aria-label="Sort">
+  <option value="manual">My order</option><option value="title">Title</option><option value="recent">Recently read</option><option value="added">Recently added</option><option value="pages">Thickest first</option><option value="format">Format</option>
+ </select>
+ <button class="savechip" id="saveChip" title="Library save file"><i></i><span>Not saved yet</span></button>
+ <button class="btn sm" id="btnFolders"><svg class="ico"><use href="#i-folder"/></svg><span class="hide-s">Folders</span></button>
+ <button class="btn sm pri" id="btnAdd"><svg class="ico"><use href="#i-plus"/></svg>Add</button>
+</header>
+<div class="banner" id="banner"></div>
+<main id="main"></main>
+<div class="dropbar" id="dropbar"></div>
+<div class="toast" id="toast" role="status"></div>
+<input type="file" id="pickDir" webkitdirectory directory multiple hidden>
+<input type="file" id="pickFiles" multiple hidden accept=".pdf,.epub,.kepub,.cbz,.cbr,.cbt,.cb7,.zip,.rar,.tar,.7z,.doc,.docx,.odt,.rtf,.txt,.md,.markdown,.html,.htm,.xhtml,.fb2,.mobi,.azw,.azw3,.prc,.djvu,.xps,.oxps,.chm,image/*,application/pdf,application/epub+zip">
+<input type="file" id="pickSave" hidden accept=".json,application/json">
+
+<section class="sv" id="sv" aria-label="Stack">
+ <div class="svhead">
+  <button class="btn ghost sm" id="svClose" aria-label="Back to library"><svg class="ico"><use href="#i-back"/></svg></button>
+  <input id="svName" type="text" aria-label="Stack name">
+  <small id="svCount"></small>
+  <button class="btn sm" id="svMenu" aria-label="Stack options"><svg class="ico"><use href="#i-dots"/></svg></button>
+ </div>
+ <div style="position:relative;flex:1;display:flex;min-height:0">
+  <div class="flow-car" id="car"></div>
+  <button class="navb l" id="carPrev" aria-label="Previous book"><svg class="ico"><use href="#i-back"/></svg></button>
+  <button class="navb r" id="carNext" aria-label="Next book"><svg class="ico"><use href="#i-next"/></svg></button>
+ </div>
+ <div class="svinfo" id="svInfo"></div>
+</section>
+
+<section class="rd" id="rd" aria-label="Reader">
+ <div class="rbar">
+  <button class="btn" id="rClose" aria-label="Close book"><svg class="ico"><use href="#i-back"/></svg></button>
+  <div class="t" id="rTitle"></div>
+  <div class="seg" role="group" aria-label="View"><button id="m3d" title="3D book"><svg class="ico" style="width:18px;height:18px;vertical-align:-4px"><use href="#i-cube"/></svg> 3D</button><button id="mflat" title="Flat pages">Flat</button></div>
+  <div class="seg" role="group" aria-label="Pages at a time"><button id="sp1" title="One page">1</button><button id="sp2" title="Two-page spread">2</button></div>
+  <button class="btn" id="rOpt" title="Reading options" aria-haspopup="true">Aa</button>
+  <button class="btn hide-s" id="rFull" title="Full screen"><svg class="ico"><use href="#i-full"/></svg></button>
+ </div>
+ <div class="rstage" id="rstage"></div>
+ <div class="ropt" id="ropt" hidden></div>
+ <div class="rfoot">
+  <button class="btn" id="rPrev" aria-label="Previous page"><svg class="ico"><use href="#i-back"/></svg></button>
+  <input type="range" id="rRange" min="0" max="0" value="0" aria-label="Page">
+  <button class="btn" id="rNext" aria-label="Next page"><svg class="ico"><use href="#i-next"/></svg></button>
+  <span class="pg" id="rPg"></span>
+ </div>
+</section>
+<script>
+(()=>{
+/* ================= utilities ================= */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const natCmp=(a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'});
+const extOf=n=>{const m=/\.([^.\/\\]+)$/.exec(n||'');return m?m[1].toLowerCase():''};
+const baseName=p=>String(p).split(/[\/\\]/).pop();
+const dirName=p=>{const i=p.lastIndexOf('/');return i<0?'':p.slice(0,i)};
+const stem=n=>baseName(n).replace(/\.[^.]+$/,'');
+const IMG=new Set(['jpg','jpeg','jfif','png','gif','webp','avif','bmp','svg','heic','heif','tif','tiff']);
+const isJunk=n=>/(^|\/)(__MACOSX|\.)/.test(n)||/(^|\/)thumbs\.db$/i.test(n);
+const isImg=n=>IMG.has(extOf(n))&&!isJunk(n);
+const MIME={jpg:'image/jpeg',jpeg:'image/jpeg',jfif:'image/jpeg',png:'image/png',gif:'image/gif',webp:'image/webp',avif:'image/avif',bmp:'image/bmp',svg:'image/svg+xml',heic:'image/heic',heif:'image/heif',tif:'image/tiff',tiff:'image/tiff'};
+const mimeOf=n=>MIME[extOf(n)]||'application/octet-stream';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const raf=()=>new Promise(r=>requestAnimationFrame(()=>r()));
+async function rd(blob,start,len){return new Uint8Array(await blob.slice(start,start+len).arrayBuffer())}
+const W1252=new TextDecoder('windows-1252');
+function dec(bytes,enc){
+ if(bytes[0]===0xEF&&bytes[1]===0xBB&&bytes[2]===0xBF) return new TextDecoder().decode(bytes.subarray(3));
+ if(bytes[0]===0xFF&&bytes[1]===0xFE) return new TextDecoder('utf-16le').decode(bytes.subarray(2));
+ if(bytes[0]===0xFE&&bytes[1]===0xFF) return new TextDecoder('utf-16be').decode(bytes.subarray(2));
+ if(enc&&!/utf-?8/i.test(enc)){try{return new TextDecoder(enc).decode(bytes)}catch(e){}}
+ try{return new TextDecoder('utf-8',{fatal:true}).decode(bytes)}catch(e){return W1252.decode(bytes)}
+}
+function hash(s){let a=0x811c9dc5,b=0x9e3779b1;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);a=Math.imul(a^c,16777619);b=Math.imul(b^c,2246822507)}return (a>>>0).toString(36)+(b>>>0).toString(36)}
+const COLORS=['#7a2e3a','#2f5d62','#5b4a8b','#8a5a2b','#2d4f7c','#5e6b2a','#9c3d22','#44424f','#7b4b6a','#22665a','#a0442e','#3b5a8a'];
+const colorFor=s=>COLORS[parseInt(hash(s).slice(0,4),36)%COLORS.length];
+function parseXML(s){let d=new DOMParser().parseFromString(s,'application/xml');if(d.getElementsByTagName('parsererror').length)d=new DOMParser().parseFromString(s,'text/html');return d}
+const tags=(d,n)=>[...d.getElementsByTagNameNS('*',n)];
+const tag1=(d,n)=>d.getElementsByTagNameNS('*',n)[0]||null;
+const txt1=(d,n)=>(tag1(d,n)?.textContent||'').trim();
+function resolvePath(base,href){
+ href=String(href||'').split('#')[0];try{href=decodeURIComponent(href)}catch(e){}
+ const parts=(href.startsWith('/')?href.slice(1):(base?base+'/':'')+href).split('/'),out=[];
+ for(const p of parts){if(p==='..')out.pop();else if(p&&p!=='.')out.push(p)}
+ return out.join('/');
+}
+function toBlob(c,type='image/jpeg',q=.85){return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('canvas')),type,q))}
+async function loadImage(blob){
+ try{if(blob.type!=='image/svg+xml'){const b=await createImageBitmap(blob);return {src:b,w:b.width,h:b.height,close:()=>b.close&&b.close()}}}catch(e){}
+ const u=URL.createObjectURL(blob),im=new Image();im.src=u;
+ try{await im.decode()}finally{setTimeout(()=>URL.revokeObjectURL(u),2000)}
+ return {src:im,w:im.naturalWidth||600,h:im.naturalHeight||900,close(){}};
+}
+async function thumbFrom(blob,maxW=280){
+ const im=await loadImage(blob);const w=Math.min(maxW,im.w),h=Math.max(1,Math.round(im.h*w/im.w));
+ const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(im.src,0,0,w,h);im.close();
+ return {thumb:await toBlob(c,'image/jpeg',.82),aspect:im.w/im.h};
+}
+class BookErr extends Error{}
+const RAR_MSG='This CBR is RAR-compressed. Browsers can only unpack RAR files that were packed with “store” (no compression). Repack it as a CBZ with any comic tool or zip app and it will open here.';
+
+/* ================= archives ================= */
+async function inflate(blob){
+ if(typeof DecompressionStream==='undefined') throw new BookErr('This browser can’t unpack compressed archives. Try a current Chrome, Safari or Firefox.');
+ return new Uint8Array(await new Response(blob.stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+}
+function arcApi(A,file){
+ A.bytes=async e=>new Uint8Array(await (await A.blob(e,'application/octet-stream')).arrayBuffer());
+ A.text=async e=>dec(await A.bytes(e));
+ A.get=n=>{n=String(n||'').replace(/^\/+/,'');const l=n.toLowerCase();return A.entries.find(e=>e.name===n)||A.entries.find(e=>e.name.toLowerCase()===l)||null};
+ A.images=()=>A.entries.filter(e=>isImg(e.name)).sort((a,b)=>natCmp(a.name,b.name));
+ return A;
+}
+async function openZip(file){
+ const size=file.size,tl=Math.min(size,65557),tail=await rd(file,size-tl,tl),dv=new DataView(tail.buffer);
+ let eo=-1;for(let i=tl-22;i>=0;i--)if(dv.getUint32(i,true)===0x06054b50){eo=i;break}
+ if(eo<0) throw new BookErr('This ZIP looks damaged (no file list at the end).');
+ let n=dv.getUint16(eo+10,true),cs=dv.getUint32(eo+12,true),co=dv.getUint32(eo+16,true);
+ if((co===0xFFFFFFFF||n===0xFFFF||cs===0xFFFFFFFF)&&eo>=20&&dv.getUint32(eo-20,true)===0x07064b50){
+  const zo=Number(dv.getBigUint64(eo-12,true)),z=await rd(file,zo,56),zv=new DataView(z.buffer);
+  cs=Number(zv.getBigUint64(40,true));co=Number(zv.getBigUint64(48,true));
+ }
+ const cd=await rd(file,co,cs),cv=new DataView(cd.buffer),out=[];let p=0;
+ while(p+46<=cd.length&&cv.getUint32(p,true)===0x02014b50){
+  const fl=cv.getUint16(p+8,true),m=cv.getUint16(p+10,true);let c=cv.getUint32(p+20,true),u=cv.getUint32(p+24,true);
+  const nl=cv.getUint16(p+28,true),xl=cv.getUint16(p+30,true),kl=cv.getUint16(p+32,true);let off=cv.getUint32(p+42,true);
+  const nb=cd.subarray(p+46,p+46+nl),name=((fl&0x800)?new TextDecoder().decode(nb):dec(nb)).replace(/\\/g,'/');
+  if(c===0xFFFFFFFF||u===0xFFFFFFFF||off===0xFFFFFFFF){let x=p+46+nl;const xe=x+xl;while(x+4<=xe){const id=cv.getUint16(x,true),sz=cv.getUint16(x+2,true);if(id===1){let q=x+4;if(u===0xFFFFFFFF){u=Number(cv.getBigUint64(q,true));q+=8}if(c===0xFFFFFFFF){c=Number(cv.getBigUint64(q,true));q+=8}if(off===0xFFFFFFFF)off=Number(cv.getBigUint64(q,true))}x+=4+sz}}
+  if(!name.endsWith('/'))out.push({name,m,c,u,off,enc:fl&1});
+  p+=46+nl+xl+kl;
+ }
+ const start=async e=>{const h=await rd(file,e.off,30),hv=new DataView(h.buffer);return e.off+30+hv.getUint16(26,true)+hv.getUint16(28,true)};
+ return arcApi({type:'zip',entries:out,async blob(e,type){
+  if(e.enc) throw new BookErr('This archive is password-protected.');
+  const s=await start(e),raw=file.slice(s,s+e.c);type=type||mimeOf(e.name);
+  if(e.m===0) return raw.slice(0,raw.size,type);
+  if(e.m===8) return new Blob([await inflate(raw)],{type});
+  throw new BookErr('This ZIP uses a compression method browsers can’t unpack (method '+e.m+').');
+ }},file);
+}
+async function openRar(file,v5){
+ const out=[],size=file.size;let compressed=0,pos=v5?8:7,guard=0;
+ while(pos<size&&guard++<300000){
+  const h=await rd(file,pos,Math.min(8192,size-pos));if(h.length<7)break;
+  if(v5){
+   let q=4;const vi=()=>{let r=0,sh=0,b;do{b=h[q++];r+=(b&0x7f)*2**sh;sh+=7}while((b&0x80)&&q<h.length);return r};
+   const hsz=vi(),hs0=q,type=vi(),fl=vi();let data=0;if(fl&1)vi();if(fl&2)data=vi();
+   if(!hsz)break;const ds=pos+hs0+hsz;
+   if(type===4) throw new BookErr('This RAR archive is encrypted.');
+   if(type===2){const ff=vi(),us=vi();vi();if(ff&2)q+=4;if(ff&4)q+=4;const ci=vi();vi();const nl=vi();const name=new TextDecoder().decode(h.subarray(q,q+nl)).replace(/\\/g,'/');const st=((ci>>7)&7)===0;if(!(ff&1)){out.push({name,u:us,c:data,off:ds,stored:st});if(!st)compressed++}}
+   if(type===5)break;pos=ds+data;
+  }else{
+   const dv=new DataView(h.buffer),type=h[2],fl=dv.getUint16(3,true),hs=dv.getUint16(5,true);if(hs<7)break;
+   let add=(fl&0x8000)?dv.getUint32(7,true):0;
+   if(type===0x73&&(fl&0x80)) throw new BookErr('This RAR archive is encrypted.');
+   if(type===0x74){
+    const pk=dv.getUint32(7,true),un=dv.getUint32(11,true),method=h[25],nl=dv.getUint16(26,true);let hp=0,hu=0,no=32;
+    if(fl&0x100){hp=dv.getUint32(32,true);hu=dv.getUint32(36,true);no=40}
+    let nb=h.subarray(no,no+nl);const z=nb.indexOf(0);if(z>=0)nb=nb.subarray(0,z);
+    const name=(((fl&0x200)&&z<0)?new TextDecoder().decode(nb):dec(nb)).replace(/\\/g,'/');
+    const c=pk+hp*2**32;add=c;
+    if((fl&0xE0)!==0xE0){const st=method===0x30;out.push({name,u:un+hu*2**32,c,off:pos+hs,stored:st,enc:fl&4});if(!st)compressed++}
+   }
+   if(type===0x7b)break;pos+=hs+add;
+  }
+ }
+ return arcApi({type:'rar',entries:out,compressed,async blob(e,type){
+  if(e.enc) throw new BookErr('This archive is password-protected.');
+  if(!e.stored) throw new BookErr(RAR_MSG);
+  return file.slice(e.off,e.off+e.c,type||mimeOf(e.name));
+ }},file);
+}
+async function openTar(file){
+ const out=[],size=file.size;let pos=0,longName=null;
+ while(pos+512<=size){
+  const h=await rd(file,pos,512);if(h.every(b=>b===0))break;
+  const str=(a,b)=>{let s=h.subarray(a,a+b);const z=s.indexOf(0);if(z>=0)s=s.subarray(0,z);return dec(s)};
+  let name=str(0,100);const sz=parseInt(str(124,12).trim()||'0',8)||0,t=String.fromCharCode(h[156]);
+  if(str(257,5)==='ustar'){const pre=str(345,155);if(pre)name=pre+'/'+name}
+  if(t==='L'){longName=dec(await rd(file,pos+512,sz)).replace(/\0+$/,'')}
+  else{if(t==='0'||t==='\0'||t==='7')out.push({name:(longName||name).replace(/\\/g,'/'),c:sz,u:sz,off:pos+512});longName=null}
+  pos+=512+Math.ceil(sz/512)*512;
+ }
+ return arcApi({type:'tar',entries:out,async blob(e,type){return file.slice(e.off,e.off+e.c,type||mimeOf(e.name))}},file);
+}
+async function openArchive(file){
+ const h=await rd(file,0,300);
+ if(h[0]===0x50&&h[1]===0x4b) return openZip(file);
+ if(h[0]===0x52&&h[1]===0x61&&h[2]===0x72&&h[3]===0x21&&h[4]===0x1a&&h[5]===0x07) return openRar(file,h[6]===1);
+ if(h.length>=262&&String.fromCharCode(...h.subarray(257,262))==='ustar') return openTar(file);
+ if(h[0]===0x37&&h[1]===0x7a&&h[2]===0xbc&&h[3]===0xaf) throw new BookErr('7-Zip archives (.cb7 / .7z) can’t be unpacked in the browser yet. Repack it as a CBZ to read it here.');
+ if(['tar','cbt'].includes(extOf(file.name))) return openTar(file);
+ throw new BookErr('This file doesn’t look like a ZIP, RAR or TAR archive.');
+}
+
+/* ================= PDF (pdf.js, loaded on first use) ================= */
+let pdfjsP=null;
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+src));document.head.appendChild(s)})}
+function getPdfjs(){
+ if(!pdfjsP){pdfjsP=(async()=>{const B='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';await loadScript(B+'pdf.min.js');await loadScript(B+'pdf.worker.min.js');const lib=window.pdfjsLib;lib.GlobalWorkerOptions.workerSrc=B+'pdf.worker.min.js';return lib})();pdfjsP.catch(()=>{pdfjsP=null})}
+ return pdfjsP;
+}
+async function pdfOpen(file){
+ const lib=await getPdfjs().catch(()=>{throw new BookErr('The PDF engine couldn’t load. PDFs need an internet connection the first time you open one.')});
+ const data=new Uint8Array(await file.arrayBuffer());
+ try{return await lib.getDocument({data,isEvalSupported:false,useSystemFonts:true}).promise}
+ catch(e){if(e&&e.name==='PasswordException')throw new BookErr('This PDF is password-protected.');throw new BookErr('This PDF couldn’t be read ('+(e&&e.message||'unknown error')+').')}
+}
+async function pdfRender(pdf,i,targetH){
+ const page=await pdf.getPage(i+1),v1=page.getViewport({scale:1}),scale=Math.min(5,targetH/v1.height),vp=page.getViewport({scale});
+ const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
+ await page.render({canvasContext:x,viewport:vp}).promise;page.cleanup();
+ return {blob:await toBlob(c,'image/jpeg',.9),aspect:v1.width/v1.height};
+}
+async function pdfQuickCount(file){
+ const chunk=Math.min(file.size,1<<20),parts=[await rd(file,0,chunk)];if(file.size>chunk)parts.push(await rd(file,file.size-chunk,chunk));
+ let best=0;for(const p of parts){const s=W1252.decode(p);const re=/\/Type\s*\/Pages\b[^>]*?\/Count\s+(\d+)|\/Count\s+(\d+)[^>]*?\/Type\s*\/Pages\b/g;let m;while((m=re.exec(s)))best=Math.max(best,+(m[1]||m[2]))}
+ return best;
+}
+
+/* ================= HTML sanitizer for reflowable text ================= */
+const KEEP=new Set('p div span h1 h2 h3 h4 h5 h6 em i b strong u s del ins sub sup br hr blockquote pre code ul ol li dl dt dd table thead tbody tfoot tr td th caption img figure figcaption small cite q abbr mark'.split(' '));
+const MAPT={font:'span',a:'span',center:'div',big:'span',nav:'div',main:'div',section:'div',article:'div',aside:'div',header:'div',footer:'div',address:'div',strike:'s',tt:'code',var:'em',kbd:'code',samp:'code',dfn:'em',body:'div',poem:'div',stanza:'div'};
+const DROP=new Set('script style link meta head title iframe object embed form input button select textarea noscript template audio video canvas math frameset frame'.split(' '));
+async function sanitize(node,imgRes){
+ const out=document.createElement('div'),pend=[];
+ (function walk(src,dst){for(const n of src.childNodes){
+  if(n.nodeType===3){dst.appendChild(document.createTextNode(n.nodeValue));continue}
+  if(n.nodeType!==1)continue;let tg=(n.localName||n.nodeName||'').toLowerCase();
+  if(DROP.has(tg))continue;
+  if(tg==='mbp:pagebreak'||tg==='pagebreak'){const d=document.createElement('div');d.className='pb';dst.appendChild(d);continue}
+  if(tg==='svg'){const im=tag1(n,'image');if(im){const el=document.createElement('img');pend.push([el,im.getAttribute('href')||im.getAttribute('xlink:href')||im.getAttributeNS('http://www.w3.org/1999/xlink','href')]);dst.appendChild(el)}continue}
+  if(tg==='img'||tg==='image'){const el=document.createElement('img');el.alt=n.getAttribute('alt')||'';const rec=n.getAttribute('recindex');pend.push([el,rec?'recindex:'+rec:(n.getAttribute('src')||n.getAttribute('href')||n.getAttribute('xlink:href')||n.getAttribute('l:href')||n.getAttributeNS('http://www.w3.org/1999/xlink','href'))]);dst.appendChild(el);continue}
+  tg=MAPT[tg]||tg;if(!KEEP.has(tg)){walk(n,dst);continue}
+  const el=document.createElement(tg);for(const a of['colspan','rowspan'])if(n.hasAttribute&&n.hasAttribute(a))el.setAttribute(a,String(parseInt(n.getAttribute(a))||1));
+  if(/(^|\s)(pb|pagebreak|page-break)(\s|$)/i.test(n.getAttribute&&n.getAttribute('class')||'')||/page-break-before:\s*always/i.test(n.getAttribute&&n.getAttribute('style')||''))el.className='pb';
+  dst.appendChild(el);walk(n,el);
+ }})(node,out);
+ for(const[el,h]of pend){let u=null;try{u=h?await imgRes(h):null}catch(e){}if(u&&/^(blob:|data:image\/)/.test(u))el.src=u;else el.remove()}
+ return out.innerHTML;
+}
+function splitText(t){
+ t=t.replace(/\r\n?/g,'\n').replace(/\t/g,'    ');
+ const blank=(t.match(/\n[ \t]*\n/g)||[]).length,lines=(t.match(/\n/g)||[]).length;
+ const paras=blank>lines*0.08?t.split(/\n[ \t]*\n+/):t.split('\n');
+ const ch=[];let cur=[],len=0;
+ for(let p of paras){p=p.replace(/\s*\n\s*/g,' ').trim();if(!p)continue;
+  const head=/^(chapter|part|book|prologue|epilogue|kapitel|chapitre|cap[ií]tulo)\b/i.test(p)&&p.length<80;
+  if((head&&len>3000)||len>45000){ch.push(cur.join(''));cur=[];len=0}
+  cur.push(head?'<h2>'+esc(p)+'</h2>':'<p>'+esc(p)+'</p>');len+=p.length;
+ }
+ if(cur.length)ch.push(cur.join(''));return ch.length?ch:['<p></p>'];
+}
+function md2html(src){
+ const L=src.replace(/\r/g,'').split('\n'),o=[];let para=[],list=null,code=null;
+ const inl=s=>esc(s).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*|__([^_]+)__/g,(m,a,b)=>'<strong>'+(a||b)+'</strong>').replace(/(^|[^*\w])[*_]([^*_]+)[*_](?=[^*\w]|$)/g,'$1<em>$2</em>').replace(/!\[([^\]]*)\]\([^)]*\)/g,'$1').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1');
+ const fp=()=>{if(para.length){o.push('<p>'+inl(para.join(' '))+'</p>');para=[]}};const fl=()=>{if(list){o.push('</'+list+'>');list=null}};
+ for(const l of L){
+  if(/^\s*```/.test(l)){if(code!==null){o.push('<pre>'+esc(code.join('\n'))+'</pre>');code=null}else{fp();fl();code=[]}continue}
+  if(code!==null){code.push(l);continue}
+  let m;
+  if((m=/^(#{1,6})\s+(.*)$/.exec(l))){fp();fl();const n=Math.min(6,m[1].length);o.push('<h'+n+'>'+inl(m[2].replace(/#+\s*$/,''))+'</h'+n+'>');continue}
+  if(/^\s*([-*_])(\s*\1){2,}\s*$/.test(l)){fp();fl();o.push('<hr>');continue}
+  if((m=/^\s*([-*+]|\d+[.)])\s+(.*)$/.exec(l))){fp();const t=/\d/.test(m[1])?'ol':'ul';if(list!==t){fl();o.push('<'+t+'>');list=t}o.push('<li>'+inl(m[2])+'</li>');continue}
+  if((m=/^>\s?(.*)$/.exec(l))){fp();fl();o.push('<blockquote>'+inl(m[1])+'</blockquote>');continue}
+  if(!l.trim()){fp();fl();continue}
+  fl();para.push(l.trim());
+ }
+ fp();fl();if(code)o.push('<pre>'+esc(code.join('\n'))+'</pre>');
+ const ch=[];let cur=[],len=0;for(const b of o){if(/^<h1/.test(b)&&len>2000||len>45000){ch.push(cur.join(''));cur=[];len=0}cur.push(b);len+=b.length}if(cur.length)ch.push(cur.join(''));
+ return ch;
+}
+function rtf2text(s){
+ const DEST=new Set('aftncn aftnsep aftnsepc annotation atnauthor atndate atnicn atnid atnparent atnref atntime atrfend atrfstart author background bkmkend bkmkstart blipuid buptim category colorschememapping colortbl comment company creatim datafield datastore defchp defpap do doccomm docvar dptxbxtext ebcend ebcstart factoidname falt fchars ffdeftext ffentrymcr ffexitmcr ffformat ffhelptext ffl ffname ffstattext field file filetbl fldinst fldtype fname fontemb fontfile fonttbl footer footerf footerl footerr footnote formfield ftncn ftnsep ftnsepc g generator gridtbl header headerf headerl headerr hl hlfr hlinkbase hlloc hlsrc hsv htmltag info keycode keywords latentstyles lchars levelnumbers leveltext lfolevel linkval list listlevel listname listoverride listoverridetable listpicture liststylename listtable listtext lsdlockedexcept macc maccPr mailmerge maln malnScr manager margPr mbar mbarPr mbaseJc mbegChr mborderBox mborderBoxPr mbox mboxPr mchr mcount mctrlPr md mdeg mdegHide mden mdiff mdPr me mendChr meqArr meqArrPr mf mfName mfPr mfunc mfuncPr mgroupChr mgroupChrPr mgrow mhideBot mhideLeft mhideRight mhideTop mhtmltag mlim mlimloc mlimlow mlimlowPr mlimupp mlimuppPr mm mmaddfieldname mmath mmathPict mmathPr mmaxdist mmc mmcJc mmconnectstr mmconnectstrdata mmcPr mmcs mmdatasource mmheadersource mmmailsubject mmodso mmodsofilter mmodsofldmpdata mmodsomappedname mmodsoname mmodsorecipdata mmodsosort mmodsosrc mmodsotable mmodsoudl mmodsoudldata mmodsouniquetag mmPr mmquery mmr mnary mnaryPr mnoBreak mnum mobjDist moMath moMathPara moMathParaPr mopEmu mphant mphantPr mplcHide mpos mr mrad mradPr mrPr msepChr mshow mshp msPre msPrePr msSub msSubPr msSubSup msSubSupPr msSup msSupPr mstrikeBLTR mstrikeH mstrikeTLBR mstrikeV msub msubHide msup msupHide mtransp mtype mvertJc mvfmf mvfml mvtof mvtol mzeroAsc mzeroDesc mzeroWid nesttableprops nextfile nonesttables objalias objclass objdata object objname objsect objtime oldcprops oldpprops oldsprops oldtprops oleclsid operator panose password passwordhash pgp pgptbl picprop pict pn pnseclvl pntext pntxta pntxtb printim private propname protend protstart protusertbl pxe result revtbl revtim rsidtbl rxe shp shpgrp shpinst shppict shprslt shptxt sn sp staticval stylesheet subject sv svb tc template themedata title txe ud upr userprops wgrffmtfilter windowcaption writereservation writereservhash xe xform xmlattrname xmlattrvalue xmlclose xmlname xmlnstbl xmlopen'.split(' '));
+ const SPEC={par:'\n',sect:'\n\n',page:'\n\n',line:'\n',tab:'\t',emdash:'—',endash:'–',emspace:' ',enspace:' ',qmspace:' ',bullet:'•',lquote:'‘',rquote:'’',ldblquote:'“',rdblquote:'”',cell:' ',row:'\n'};
+ const re=/\\([a-z]{1,32})(-?\d{1,10})?[ ]?|\\'([0-9a-f]{2})|\\([^a-z])|([{}])|[\r\n]+|(.)/gi;
+ const st=[];let ign=false,uc=1,skip=0,out=[],m;
+ while((m=re.exec(s))){const[,w,a,hx,ch,br,tc]=m;
+  if(br){skip=0;if(br==='{')st.push([uc,ign]);else{const t=st.pop();if(t){uc=t[0];ign=t[1]}}}
+  else if(ch){skip=0;if(ch==='~'){if(!ign)out.push(' ')}else if('{}\\'.includes(ch)){if(!ign)out.push(ch)}else if(ch==='*')ign=true}
+  else if(w){skip=0;if(DEST.has(w))ign=true;else if(ign){}else if(SPEC[w])out.push(SPEC[w]);else if(w==='uc')uc=+a||0;else if(w==='u'){let c=+a;if(c<0)c+=65536;out.push(String.fromCharCode(c));skip=uc}}
+  else if(hx){if(skip>0)skip--;else if(!ign)out.push(W1252.decode(Uint8Array.of(parseInt(hx,16))))}
+  else if(tc){if(skip>0)skip--;else if(!ign)out.push(tc)}
+ }
+ return out.join('');
+}
+
+/* ================= Word .docx / .odt ================= */
+async function docxChapters(arc,urls){
+ const de=arc.get('word/document.xml');if(!de)throw new BookErr('This .docx has no document inside.');
+ const x=parseXML(await arc.text(de)),rels={};
+ const re=arc.get('word/_rels/document.xml.rels');if(re){for(const r of tags(parseXML(await arc.text(re)),'Relationship'))rels[r.getAttribute('Id')]=r.getAttribute('Target')}
+ const body=tag1(x,'body');if(!body)return['<p></p>'];
+ const ch=[];let cur=[],len=0,inList=false;
+ const img=async id=>{const t=rels[id];if(!t)return'';const e=arc.get(resolvePath('word',t));if(!e)return'';const u=URL.createObjectURL(await arc.blob(e));urls.push(u);return'<img src="'+u+'">'};
+ const runs=async p=>{let h='';
+  for(const r of tags(p,'r')){
+   const pr=tag1(r,'rPr'),b=pr&&tag1(pr,'b')&&tag1(pr,'b').getAttribute('w:val')!=='0',i=pr&&tag1(pr,'i')&&tag1(pr,'i').getAttribute('w:val')!=='0',u=pr&&tag1(pr,'u')&&tag1(pr,'u').getAttribute('w:val')!=='none';
+   let s='';for(const c of r.childNodes){const ln=c.localName;
+    if(ln==='t')s+=esc(c.textContent);else if(ln==='tab')s+=' ';else if(ln==='br'||ln==='cr')s+=(c.getAttribute('w:type')==='page'?'<span class="pb"></span>':'<br>');
+    else if(ln==='drawing'||ln==='pict'||ln==='object'){for(const bl of tags(c,'blip')){s+=await img(bl.getAttribute('r:embed')||bl.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','embed'))}for(const im of tags(c,'imagedata')){s+=await img(im.getAttribute('r:id'))}}
+   }
+   if(!s)continue;if(b)s='<strong>'+s+'</strong>';if(i)s='<em>'+s+'</em>';if(u)s='<u>'+s+'</u>';h+=s;
+  }return h};
+ const push=(s,newCh)=>{if((newCh&&len>2500)||len>50000){ch.push(cur.join(''));cur=[];len=0}cur.push(s);len+=s.length};
+ const walk=async node=>{for(const n of node.childNodes){const ln=n.localName;
+  if(ln==='p'){const ps=tag1(n,'pStyle'),sv=ps?(ps.getAttribute('w:val')||''):'';const hm=/heading\s*(\d)|^(title)$/i.exec(sv);const isL=!!tag1(n,'numPr');const h=await runs(n);
+   if(isL&&!hm){if(!inList){push('<ul>');inList=true}push('<li>'+h+'</li>');continue}
+   if(inList){push('</ul>');inList=false}
+   if(hm){const lv=hm[2]?1:Math.min(6,+hm[1]);push('<h'+lv+'>'+h+'</h'+lv+'>',lv===1)}else push('<p>'+(h||'&nbsp;')+'</p>');
+  }else if(ln==='tbl'){if(inList){push('</ul>');inList=false}let t='<table>';for(const tr of [...n.childNodes].filter(c=>c.localName==='tr')){t+='<tr>';for(const tc of [...tr.childNodes].filter(c=>c.localName==='tc')){let c='';for(const p of tags(tc,'p'))c+=(c?'<br>':'')+await runs(p);t+='<td>'+c+'</td>'}t+='</tr>'}push(t+'</table>')}
+  else if(ln==='sdt'||ln==='sdtContent'||ln==='customXml'||ln==='ins'||ln==='smartTag')await walk(n);
+ }};
+ await walk(body);if(inList)push('</ul>');if(cur.length)ch.push(cur.join(''));
+ return ch.length?ch:['<p></p>'];
+}
+async function odtChapters(arc,urls){
+ const ce=arc.get('content.xml');if(!ce)throw new BookErr('This .odt has no content inside.');
+ const x=parseXML(await arc.text(ce)),body=tag1(x,'text');const ch=[];let cur=[],len=0;
+ const img=async h=>{const e=arc.get(h);if(!e)return'';const u=URL.createObjectURL(await arc.blob(e));urls.push(u);return'<img src="'+u+'">'};
+ const inl=async n=>{let s='';for(const c of n.childNodes){if(c.nodeType===3){s+=esc(c.nodeValue);continue}const ln=c.localName;
+  if(ln==='s')s+=' ';else if(ln==='tab')s+=' ';else if(ln==='line-break')s+='<br>';else if(ln==='frame'){for(const im of tags(c,'image'))s+=await img(im.getAttribute('xlink:href')||im.getAttributeNS('http://www.w3.org/1999/xlink','href'))}
+  else if(ln==='note'){}else s+=await inl(c)}return s};
+ const push=(s,nc)=>{if((nc&&len>2500)||len>50000){ch.push(cur.join(''));cur=[];len=0}cur.push(s);len+=s.length};
+ const walk=async n=>{for(const c of n.childNodes){const ln=c.localName;
+  if(ln==='h'){const lv=Math.min(6,+(c.getAttribute('text:outline-level')||1));push('<h'+lv+'>'+await inl(c)+'</h'+lv+'>',lv===1)}
+  else if(ln==='p')push('<p>'+(await inl(c)||'&nbsp;')+'</p>');
+  else if(ln==='list'){push('<ul>');for(const li of [...c.childNodes].filter(e=>e.localName==='list-item')){let s='';for(const p of tags(li,'p'))s+=(s?'<br>':'')+await inl(p);push('<li>'+s+'</li>')}push('</ul>')}
+  else if(ln==='table'){let t='<table>';for(const tr of tags(c,'table-row')){t+='<tr>';for(const tc of [...tr.childNodes].filter(e=>e.localName==='table-cell')){let s='';for(const p of tags(tc,'p'))s+=(s?'<br>':'')+await inl(p);t+='<td>'+s+'</td>'}t+='</tr>'}push(t+'</table>')}
+  else if(ln==='section'||ln==='soft-page-break'||ln==='index-body'||ln==='table-of-content')await walk(c);
+ }};
+ if(body)await walk(body);if(cur.length)ch.push(cur.join(''));return ch.length?ch:['<p></p>'];
+}
+
+/* ================= legacy Word .doc (OLE compound file + piece table) ================= */
+function cfbStreams(buf){
+ const u=new Uint8Array(buf),dv=new DataView(buf);
+ if(dv.getUint32(0,true)!==0xE011CFD0)throw new BookErr('This .doc isn’t a Word 97–2003 file.');
+ const ss=1<<dv.getUint16(30,true),ms=1<<dv.getUint16(32,true),nFat=dv.getUint32(44,true),dir0=dv.getUint32(48,true),cut=dv.getUint32(56,true),mf0=dv.getUint32(60,true);
+ let difat=[];for(let i=0;i<109;i++)difat.push(dv.getUint32(76+i*4,true));
+ let ds=dv.getUint32(68,true),g=0;while(ds<0xFFFFFFFA&&g++<1000){const o=(ds+1)*ss;for(let i=0;i<ss/4-1;i++)difat.push(dv.getUint32(o+i*4,true));ds=dv.getUint32(o+ss-4,true)}
+ difat=difat.slice(0,nFat);const fat=[];for(const s of difat){if(s>=0xFFFFFFFA)continue;const o=(s+1)*ss;for(let i=0;i<ss/4;i++)fat.push(dv.getUint32(o+i*4,true))}
+ const chain=(s)=>{const out=[];let g=0;while(s<0xFFFFFFFA&&g++<1e6){out.push(s);s=fat[s]}return out};
+ const readBig=(s,size)=>{const c=chain(s),r=new Uint8Array(c.length*ss);c.forEach((x,i)=>r.set(u.subarray((x+1)*ss,(x+2)*ss),i*ss));return r.subarray(0,size)};
+ const dirB=readBig(dir0,1e9),ents=[];
+ for(let o=0;o+128<=dirB.length;o+=128){const dd=new DataView(dirB.buffer,dirB.byteOffset+o,128),nl=dd.getUint16(64,true);if(!nl)continue;let name='';for(let i=0;i<nl/2-1;i++)name+=String.fromCharCode(dd.getUint16(i*2,true));ents.push({name,type:dirB[o+66],start:dd.getUint32(116,true),size:dd.getUint32(120,true)})}
+ const root=ents.find(e=>e.type===5);const mini=root?readBig(root.start,root.size):new Uint8Array();const mfat=[];if(mf0<0xFFFFFFFA){const m=readBig(mf0,1e9),mv=new DataView(m.buffer,m.byteOffset,m.length);for(let i=0;i+4<=m.length;i+=4)mfat.push(mv.getUint32(i,true))}
+ return n=>{const e=ents.find(x=>x.name===n);if(!e)return null;if(e.size>=cut)return readBig(e.start,e.size);const r=new Uint8Array(e.size);let s=e.start,p=0,g=0;while(s<0xFFFFFFFA&&p<e.size&&g++<1e6){const l=Math.min(ms,e.size-p);r.set(mini.subarray(s*ms,s*ms+l),p);p+=l;s=mfat[s]}return r};
+}
+function docText(buf){
+ const get=cfbStreams(buf),wd=get('WordDocument');if(!wd)throw new BookErr('No Word text found in this .doc.');
+ const v=new DataView(wd.buffer,wd.byteOffset,wd.length);if(v.getUint16(0,true)!==0xA5EC)throw new BookErr('This .doc uses a very old Word format.');
+ const fl=v.getUint16(10,true);if(fl&0x0100)throw new BookErr('This .doc is password-protected.');
+ const tbl=get(fl&0x0200?'1Table':'0Table'),ccp=v.getInt32(0x4C,true);let text='';
+ try{const fc=v.getUint32(0x1A2,true),lcb=v.getUint32(0x1A6,true);const t=tbl.subarray(fc,fc+lcb),tv=new DataView(t.buffer,t.byteOffset,t.length);let p=0;
+  while(t[p]===1){p+=3+tv.getInt16(p+1,true)}if(t[p]!==2)throw 0;const L=tv.getUint32(p+1,true);p+=5;const n=(L-4)/12;
+  for(let i=0;i<n;i++){const c0=tv.getUint32(p+i*4,true),c1=tv.getUint32(p+(i+1)*4,true);let f=tv.getUint32(p+(n+1)*4+i*8+2,true);const cnt=c1-c0;
+   if(f&0x40000000){f=(f&0x3FFFFFFF)/2;text+=W1252.decode(wd.subarray(f,f+cnt))}else text+=new TextDecoder('utf-16le').decode(wd.subarray(f,f+cnt*2));
+   if(text.length>=ccp)break}
+  text=text.slice(0,ccp);
+ }catch(e){const fcMin=v.getUint32(0x18,true);text=W1252.decode(wd.subarray(fcMin,fcMin+ccp))}
+ return text.replace(/\x13[^\x13\x14\x15]*\x14?/g,'').replace(/[\x14\x15]/g,'').replace(/\x07/g,'\t').replace(/[\x0b\x0c]/g,'\r').replace(/\r/g,'\n\n').replace(/[\x00-\x08\x0e-\x1f]/g,'');
+}
+
+/* ================= MOBI / AZW / PRC ================= */
+function palmdoc(b){const o=[];for(let i=0;i<b.length;){const c=b[i++];if(c===0||(c>8&&c<0x80))o.push(c);else if(c<=8){for(let k=0;k<c&&i<b.length;k++)o.push(b[i++])}else if(c<0xC0){if(i>=b.length)break;const x=((c<<8)|b[i++])&0x3FFF,d=x>>3,l=(x&7)+3;for(let k=0;k<l;k++)o.push(o[o.length-d]??32)}else{o.push(32,c^0x80)}}return Uint8Array.from(o)}
+function mobiParse(buf){
+ const u=new Uint8Array(buf),dv=new DataView(buf),nr=dv.getUint16(76),offs=[];for(let i=0;i<nr;i++)offs.push(dv.getUint32(78+i*8));offs.push(u.length);
+ const rec=i=>u.subarray(offs[i],offs[i+1]);const r0=rec(0),r=new DataView(r0.buffer,r0.byteOffset,r0.length);
+ const comp=r.getUint16(0),tlen=r.getUint32(4),trc=r.getUint16(8),encr=r.getUint16(12);
+ const info={comp,trc,tlen,encr,title:W1252.decode(u.subarray(0,32)).replace(/\0.*$/,'').replace(/_/g,' '),author:'',firstImg:-1,cover:-1,enc:'windows-1252',extra:0};
+ if(r0.length>=24&&String.fromCharCode(...r0.subarray(16,20))==='MOBI'){
+  const hl=r.getUint32(20),enc=r.getUint32(28);info.enc=enc===65001?'utf-8':'windows-1252';
+  const fno=r.getUint32(84),fnl=r.getUint32(88);if(fnl&&fno+fnl<=r0.length)info.title=new TextDecoder(info.enc).decode(r0.subarray(fno,fno+fnl));
+  info.firstImg=r.getUint32(108);if(hl>=0xE4&&16+0xE2+2<=r0.length)info.extra=r.getUint16(0xF2);
+  if(r.getUint32(128)&0x40){let p=16+hl;if(String.fromCharCode(...r0.subarray(p,p+4))==='EXTH'){const n=r.getUint32(p+8);p+=12;for(let i=0;i<n&&p+8<=r0.length;i++){const t=r.getUint32(p),l=r.getUint32(p+4),d=r0.subarray(p+8,p+l);
+   if(t===100)info.author=(info.author?info.author+', ':'')+new TextDecoder(info.enc).decode(d);else if(t===503)info.title=new TextDecoder(info.enc).decode(d);else if(t===201&&d.length>=4)info.cover=new DataView(d.buffer,d.byteOffset,4).getUint32(0);p+=l}}}
+ }
+ info.text=()=>{if(encr)throw new BookErr('This Kindle book has DRM, so it can’t be opened outside Kindle apps.');if(comp===17480)throw new BookErr('This Kindle book uses HUFF/CDIC compression, which Stacks can’t unpack yet.');
+  const parts=[];for(let i=1;i<=trc&&i<nr;i++){let d=rec(i);let e=info.extra>>1,end=d.length;while(e){if(e&1){let v=0;for(let k=Math.max(0,end-4);k<end;k++){const b=d[k];if(b&0x80)v=0;v=(v<<7)|(b&0x7f)}end-=v}e>>=1}if((info.extra&1)&&end>0){end-=(d[end-1]&3)+1}d=d.subarray(0,Math.max(0,end));parts.push(comp===2?palmdoc(d):d)}
+  let L=0;for(const p of parts)L+=p.length;const all=new Uint8Array(L);let o=0;for(const p of parts){all.set(p,o);o+=p.length}return new TextDecoder(info.enc).decode(all)};
+ info.image=i=>{const k=info.firstImg+i;return k>0&&k<nr?new Blob([rec(k)]):null};
+ return info;
+}
+
+/* ================= EPUB ================= */
+async function epubOpf(arc){
+ const ce=arc.get('META-INF/container.xml');if(!ce)throw new BookErr('This EPUB is missing its container file.');
+ const opfPath=tag1(parseXML(await arc.text(ce)),'rootfile')?.getAttribute('full-path');const oe=arc.get(opfPath);if(!oe)throw new BookErr('This EPUB’s package file is missing.');
+ const opf=parseXML(await arc.text(oe)),base=dirName(opfPath),items={};
+ for(const it of tags(opf,'item'))items[it.getAttribute('id')]={id:it.getAttribute('id'),href:resolvePath(base,it.getAttribute('href')),type:it.getAttribute('media-type')||'',props:it.getAttribute('properties')||''};
+ const sp=tag1(opf,'spine'),spine=tags(opf,'itemref').map(r=>items[r.getAttribute('idref')]).filter(Boolean);
+ let cover=null;const cm=tags(opf,'meta').find(m=>m.getAttribute('name')==='cover');if(cm)cover=items[cm.getAttribute('content')];
+ if(!cover||!/image/.test(cover.type))cover=Object.values(items).find(i=>/cover-image/.test(i.props))||Object.values(items).find(i=>/image/.test(i.type)&&/cover/i.test(i.id+i.href))||null;
+ const pre=tags(opf,'meta').some(m=>/rendition:layout/.test(m.getAttribute('property')||'')&&/pre-paginated/.test(m.textContent))||/pre-paginated/.test(sp?.getAttribute('rendition:layout')||'');
+ return {title:txt1(opf,'title'),author:txt1(opf,'creator'),spine,cover,pre,rtl:sp?.getAttribute('page-progression-direction')==='rtl'};
+}
+async function epubPageImages(arc,info){
+ const out=[];for(const it of info.spine){const e=arc.get(it.href);if(!e)continue;if(/image/.test(it.type)){out.push(e);continue}
+  const d=parseXML(await arc.text(e));const im=tag1(d,'img')||tag1(d,'image');if(!im)return null;
+  const h=im.getAttribute('src')||im.getAttribute('href')||im.getAttribute('xlink:href')||im.getAttributeNS('http://www.w3.org/1999/xlink','href');const ie=arc.get(resolvePath(dirName(it.href),h));if(!ie)return null;out.push(ie)}
+ return out.length?out:null;
+}
+
+/* ================= FB2 ================= */
+function fb2Doc(bytes){const head=W1252.decode(bytes.subarray(0,200));const m=/encoding=["']([\w-]+)["']/i.exec(head);return parseXML(dec(bytes,m&&m[1]))}
+function fb2Binary(x,id){id=String(id||'').replace(/^#/,'');const b=tags(x,'binary').find(e=>e.getAttribute('id')===id);if(!b)return null;try{const s=atob(b.textContent.replace(/\s+/g,''));const a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return new Blob([a],{type:b.getAttribute('content-type')||'image/jpeg'})}catch(e){return null}}
+function fb2Html(x,urls){
+ const img=h=>{const b=fb2Binary(x,h);if(!b)return'';const u=URL.createObjectURL(b);urls.push(u);return'<img src="'+u+'">'};
+ const href=e=>e.getAttribute('l:href')||e.getAttribute('xlink:href')||e.getAttributeNS('http://www.w3.org/1999/xlink','href')||e.getAttribute('href');
+ const conv=n=>{let s='';for(const c of n.childNodes){if(c.nodeType===3){s+=esc(c.nodeValue);continue}if(c.nodeType!==1)continue;const ln=c.localName;
+  const T={p:'p',v:'p',emphasis:'em',strong:'strong',strikethrough:'s',sub:'sub',sup:'sup',code:'code',epigraph:'blockquote',cite:'blockquote',poem:'div',stanza:'div',subtitle:'h3','text-author':'p',table:'table',tr:'tr',td:'td',th:'th'}[ln];
+  if(ln==='title')s+='<h2>'+[...c.childNodes].map(k=>k.textContent).join(' ').trim().replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))+'</h2>';
+  else if(ln==='empty-line')s+='<br>';else if(ln==='image')s+=img(href(c));else if(ln==='section')s+=conv(c);else if(ln==='a')s+=conv(c);
+  else if(T)s+='<'+T+'>'+conv(c)+'</'+T+'>';else s+=conv(c)}return s};
+ const ch=[];for(const b of tags(x,'body')){for(const c of b.childNodes){if(c.nodeType!==1)continue;const h=c.localName==='section'?conv(c):conv({childNodes:[c]});if(h.trim())ch.push(h)}}
+ const merged=[];let cur='';for(const h of ch){if(cur.length>2500){merged.push(cur);cur=''}cur+=h}if(cur)merged.push(cur);return merged.length?merged:['<p></p>'];
+}
+
+/* ================= kinds, probing, opening ================= */
+const KIND={pdf:'pdf',epub:'epub',kepub:'epub',cbz:'comic',cbr:'comic',cbt:'comic',cb7:'comic',zip:'comic',rar:'comic',tar:'comic','7z':'comic',docx:'docx',doc:'doc',odt:'odt',rtf:'rtf',txt:'text',text:'text',md:'md',markdown:'md',html:'html',htm:'html',xhtml:'html',fb2:'fb2',mobi:'mobi',azw:'mobi',azw3:'mobi',prc:'mobi',djvu:'none',djv:'none',xps:'none',oxps:'none',chm:'none',lit:'none'};
+const NONE_MSG={djvu:'DjVu books can’t be rendered in the browser yet.',djv:'DjVu books can’t be rendered in the browser yet.',xps:'XPS documents can’t be rendered in the browser yet.',oxps:'XPS documents can’t be rendered in the browser yet.',chm:'CHM help files can’t be opened in the browser.',lit:'Microsoft Reader (.lit) books can’t be opened in the browser.'};
+const CHARS_PER_PAGE=1900;
+async function probe(b,src){
+ const r={pages:0,est:false,title:'',author:'',aspect:0,thumb:null,note:'',rtl:false};
+ const f=src.file;
+ switch(b.kind){
+  case 'images':{const fs=src.files;r.pages=fs.length;try{Object.assign(r,await thumbFrom(fs[0]))}catch(e){}break}
+  case 'comic':{const a=await openArchive(f);const ims=a.images();r.pages=ims.length;
+   if(!ims.length){if(a.get('META-INF/container.xml')){b.kind='epub';return probe(b,src)}r.note='No images found inside this archive.';break}
+   if(a.compressed&&!ims[0].stored)r.note=RAR_MSG;else{try{Object.assign(r,await thumbFrom(await a.blob(ims[0])))}catch(e){}}
+   const ci=a.entries.find(e=>/comicinfo\.xml$/i.test(e.name));if(ci&&(ci.stored!==false)){try{const x=parseXML(await a.text(ci));const s=txt1(x,'Series'),n=txt1(x,'Number'),t=txt1(x,'Title');r.title=s?(s+(n?' #'+n:'')+(t?': '+t:'')):t;r.author=txt1(x,'Writer');r.rtl=txt1(x,'Manga')==='YesAndRightToLeft'}catch(e){}}
+   break}
+  case 'pdf':{let pdf=null;if(f.size<200e6){try{pdf=await pdfOpen(f)}catch(e){if(/password/i.test(e.message)){r.note=e.message}}}
+   if(pdf){r.pages=pdf.numPages;try{const md=await pdf.getMetadata();r.title=(md.info&&md.info.Title||'').trim();r.author=(md.info&&md.info.Author||'').trim()}catch(e){}
+    try{const p=await pdfRender(pdf,0,420);Object.assign(r,await thumbFrom(p.blob));r.aspect=p.aspect}catch(e){}pdf.destroy()}
+   else{r.pages=await pdfQuickCount(f);if(!r.pages){r.pages=Math.max(1,Math.round(f.size/60000));r.est=true}}
+   break}
+  case 'epub':{const a=await openZip(f),info=await epubOpf(a);r.title=info.title;r.author=info.author;r.rtl=info.rtl;
+   if(info.pre)r.pages=info.spine.length;else{let bytes=0;for(const it of info.spine){const e=a.get(it.href);if(e)bytes+=e.u||0}r.pages=Math.max(1,Math.round(bytes*0.62/CHARS_PER_PAGE));r.est=true}
+   if(info.cover){const e=a.get(info.cover.href);if(e)try{Object.assign(r,await thumbFrom(await a.blob(e)))}catch(e){}}
+   break}
+  case 'docx':{const a=await openZip(f);const ap=a.get('docProps/app.xml');if(ap){const x=parseXML(await a.text(ap));r.pages=+txt1(x,'Pages')||0}
+   const co=a.get('docProps/core.xml');if(co){const x=parseXML(await a.text(co));r.title=txt1(x,'title');r.author=txt1(x,'creator')}
+   if(!r.pages){const d=a.get('word/document.xml');r.pages=Math.max(1,Math.round((d?d.u:f.size)*0.18/CHARS_PER_PAGE));r.est=true}break}
+  case 'odt':{const a=await openZip(f);const me=a.get('meta.xml');if(me){const x=parseXML(await a.text(me));const st=tag1(x,'document-statistic');r.pages=+(st&&st.getAttribute('meta:page-count'))||0;r.title=txt1(x,'title');r.author=txt1(x,'initial-creator')||txt1(x,'creator')}
+   if(!r.pages){const c=a.get('content.xml');r.pages=Math.max(1,Math.round((c?c.u:f.size)*0.25/CHARS_PER_PAGE));r.est=true}break}
+  case 'doc':{try{const t=docText(await f.arrayBuffer());r.pages=Math.max(1,Math.round(t.length/CHARS_PER_PAGE))}catch(e){r.pages=Math.max(1,Math.round(f.size/9000));r.note=e.message}r.est=true;break}
+  case 'mobi':{const m=mobiParse(await f.arrayBuffer());r.title=m.title;r.author=m.author;r.pages=Math.max(1,Math.round(m.tlen*0.7/CHARS_PER_PAGE));r.est=true;
+   const cb=m.cover>=0?m.image(m.cover):null;if(cb)try{Object.assign(r,await thumbFrom(cb))}catch(e){}
+   if(m.encr)r.note='This Kindle book has DRM, so it can’t be opened outside Kindle apps.';else if(m.comp===17480)r.note='This Kindle book uses HUFF/CDIC compression, which Stacks can’t unpack yet.';break}
+  case 'fb2':{const x=fb2Doc(new Uint8Array(await f.arrayBuffer()));const ti=tag1(x,'title-info');if(ti){r.title=txt1(ti,'book-title');const au=tag1(ti,'author');if(au)r.author=['first-name','middle-name','last-name'].map(n=>txt1(au,n)).filter(Boolean).join(' ');const cp=tag1(ti,'coverpage');const im=cp&&tag1(cp,'image');if(im){const bl=fb2Binary(x,im.getAttribute('l:href')||im.getAttribute('xlink:href')||im.getAttributeNS('http://www.w3.org/1999/xlink','href'));if(bl)try{Object.assign(r,await thumbFrom(bl))}catch(e){}}}
+   let n=0;for(const b2 of tags(x,'body'))n+=b2.textContent.length;r.pages=Math.max(1,Math.round(n/CHARS_PER_PAGE));r.est=true;break}
+  case 'html':{const s=dec(await rd(f,0,Math.min(f.size,4e6)));const d=new DOMParser().parseFromString(s,'text/html');r.title=(d.title||'').trim();r.pages=Math.max(1,Math.round((d.body?d.body.textContent.length:s.length)/CHARS_PER_PAGE*(f.size/Math.max(1,Math.min(f.size,4e6)))));r.est=true;break}
+  case 'rtf':{r.pages=Math.max(1,Math.round(f.size*0.35/CHARS_PER_PAGE));r.est=true;break}
+  case 'text':case 'md':{r.pages=Math.max(1,Math.round(f.size/CHARS_PER_PAGE));r.est=true;break}
+  default:{r.pages=Math.max(1,Math.round(f.size/40000));r.est=true;r.note=NONE_MSG[b.ext]||'This format can’t be opened in the browser.'}
+ }
+ return r;
+}
+
+/* openDoc returns {type:'img', n, aspect, url(i,h), rtl} or {type:'flow', chapters, rtl} plus dispose() */
+async function openDoc(b,src){
+ const urls=[],cache=new Map();const f=src.file;
+ const dispose=()=>{for(const u of urls)URL.revokeObjectURL(u);for(const u of cache.values())URL.revokeObjectURL(u);cache.clear()};
+ const imgDoc=async(n,getBlob,extra={})=>{
+  const keep=24;const url=async(i)=>{if(cache.has(i)){const u=cache.get(i);cache.delete(i);cache.set(i,u);return u}const bl=await getBlob(i);const u=URL.createObjectURL(bl);cache.set(i,u);while(cache.size>keep){const[k,v]=cache.entries().next().value;cache.delete(k);URL.revokeObjectURL(v)}return u};
+  let aspect=extra.aspect||0;if(!aspect){try{const im=await loadImage(await getBlob(0));aspect=im.w/im.h;im.close()}catch(e){aspect=2/3}}
+  if(aspect>1.15&&n>1){try{const im=await loadImage(await getBlob(Math.min(1,n-1)));const a2=im.w/im.h;im.close();if(a2<aspect)aspect=a2}catch(e){}}
+  return {type:'img',n,aspect:Math.max(.3,Math.min(2,aspect)),url,dispose:()=>{dispose();extra.dispose&&extra.dispose()},rtl:!!extra.rtl};
+ };
+ switch(b.kind){
+  case 'images':{const fs=src.files;return imgDoc(fs.length,i=>fs[i])}
+  case 'comic':{const a=await openArchive(f);const ims=a.images();if(!ims.length)throw new BookErr('No images found inside this archive.');if(a.compressed&&!ims[0].stored)throw new BookErr(RAR_MSG);return imgDoc(ims.length,i=>a.blob(ims[i]))}
+  case 'pdf':{const pdf=await pdfOpen(f);const p1=await pdf.getPage(1),v=p1.getViewport({scale:1});const dpr=Math.min(2.5,window.devicePixelRatio||1);const H=Math.min(2600,Math.max(1100,innerHeight*dpr*1.1));
+   return imgDoc(pdf.numPages,async i=>(await pdfRender(pdf,i,H)).blob,{aspect:v.width/v.height,dispose:()=>pdf.destroy()})}
+  case 'epub':{const a=await openZip(f),info=await epubOpf(a);
+   if(info.pre){const pis=await epubPageImages(a,info);if(pis)return imgDoc(pis.length,i=>a.blob(pis[i]),{rtl:info.rtl})}
+   const imgCache=new Map(),chapters=[];
+   for(const it of info.spine){if(/image/.test(it.type))continue;const e=a.get(it.href);if(!e)continue;const s=await a.text(e);let d=new DOMParser().parseFromString(s,'application/xhtml+xml');if(d.getElementsByTagName('parsererror').length)d=new DOMParser().parseFromString(s,'text/html');
+    const bd=tag1(d,'body')||d.documentElement;const dir=dirName(it.href);
+    const h=await sanitize(bd,async href=>{const p=resolvePath(dir,href);if(imgCache.has(p))return imgCache.get(p);const ie=a.get(p);if(!ie)return null;const u=URL.createObjectURL(await a.blob(ie));urls.push(u);imgCache.set(p,u);return u});
+    if(h.replace(/<[^>]+>/g,'').trim()||/<img/.test(h))chapters.push(h)}
+   return {type:'flow',chapters:chapters.length?chapters:['<p></p>'],rtl:info.rtl,dispose}}
+  case 'docx':return {type:'flow',chapters:await docxChapters(await openZip(f),urls),dispose};
+  case 'odt':return {type:'flow',chapters:await odtChapters(await openZip(f),urls),dispose};
+  case 'doc':return {type:'flow',chapters:splitText(docText(await f.arrayBuffer())),dispose};
+  case 'rtf':return {type:'flow',chapters:splitText(rtf2text(W1252.decode(new Uint8Array(await f.arrayBuffer())))),dispose};
+  case 'text':return {type:'flow',chapters:splitText(dec(new Uint8Array(await f.arrayBuffer()))),dispose};
+  case 'md':return {type:'flow',chapters:md2html(dec(new Uint8Array(await f.arrayBuffer()))),dispose};
+  case 'fb2':return {type:'flow',chapters:fb2Html(fb2Doc(new Uint8Array(await f.arrayBuffer())),urls),dispose};
+  case 'html':{const d=new DOMParser().parseFromString(dec(new Uint8Array(await f.arrayBuffer())),'text/html');const h=await sanitize(d.body||d.documentElement,async()=>null);return {type:'flow',chapters:splitHtml(h),dispose}}
+  case 'mobi':{const m=mobiParse(await f.arrayBuffer());const t=m.text();const d=new DOMParser().parseFromString(t.replace(/<mbp:pagebreak\s*\/?>/gi,'<div class="pb"></div>'),'text/html');
+   const ic=new Map();const h=await sanitize(d.body,async href=>{let idx=-1;let mm;if((mm=/^recindex:(\d+)/.exec(href)))idx=+mm[1]-1;else if((mm=/kindle:embed:([0-9A-V]+)/i.exec(href)))idx=parseInt(mm[1],32)-1;if(idx<0)return null;if(ic.has(idx))return ic.get(idx);const bl=m.image(idx);if(!bl)return null;const u=URL.createObjectURL(bl);urls.push(u);ic.set(idx,u);return u});
+   return {type:'flow',chapters:splitHtml(h),dispose}}
+  default:throw new BookErr(NONE_MSG[b.ext]||'This format can’t be opened in the browser.');
+ }
+}
+function splitHtml(h){
+ const box=document.createElement('div');box.innerHTML=h;
+ let kids=[...box.childNodes];while(kids.length===1&&kids[0].nodeType===1&&kids[0].childNodes.length>1&&!/^(P|H\d|TABLE|UL|OL)$/.test(kids[0].nodeName))kids=[...kids[0].childNodes];
+ const ch=[];let cur=document.createElement('div'),len=0;
+ for(const k of kids){const pb=k.nodeType===1&&k.classList.contains('pb');const l=(k.textContent||'').length;if((pb&&len>1500)||len>45000){ch.push(cur.innerHTML);cur=document.createElement('div');len=0}if(!pb)cur.appendChild(k);len+=l}
+ if(cur.childNodes.length)ch.push(cur.innerHTML);return ch.length?ch:['<p></p>'];
+}
+
+window.StacksFmt={$,$$,esc,natCmp,extOf,baseName,dirName,stem,isImg,isJunk,hash,colorFor,sleep,raf,KIND,probe,openDoc,BookErr,toBlob,CHARS_PER_PAGE,openArchive,md2html,rtf2text,splitText,docText,mobiParse,palmdoc};
+})();
+</script>
+<script>
+(()=>{
+const F=window.StacksFmt;const {$,$$,esc,natCmp,extOf,baseName,dirName,stem,isImg,isJunk,hash,colorFor,KIND}=F;
+const SAVE_NAME='stacks-library.json';
+const FSA_OK='showDirectoryPicker' in window&&(()=>{try{return window.self===window.top}catch(e){return false}})();
+
+/* ---------- storage ---------- */
+const idb={db:null,p:null,open(){if(!this.p)this.p=new Promise(res=>{try{const r=indexedDB.open('stacks-library',1);r.onupgradeneeded=()=>{const d=r.result;for(const s of['kv','thumbs','handles'])if(!d.objectStoreNames.contains(s))d.createObjectStore(s)};r.onsuccess=()=>res(this.db=r.result);r.onerror=()=>res(null);r.onblocked=()=>res(null)}catch(e){res(null)}});return this.p},
+ async get(s,k){const d=await this.open();if(!d)return undefined;return new Promise(res=>{try{const q=d.transaction(s).objectStore(s).get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined)}catch(e){res(undefined)}})},
+ async put(s,k,v){const d=await this.open();if(!d)return false;return new Promise(res=>{try{const t=d.transaction(s,'readwrite');t.objectStore(s).put(v,k);t.oncomplete=()=>res(true);t.onerror=()=>res(false);t.onabort=()=>res(false)}catch(e){res(false)}})},
+ async del(s,k){const d=await this.open();if(!d)return;return new Promise(res=>{try{const t=d.transaction(s,'readwrite');t.objectStore(s).delete(k);t.oncomplete=res;t.onerror=res}catch(e){res()}})},
+ async all(s){const d=await this.open();if(!d)return[];return new Promise(res=>{try{const out=[];const q=d.transaction(s).objectStore(s).openCursor();q.onsuccess=()=>{const c=q.result;if(c){out.push([c.key,c.value]);c.continue()}else res(out)};q.onerror=()=>res(out)}catch(e){res([])}})}};
+
+const DEF=()=>({app:'Stacks library',v:1,savedAt:0,books:{},groups:{},order:[],folders:{},settings:{sort:'manual',mode:'3d',spread:null,font:18,light:false,coverAlone:true,saveFolder:null}});
+let S=DEF();
+const files=new Map(),thumbs=new Map(),handles=new Map(),needPerm=new Set();
+let query='',downloads=null;
+
+/* ---------- helpers ---------- */
+const BAD_T=/^(untitled|microsoft word|document\d*|title|unknown|none|book\d*|adobe|pdf)\b|\.(docx?|pdf|indd|qxd|txt)$/i;
+function cleanStem(n){return stem(n).replace(/[_]+/g,' ').replace(/\s{2,}/g,' ').trim()}
+const titleOf=b=>b.customTitle||(b.metaTitle&&b.metaTitle.length>1&&!BAD_T.test(b.metaTitle)?b.metaTitle:'')||(b.kind==='images'?b.name:cleanStem(b.name));
+const fmtOf=b=>b.kind==='images'?'Images':(b.ext||'').toUpperCase();
+const thick=p=>Math.max(5,Math.min(52,4+(p||1)*0.09));
+const fmtN=n=>Number(n||0).toLocaleString();
+const time=t=>t?new Date(t).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'';
+const toastEl=$('#toast');let toastT;function toast(m,ms=2600){toastEl.textContent=m;toastEl.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>toastEl.classList.remove('on'),ms)}
+const gOf=id=>S.books[id]&&S.books[id].group&&S.groups[S.books[id].group]?S.groups[S.books[id].group]:null;
+const missing=b=>!files.has(b.id);
+function gName(g){return g.name||'Untitled stack'}
+
+/* ---------- group operations ---------- */
+function detach(id){const b=S.books[id];if(!b)return;const g=b.group&&S.groups[b.group];if(g){g.books=g.books.filter(x=>x!==id)}b.group=null}
+function setGroup(id,gid,idx=0){const b=S.books[id],g=S.groups[gid];if(!b||!g)return;detach(id);idx=Math.max(0,Math.min(idx,g.books.length));g.books.splice(idx,0,id);b.group=gid}
+function newGroup(name,ids){const id='g'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);S.groups[id]={id,name,books:[],created:Date.now()};ids.forEach((b,i)=>setGroup(b,id,i));return id}
+function suggestName(ids){
+ const ts=ids.map(i=>titleOf(S.books[i]));const w=ts.map(t=>t.split(/\s+/));let n=0;while(w.every(x=>x[n]!==undefined&&x[n].toLowerCase()===w[0][n].toLowerCase()))n++;
+ let p=w[0].slice(0,n).join(' ').replace(/[\s\-–:#,(.]+$/,'').replace(/\s+(vol|volume|issue|no|book|part|tome|v|#)\.?$/i,'').trim();
+ if(p.length>=3)return p;const ds=ids.map(i=>dirName(S.books[i].rel));if(ds.every(d=>d&&d===ds[0]))return baseName(ds[0]);
+ const fs=ids.map(i=>S.books[i].folder);if(fs.every(f=>f===fs[0])&&S.folders[fs[0]]&&ds.every(d=>!d))return S.folders[fs[0]].name;
+ return 'New stack';
+}
+function pruneGroups(){for(const g of Object.values(S.groups)){g.books=g.books.filter(id=>S.books[id]&&S.books[id].group===g.id);if(!g.books.length)delete S.groups[g.id]}for(const b of Object.values(S.books))if(b.group&&!S.groups[b.group])b.group=null}
+function topKeys(){const k=[];for(const g of Object.values(S.groups))k.push('g:'+g.id);for(const b of Object.values(S.books))if(!b.group)k.push('b:'+b.id);return k}
+function ensureOrder(){pruneGroups();const valid=new Set(topKeys());const seen=new Set();S.order=S.order.filter(k=>valid.has(k)&&!seen.has(k)&&seen.add(k));for(const k of valid)if(!seen.has(k))S.order.push(k)}
+
+/* ---------- saving ---------- */
+let saveT=0,saveInfo={local:0,folder:'',folderAt:0,busy:false};
+function save(){clearTimeout(saveT);saveInfo.busy=true;chip();saveT=setTimeout(doSave,450)}
+function exportJSON(){return JSON.stringify(S,null,1)}
+async function doSave(){
+ ensureOrder();S.savedAt=Date.now();const json=JSON.stringify(S);let ok=await idb.put('kv','state',json);
+ try{localStorage.setItem('stacks-library',json);ok=true}catch(e){}
+ saveInfo.local=ok?S.savedAt:0;
+ const fid=saveFolderId();if(fid){const h=handles.get(fid);try{if(h&&await h.queryPermission({mode:'readwrite'})==='granted'){const fh=await h.getFileHandle(SAVE_NAME,{create:true});const w=await fh.createWritable();await w.write(exportJSON());await w.close();saveInfo.folder=S.folders[fid].name;saveInfo.folderAt=S.savedAt}}catch(e){saveInfo.folder=''}}
+ saveInfo.busy=false;chip();
+}
+function saveFolderId(){const s=S.settings.saveFolder;if(s&&S.folders[s]&&S.folders[s].mode==='linked'&&handles.has(s))return s;const f=Object.values(S.folders).find(f=>f.mode==='linked'&&handles.has(f.id));return f?f.id:null}
+function chip(){const c=$('#saveChip');c.classList.toggle('busy',saveInfo.busy);c.querySelector('span').textContent=saveInfo.busy?'Saving…':saveInfo.local?('Saved '+time(saveInfo.local)+(saveInfo.folder?' · in folder':'')):'Not saved yet'}
+function mergeSave(d,force){
+ if(!d||typeof d!=='object'||!d.books)return false;const newer=force||(d.savedAt||0)>(S.savedAt||0);
+ for(const f of Object.values(d.folders||{}))if(!S.folders[f.id])S.folders[f.id]={...f,mode:f.mode==='files'?'files':'picked'};
+ for(const [id,b] of Object.entries(d.books)){if(!b||typeof b!=='object')continue;const m=S.books[id];
+  if(!m){S.books[id]={...b,id,group:null}}
+  else if(newer){for(const k of['customTitle','lastPage','rtl'])if(b[k]!==undefined)m[k]=b[k];m.lastRead=Math.max(m.lastRead||0,b.lastRead||0)}
+  else m.lastRead=Math.max(m.lastRead||0,b.lastRead||0);}
+ for(const g of Object.values(d.groups||{})){if(!g||!Array.isArray(g.books))continue;
+  if(!S.groups[g.id])S.groups[g.id]={id:g.id,name:String(g.name||'Stack'),books:[],created:g.created||Date.now()};else if(newer)S.groups[g.id].name=String(g.name||S.groups[g.id].name);
+  g.books.forEach((id,i)=>{const b=S.books[id];if(!b)return;if(newer||!b.group)setGroup(id,g.id,i)})}
+ if(newer&&Array.isArray(d.order))S.order=d.order.concat(S.order);
+ if(newer&&d.settings)S.settings={...S.settings,...d.settings,saveFolder:S.settings.saveFolder};
+ ensureOrder();return true;
+}
+
+/* ---------- thumbs ---------- */
+function setThumb(id,blob){if(thumbs.has(id))URL.revokeObjectURL(thumbs.get(id));thumbs.set(id,URL.createObjectURL(blob))}
+
+/* ---------- scanning ---------- */
+async function* walk(dir,prefix=''){for await(const[name,h]of dir.entries()){if(name.startsWith('.')||name==='__MACOSX'||name==='$RECYCLE.BIN'||name==='System Volume Information')continue;if(h.kind==='directory')yield*walk(h,prefix+name+'/');else{try{yield{file:await h.getFile(),rel:prefix+name}}catch(e){}}}}
+const scanning={on:false,found:0,name:''};
+async function ingest(fid,list){
+ const fol=S.folders[fid];let saveFile=null;const imgDirs=new Map(),bookDirs=new Set(),seen=new Set();
+ for(const it of list){const name=baseName(it.rel);if(name===SAVE_NAME&&!it.rel.includes('/')){saveFile=it.file;continue}if(isJunk(it.rel))continue;const ext=extOf(name);
+  if(KIND[ext]){bookDirs.add(dirName(it.rel));seen.add(addBook(fid,it.rel,it.file,ext))}
+  else if(isImg(name)){const d=dirName(it.rel);if(!imgDirs.has(d))imgDirs.set(d,[]);imgDirs.get(d).push(it)}}
+ for(const[d,arr]of imgDirs){if(arr.length>=8||(arr.length>=2&&!bookDirs.has(d))){arr.sort((a,b)=>natCmp(a.rel,b.rel));seen.add(addImageBook(fid,d,arr))}}
+ fol.count=seen.size;fol.lastScan=Date.now();
+ if(saveFile){try{mergeSave(JSON.parse(await saveFile.text()))}catch(e){}}
+ for(const id of seen){const b=S.books[id];if(!b.probed||b.probeKey!==b.size||(b.hadThumb&&!thumbs.has(id)))enqueue(id)}
+ ensureOrder();render();save();banner();return seen.size;
+}
+function findMoved(name,size){return Object.values(S.books).find(b=>!files.has(b.id)&&b.name===name&&b.size===size)}
+function addBook(fid,rel,file,ext){
+ let id='b'+hash(rel.toLowerCase()+'|'+file.size);const name=baseName(rel);
+ if(!S.books[id]){const mv=findMoved(name,file.size);if(mv)id=mv.id}
+ const old=S.books[id]||{};
+ S.books[id]={...old,id,folder:fid,rel,name,ext,kind:old.kind&&old.probeKey===file.size?old.kind:KIND[ext],size:file.size,addedAt:old.addedAt||Date.now(),group:old.group||null};
+ files.set(id,{file});return id;
+}
+function addImageBook(fid,d,arr){
+ const size=arr.reduce((s,x)=>s+x.file.size,0)+arr.length;const name=d?baseName(d):(S.folders[fid]?S.folders[fid].name:'Images');
+ let id='b'+hash('dir:'+d.toLowerCase()+'|'+arr.length);const old=S.books[id]||{};
+ S.books[id]={...old,id,folder:fid,rel:d||'.',name,ext:'img',kind:'images',size,addedAt:old.addedAt||Date.now(),group:old.group||null};
+ files.set(id,{files:arr.map(x=>x.file)});return id;
+}
+const queue=[];let qRun=0,qDone=0,qTotal=0;
+function enqueue(id){if(!queue.includes(id)){queue.push(id);qTotal++}pump()}
+function pump(){while(qRun<2&&queue.length){const id=queue.shift();qRun++;(async()=>{try{await probeBook(id)}catch(e){const b=S.books[id];if(b){b.note=e&&e.message||String(e);b.probed=true;b.probeKey=b.size;if(!b.pages){b.pages=1;b.est=true}}}
+ qRun--;qDone++;soon();if(!queue.length&&!qRun){qDone=qTotal=0;save()}banner();pump()})()}}
+async function probeBook(id){
+ const b=S.books[id],src=files.get(id);if(!b||!src)return;const r=await F.probe(b,src);
+ Object.assign(b,{pages:r.pages||1,est:!!r.est,author:r.author||b.author||'',note:r.note||'',probed:true,probeKey:b.size,hadThumb:!!r.thumb});
+ if(r.title)b.metaTitle=r.title;if(r.aspect)b.aspect=Math.max(.45,Math.min(1.5,r.aspect));if(r.rtl&&b.rtl===undefined)b.rtl=true;
+ if(r.thumb){setThumb(id,r.thumb);idb.put('thumbs',id,r.thumb)}
+}
+async function linkHandle(h){
+ let fid=null;for(const[k,v]of handles){try{if(await v.isSameEntry(h)){fid=k;break}}catch(e){}}
+ fid=fid||('f'+hash(h.name));if(handles.has(fid)&&!(await handles.get(fid).isSameEntry(h).catch(()=>false)))fid='f'+hash(h.name+Date.now());
+ handles.set(fid,h);idb.put('handles',fid,h);S.folders[fid]={...(S.folders[fid]||{}),id:fid,name:h.name,mode:'linked'};
+ if(!S.settings.saveFolder)S.settings.saveFolder=fid;await scanLinked(fid,true);
+}
+async function scanLinked(fid,gesture){
+ const h=handles.get(fid);if(!h)return;let p=await h.queryPermission({mode:'readwrite'}).catch(()=>'denied');
+ if(p!=='granted'&&gesture)p=await h.requestPermission({mode:'readwrite'}).catch(()=>'denied');
+ if(p!=='granted'){needPerm.add(fid);banner();return}
+ needPerm.delete(fid);scanning.on=true;scanning.name=h.name;scanning.found=0;banner();const list=[];
+ try{for await(const it of walk(h)){list.push(it);if(list.length%50===0){scanning.found=list.length;banner()}}}catch(e){toast('Couldn’t read all of “'+h.name+'”: '+e.message)}
+ scanning.on=false;const n=await ingest(fid,list);toast('“'+h.name+'”: '+n+' book'+(n===1?'':'s')+' found');
+}
+async function addFolder(){
+ if(FSA_OK){try{const h=await window.showDirectoryPicker({id:'stacks-lib',mode:'readwrite'});await linkHandle(h)}catch(e){if(e.name!=='AbortError')toast('Couldn’t open that folder: '+e.message)}return}
+ $('#pickDir').click();
+}
+$('#pickDir').addEventListener('change',async e=>{
+ const fl=[...e.target.files];e.target.value='';if(!fl.length)return;
+ const roots=new Map();for(const f of fl){const p=(f.webkitRelativePath||f.name).replace(/\\/g,'/');const i=p.indexOf('/');const root=i>0?p.slice(0,i):'Picked folder';const rel=i>0?p.slice(i+1):p;if(!roots.has(root))roots.set(root,[]);roots.get(root).push({file:f,rel})}
+ for(const[root,list]of roots){const fid='f'+hash(root);S.folders[fid]={...(S.folders[fid]||{}),id:fid,name:root,mode:S.folders[fid]&&S.folders[fid].mode==='linked'?'linked':'picked'};scanning.on=true;scanning.name=root;banner();const n=await ingest(fid,list);scanning.on=false;toast('“'+root+'”: '+n+' book'+(n===1?'':'s')+' found')}
+ banner();
+});
+$('#pickFiles').addEventListener('change',async e=>{
+ const fl=[...e.target.files];e.target.value='';if(!fl.length)return;const fid='files';S.folders[fid]={...(S.folders[fid]||{}),id:fid,name:'Added files',mode:'files'};
+ const prev=Object.values(S.books).filter(b=>b.folder===fid&&files.has(b.id)).map(b=>({file:files.get(b.id).file,rel:b.rel})).filter(x=>x.file);
+ const n=await ingest(fid,prev.concat(fl.map(f=>({file:f,rel:f.name}))));toast(fl.length+' file'+(fl.length===1?'':'s')+' added');
+});
+$('#pickSave').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;try{if(mergeSave(JSON.parse(await f.text()),true)){render();save();toast('Save file loaded')}else toast('That isn’t a Stacks save file')}catch(err){toast('Couldn’t read that save file')}});
+
+/* ---------- banner ---------- */
+function banner(){
+ const el=$('#banner');const parts=[];
+ if(scanning.on)parts.push('<span class="grow">Looking through “'+esc(scanning.name)+'”… '+fmtN(scanning.found)+' files</span>');
+ else if(qTotal){parts.push('<span class="grow">Measuring books — covers and page counts '+qDone+' / '+qTotal+'</span><span class="prog"><i style="width:'+Math.round(qDone/qTotal*100)+'%"></i></span>')}
+ if(!scanning.on&&!qTotal){
+  if(needPerm.size){const n=[...needPerm].map(f=>S.folders[f]&&S.folders[f].name).filter(Boolean);parts.push('<span class="grow">'+(n.length===1?'“'+esc(n[0])+'” needs':n.length+' folders need')+' a tap to reconnect.</span><button class="btn sm pri" data-act="reconnect">Reconnect</button>')}
+  const off=Object.values(S.folders).filter(f=>f.mode!=='linked'&&Object.values(S.books).some(b=>b.folder===f.id&&missing(b)));
+  if(off.length&&!needPerm.size)parts.push('<span class="grow">'+(off.length===1?'Books from “'+esc(off[0].name)+'” are':'Books from '+off.length+' folders are')+' shown from your save file. Pick '+(off.length===1?'the folder':'them')+' again to read'+(FSA_OK?'':' — this browser doesn’t let pages remember folders')+'.</span><button class="btn sm" data-act="'+(off[0].mode==='files'?'files':'pick')+'">Pick '+(off[0].mode==='files'?'files':'folder')+'</button>')}
+ el.innerHTML=parts.join('');
+}
+$('#banner').addEventListener('click',async e=>{const a=e.target.closest('[data-act]');if(!a)return;const k=a.dataset.act;
+ if(k==='reconnect'){for(const f of[...needPerm])await scanLinked(f,true)}else if(k==='pick')addFolder();else if(k==='files')$('#pickFiles').click()});
+
+/* ---------- 3D book markup ---------- */
+function box(W,H,D,f){
+ const fc=(w,h,l,t,tr,c)=>'<div class="fc" style="width:'+w+'px;height:'+h+'px;left:'+l+'px;top:'+t+'px;transform:'+tr+'">'+c+'</div>';
+ return '<div class="bx" style="width:'+W+'px;height:'+H+'px">'+
+  fc(W,H,0,0,'translateZ('+D/2+'px)',f.front)+fc(W,H,0,0,'rotateY(180deg) translateZ('+D/2+'px)',f.back||'')+
+  fc(D,H,(W-D)/2,0,'rotateY(-90deg) translateZ('+W/2+'px)',f.left||'')+fc(D,H,(W-D)/2,0,'rotateY(90deg) translateZ('+W/2+'px)',f.right||'')+
+  fc(W,D,0,(H-D)/2,'rotateX(90deg) translateZ('+H/2+'px)',f.top||'')+fc(W,D,0,(H-D)/2,'rotateX(-90deg) translateZ('+H/2+'px)',f.bottom||'')+'</div>';
+}
+function coverHTML(b){const u=thumbs.get(b.id),c=colorFor(b.id);
+ if(u)return '<div class="cov" style="position:absolute;inset:0"><img src="'+u+'" alt=""></div>';
+ return '<div class="gen cov" style="--c:'+c+'"><b>'+esc(titleOf(b))+'</b><small>'+esc((b.author||fmtOf(b)).slice(0,40))+'</small></div>'}
+const fill=(cls,c,inner='')=>'<div class="'+cls+'" style="position:absolute;inset:0;--c:'+c+'">'+inner+'</div>';
+function dims(b,H0){const a=b.aspect||0.68;let H=H0,W=H*a;const maxW=H0*0.82;if(W>maxW){W=maxW;H=W/a}return{W:Math.round(W),H:Math.round(H),D:Math.round(thick(b.pages)*(H0/150))}}
+function standBook(b,H0=150,rot=26){const{W,H,D}=dims(b,H0),c=colorFor(b.id);
+ return '<div class="stand" style="transform:rotateY('+rot+'deg)">'+box(W,H,D,{front:coverHTML(b),back:fill('spn',c),left:fill('spn',c,'<span>'+esc(titleOf(b))+'</span>'),right:fill('pgV',c),top:fill('pgH',c),bottom:fill('pgH',c)})+'</div>'}
+function pileHTML(ids,H0=150){
+ const bs=ids.map(i=>S.books[i]).filter(Boolean).slice(0,6);const ts=bs.map(b=>thick(b.pages)*(H0/150));const sum=ts.reduce((a,b)=>a+b,0),k=Math.min(1,88*(H0/150)/sum);
+ let y=0,html='';const L=Math.round(H0*0.82),Dp=Math.round(H0*0.6);
+ for(let i=bs.length-1;i>=0;i--){const b=bs[i],t=Math.max(3,Math.round(ts[i]*k)),c=colorFor(b.id),j=parseInt(b.id.slice(-3),36)||0;const jx=((j%9)-4)*1.3,jr=((j%7)-3)*2.2;
+  const top='<div style="position:absolute;left:50%;top:50%;width:'+Dp+'px;height:'+L+'px;transform:translate(-50%,-50%) rotate(-90deg)">'+coverHTML(b)+'</div>';
+  html+='<div class="slab" style="transform:translate3d('+(jx-L/2)+'px,'+(-y)+'px,0) rotateY('+jr+'deg)">'+box(L,t,Dp,{front:fill('spn spnH',c,'<span>'+esc(titleOf(b))+'</span>'),back:fill('pgH',c),left:fill('pgH',c),right:fill('pgH',c),top,bottom:fill('spn',c)})+'</div>';y+=t}
+ return '<div class="pile" style="width:'+L+'px;height:'+Math.round(y+Dp*0.3)+'px">'+html+'</div>';
+}
+
+/* ---------- shelf rendering ---------- */
+let rq=0;function soon(){if(!rq)rq=requestAnimationFrame(()=>{rq=0;render()})}
+function sortKeys(keys){
+ const s=S.settings.sort;if(s==='manual')return keys;
+ const val=k=>{const[t,id]=[k[0],k.slice(2)];if(t==='g'){const g=S.groups[id],bs=g.books.map(i=>S.books[i]);return{t:gName(g),r:Math.max(0,...bs.map(b=>b.lastRead||0)),a:Math.max(0,...bs.map(b=>b.addedAt||0)),p:bs.reduce((x,b)=>x+(b.pages||0),0),f:'~'}}const b=S.books[id];return{t:titleOf(b),r:b.lastRead||0,a:b.addedAt||0,p:b.pages||0,f:fmtOf(b)}};
+ const m=new Map(keys.map(k=>[k,val(k)]));const c={title:(a,b)=>natCmp(m.get(a).t,m.get(b).t),recent:(a,b)=>m.get(b).r-m.get(a).r||natCmp(m.get(a).t,m.get(b).t),added:(a,b)=>m.get(b).a-m.get(a).a,pages:(a,b)=>m.get(b).p-m.get(a).p,format:(a,b)=>natCmp(m.get(a).f,m.get(b).f)||natCmp(m.get(a).t,m.get(b).t)}[s];
+ return keys.slice().sort(c);
+}
+function visibleKeys(){
+ ensureOrder();if(!query)return sortKeys(S.order);
+ const q=query.toLowerCase(),out=[];
+ for(const g of Object.values(S.groups))if(gName(g).toLowerCase().includes(q))out.push('g:'+g.id);
+ for(const b of Object.values(S.books)){const hay=(titleOf(b)+' '+(b.author||'')+' '+b.rel+' '+(S.folders[b.folder]?S.folders[b.folder].name:'')+' '+fmtOf(b)).toLowerCase();if(hay.includes(q)&&!(b.group&&out.includes('g:'+b.group)))out.push('b:'+b.id)}
+ return sortKeys(out);
+}
+function progressText(b){if(b.lastPage>0&&b.pages)return'Read '+Math.min(100,Math.round((b.lastPage+1)/b.pages*100))+'%';return fmtN(b.pages)+(b.est?' pp. approx':' pages')}
+function tileHTML(k){
+ const id=k.slice(2);
+ if(k[0]==='g'){const g=S.groups[id];const pages=g.books.reduce((x,i)=>x+(S.books[i].pages||0),0);
+  return '<div class="tile" data-key="'+k+'" tabindex="0" role="button" aria-label="Stack: '+esc(gName(g))+', '+g.books.length+' books"><span class="badge n">'+g.books.length+'</span><button class="more" data-more aria-label="Stack options"><svg class="ico"><use href="#i-dots"/></svg></button><div class="scene">'+pileHTML(g.books)+'</div><div class="cap"><b>'+esc(gName(g))+'</b><span>'+g.books.length+' books · '+fmtN(pages)+' pp.</span></div></div>'}
+ const b=S.books[id],miss=missing(b);
+ return '<div class="tile'+(miss?' missing':'')+'" data-key="'+k+'" tabindex="0" role="button" aria-label="'+esc(titleOf(b))+'"><span class="badge">'+esc(miss?'Offline':fmtOf(b))+'</span><button class="more" data-more aria-label="Book options"><svg class="ico"><use href="#i-dots"/></svg></button><div class="scene">'+standBook(b)+'</div><div class="cap"><b>'+esc(titleOf(b))+'</b><span>'+esc((query&&b.group&&S.groups[b.group]?gName(S.groups[b.group])+' · ':'')+progressText(b))+'</span></div></div>';
+}
+function emptyHTML(){
+ const fake=(t,a,p,c)=>({id:'demo'+t,kind:'pdf',ext:'pdf',name:t,customTitle:t,author:a,pages:p,aspect:.67,_c:c});
+ const demo=[fake('Field Notes','Sketchbook',96),fake('The Long Road','Novel',420),fake('Issue 01','Comic',28),fake('Atlas of Small Places','Guide',260)];
+ for(const d of demo)S.books[d.id]=d;
+ const pile=pileHTML(['demoField Notes','demoIssue 01','demoAtlas of Small Places'],190),stand=standBook(demo[1],200,30);
+ for(const d of demo)delete S.books[d.id];
+ return '<section class="empty"><div><h1>Your books, piled on one table</h1><p>Point Stacks at the folders that hold your comics, ebooks and documents on this device. Each one becomes a 3D book as thick as its page count. Drag books onto each other to make stacks, swipe through a stack, then read in 3D or flat, one page or two at a time.</p><div class="acts"><button class="btn pri" data-act="folder"><svg class="ico"><use href="#i-folder"/></svg>Add a folder</button><button class="btn" data-act="files"><svg class="ico"><use href="#i-file"/></svg>Add files</button><button class="btn ghost" data-act="import">Load a save file</button></div><div class="fmts">'+['PDF','EPUB','CBZ','CBR','CBT','ZIP','RAR','DOCX','DOC','ODT','RTF','TXT','MD','HTML','FB2','MOBI','AZW3','Image folders'].map(x=>'<span>'+x+'</span>').join('')+'</div></div><div class="hero" aria-hidden="true"><div class="scene" style="padding:0">'+pile+'</div><div class="scene" style="padding:0;margin-left:-6px">'+stand+'</div></div></section>';
+}
+function render(){
+ const keys=visibleKeys(),main=$('#main');const nb=Object.keys(S.books).length,ng=Object.keys(S.groups).length;
+ $('#count').textContent=nb?fmtN(nb)+' book'+(nb===1?'':'s')+(ng?' · '+ng+' stack'+(ng===1?'':'s'):''):'';
+ if(!nb){main.innerHTML=emptyHTML();return}
+ main.innerHTML=keys.length?'<div class="table" id="table">'+keys.map(tileHTML).join('')+'</div>':'<div class="empty"><div><h1 style="font-size:28px">Nothing matches “'+esc(query)+'”</h1><p>Try part of a title, an author or a folder name.</p></div></div>';
+ if(svId)renderStack();
+}
+$('#main').addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(!a)return;const k=a.dataset.act;if(k==='folder')addFolder();else if(k==='files')$('#pickFiles').click();else if(k==='import')$('#pickSave').click()});
+$('#q').addEventListener('input',e=>{query=e.target.value.trim();render()});
+$('#sort').addEventListener('change',e=>{S.settings.sort=e.target.value;render();save()});
+
+/* ---------- sheets ---------- */
+let sheetEl=null;
+function sheet(html,onClick){closeSheet(true);const s=document.createElement('div');s.className='scrim';s.innerHTML='<div class="sheet" role="dialog" aria-modal="true">'+html+'</div>';document.body.appendChild(s);sheetEl=s;requestAnimationFrame(()=>s.classList.add('on'));
+ const t0=performance.now();s.addEventListener('click',e=>{if(performance.now()-t0<450)return;if(e.target===s){closeSheet();return}const x=e.target.closest('[data-close]');if(x){closeSheet();return}const a=e.target.closest('[data-a]');if(a&&onClick)onClick(a.dataset.a,a,e)});
+ const f=s.querySelector('[autofocus]')||s.querySelector('button,input');f&&setTimeout(()=>f.focus(),50);return s}
+function closeSheet(now){const s=sheetEl;if(!s)return;sheetEl=null;if(now){s.remove();return}s.classList.remove('on');setTimeout(()=>s.remove(),220)}
+const X='<button class="btn ghost sm x" data-close aria-label="Close"><svg class="ico"><use href="#i-x"/></svg></button>';
+const mi=(a,label,ico,cls='')=>'<button data-a="'+a+'" class="'+cls+'">'+(ico?'<svg class="ico"><use href="#i-'+ico+'"/></svg>':'<span style="width:20px"></span>')+esc(label)+'</button>';
+function askText(title,val,ok){sheet(X+'<h2>'+esc(title)+'</h2><input class="field" type="text" id="askIn" value="'+esc(val)+'" autofocus><div class="row"><button class="btn pri" data-a="ok">Save</button><button class="btn" data-close>Cancel</button></div>',a=>{if(a==='ok'){ok($('#askIn').value.trim());closeSheet()}});const i=$('#askIn');i.select();i.addEventListener('keydown',e=>{if(e.key==='Enter'){ok(i.value.trim());closeSheet()}})}
+function confirmSheet(title,text,label,ok){sheet(X+'<h2>'+esc(title)+'</h2><p>'+esc(text)+'</p><div class="row"><button class="btn pri" data-a="ok">'+esc(label)+'</button><button class="btn" data-close>Cancel</button></div>',a=>{if(a==='ok'){closeSheet();ok()}})}
+
+function bookMenu(id){
+ const b=S.books[id];if(!b)return;const g=gOf(id),others=Object.values(S.groups).filter(x=>!g||x.id!==g.id);
+ const fol=S.folders[b.folder];const miss=missing(b);
+ const info='<p>'+esc(fmtOf(b))+' · '+fmtN(b.pages)+(b.est?' pages (estimated)':' pages')+(b.size?' · '+(b.size/1048576).toFixed(1)+' MB':'')+(b.author?' · '+esc(b.author):'')+'</p><p style="overflow-wrap:anywhere">'+esc((fol?fol.name+'/':'')+b.rel)+'</p>'+(b.note?'<p style="color:var(--acc2)">'+esc(b.note)+'</p>':'')+(miss?'<p style="color:var(--acc2)">This file isn’t connected right now.</p>':'');
+ sheet(X+'<h2>'+esc(titleOf(b))+'</h2>'+info+'<div class="menu">'+(miss?mi('reconnect','Reconnect its folder','refresh'):mi('read3d','Read as a 3D book','cube')+mi('readflat','Read flat','pages'))+'<hr>'+
+  mi('newstack','Start a new stack with this book','stack')+others.slice(0,12).map(x=>mi('to:'+x.id,'Add to “'+gName(x)+'”','plus')).join('')+(g?mi('out','Take out of “'+gName(g)+'”','back'):'')+'<hr>'+
+  mi('rename','Rename','')+(b.lastPage?mi('reset','Start over from page 1',''):'')+mi('forget','Remove from library (file stays)','','dang')+'</div>',
+  a=>{closeSheet(true);
+   if(a==='read3d')openBook(id,'3d');else if(a==='readflat')openBook(id,'flat');else if(a==='reconnect')reconnect(b.folder);
+   else if(a==='newstack'){const gid=newGroup(titleOf(b),[id]);done('New stack started');setTimeout(()=>askText('Name the stack',gName(S.groups[gid]),v=>{if(v){S.groups[gid].name=v;done()}}),250)}
+   else if(a.startsWith('to:')){setGroup(id,a.slice(3),0);done('Added to “'+gName(S.groups[a.slice(3)])+'”')}
+   else if(a==='out'){unstack(id)}
+   else if(a==='rename')askText('Rename book',titleOf(b),v=>{b.customTitle=v||'';done()});
+   else if(a==='reset'){b.lastPage=0;done()}
+   else if(a==='forget')confirmSheet('Remove from library?','“'+titleOf(b)+'” leaves your library and stacks. The file itself isn’t touched; rescanning its folder brings it back.','Remove',()=>{detach(id);delete S.books[id];files.delete(id);idb.del('thumbs',id);done('Removed')});
+  });
+}
+function unstack(id){const g=gOf(id);if(!g)return;const pos=S.order.indexOf('g:'+g.id);detach(id);ensureOrder();const k='b:'+id;S.order=S.order.filter(x=>x!==k);S.order.splice(pos<0?S.order.length:pos+1,0,k);done('Taken out of “'+gName(g)+'”')}
+function done(msg){ensureOrder();render();save();if(msg)toast(msg)}
+function stackMenu(gid){
+ const g=S.groups[gid];if(!g)return;
+ sheet(X+'<h2>'+esc(gName(g))+'</h2><p>'+g.books.length+' books</p><div class="menu">'+mi('open','Open stack','stack')+mi('rename','Rename stack','')+mi('sort','Sort this stack by title','')+mi('unstack','Unstack all (books stay in library)','','dang')+'</div>',a=>{closeSheet(true);
+  if(a==='open')openStack(gid);else if(a==='rename')askText('Rename stack',gName(g),v=>{g.name=v||g.name;done()});
+  else if(a==='sort'){g.books.sort((x,y)=>natCmp(titleOf(S.books[x]),titleOf(S.books[y])));done('Sorted')}
+  else if(a==='unstack'){const pos=S.order.indexOf('g:'+gid);const ids=g.books.slice();ids.forEach(detach);ensureOrder();S.order=S.order.filter(k=>!ids.includes(k.slice(2)));S.order.splice(Math.max(0,pos),0,...ids.map(i=>'b:'+i));if(svId===gid)closeStack();done('Unstacked')}});
+}
+function reconnect(fid){const f=S.folders[fid];if(!f){addFolder();return}if(f.mode==='linked'&&handles.has(fid))scanLinked(fid,true);else if(f.mode==='files')$('#pickFiles').click();else addFolder()}
+function foldersSheet(){
+ const fs=Object.values(S.folders);
+ const li=f=>{const n=Object.values(S.books).filter(b=>b.folder===f.id).length,m=Object.values(S.books).filter(b=>b.folder===f.id&&missing(b)).length;
+  const how=f.mode==='linked'?(needPerm.has(f.id)?'Linked · needs a tap to reconnect':'Linked · rescans itself'):f.mode==='files'?'Single files you added':'Picked · pick again after reloading';
+  return '<li><svg class="ico"><use href="#i-folder"/></svg><div class="grow"><b>'+esc(f.name)+'</b><small>'+n+' books'+(m?' · '+m+' offline':'')+' · '+how+'</small></div><button class="btn sm" data-a="scan:'+f.id+'">'+(f.mode==='linked'&&!needPerm.has(f.id)?'Rescan':'Reconnect')+'</button><button class="btn sm ghost" data-a="forget:'+f.id+'" aria-label="Forget folder"><svg class="ico"><use href="#i-x"/></svg></button></li>'};
+ const offl=Object.values(S.books).filter(missing).length;
+ sheet(X+'<h2>Folders</h2><p>'+(FSA_OK?'Linked folders are remembered and rescanned on every visit.':'In this browser, folders you pick are read for this visit only. Your stacks, covers and reading spots are kept, so books show as offline until you pick the folder again.')+'</p><div class="row"><button class="btn pri" data-a="add"><svg class="ico"><use href="#i-folder"/></svg>Add a folder</button><button class="btn" data-a="files"><svg class="ico"><use href="#i-file"/></svg>Add files</button></div>'+(fs.length?'<ul class="list">'+fs.map(li).join('')+'</ul>':'<p>No folders yet.</p>')+(offl?'<div class="row"><button class="btn sm" data-a="prune">Remove '+offl+' offline book'+(offl===1?'':'s')+' from the library</button></div>':''),(a)=>{
+  if(a==='add'){closeSheet(true);addFolder()}else if(a==='files'){closeSheet(true);$('#pickFiles').click()}
+  else if(a.startsWith('scan:')){closeSheet(true);reconnect(a.slice(5))}
+  else if(a.startsWith('forget:')){const fid=a.slice(7),f=S.folders[fid];closeSheet(true);confirmSheet('Forget “'+f.name+'”?','Its books leave your library and stacks. Nothing is deleted from your device.','Forget folder',()=>{for(const b of Object.values(S.books))if(b.folder===fid){detach(b.id);delete S.books[b.id];files.delete(b.id);idb.del('thumbs',b.id)}delete S.folders[fid];handles.delete(fid);idb.del('handles',fid);needPerm.delete(fid);if(S.settings.saveFolder===fid)S.settings.saveFolder=null;done('Folder forgotten');banner()})}
+  else if(a==='prune'){closeSheet(true);confirmSheet('Remove offline books?','Books whose files aren’t connected right now leave the library and their stacks.','Remove',()=>{for(const b of Object.values(S.books))if(missing(b)){detach(b.id);delete S.books[b.id];idb.del('thumbs',b.id)}done('Offline books removed');banner()})}
+ });
+}
+function saveSheet(){
+ const fid=saveFolderId(),linked=Object.values(S.folders).filter(f=>f.mode==='linked'&&handles.has(f.id));
+ sheet(X+'<h2>Library save file</h2><p>Stacks saves which books are in which stacks, their order, titles you changed and where you stopped reading. It updates on its own after every change.</p><ul class="list"><li><svg class="ico"><use href="#i-save"/></svg><div class="grow"><b>On this device</b><small>'+(saveInfo.local?'Updated '+time(saveInfo.local):'Not saved yet')+'</small></div></li>'+
+  '<li><svg class="ico"><use href="#i-folder"/></svg><div class="grow"><b>'+(fid?esc(S.folders[fid].name)+'/'+SAVE_NAME:'In your books folder')+'</b><small>'+(fid?(saveInfo.folderAt?'Updated '+time(saveInfo.folderAt):'Updates with the next change'):FSA_OK?'Link a folder to keep '+SAVE_NAME+' next to your books.':'This browser can’t write into folders from here. Export the file below and drop it in your books folder; it loads when you pick that folder on any device.')+'</small></div></li></ul>'+
+  (linked.length>1?'<h3>Write the save file into</h3><select id="saveTo" class="field">'+linked.map(f=>'<option value="'+f.id+'"'+(f.id===fid?' selected':'')+'>'+esc(f.name)+'</option>').join('')+'</select>':'')+
+  '<div class="row"><button class="btn pri" data-a="export"><svg class="ico"><use href="#i-save"/></svg>Export save file</button><button class="btn" data-a="copy">Copy save data</button><button class="btn" data-a="import">Load a save file</button></div><p style="font-size:13px">Loading a save file from another device restores its stacks for any books with the same files.</p>',async a=>{
+  if(a==='export')exportSave();else if(a==='copy'){try{await navigator.clipboard.writeText(exportJSON());toast('Save data copied')}catch(e){toast('Copy was blocked by the browser')}}else if(a==='import'){closeSheet(true);$('#pickSave').click()}});
+ const st=$('#saveTo');st&&st.addEventListener('change',()=>{S.settings.saveFolder=st.value;save()});
+}
+async function exportSave(){
+ const name='stacks-library.json',data=exportJSON();
+ if(downloads){try{await downloads.save({filename:name,data});toast('Save file exported');return}catch(e){toast('Export was cancelled');return}}
+ try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast('Save file exported')}catch(e){toast('Downloads are blocked here — use Copy save data instead')}
+}
+$('#btnFolders').addEventListener('click',foldersSheet);
+$('#saveChip').addEventListener('click',saveSheet);
+$('#btnAdd').addEventListener('click',()=>sheet(X+'<h2>Add to your library</h2><div class="menu">'+mi('folder','Add a folder','folder')+mi('files','Add single files','file')+mi('import','Load a save file','save')+'</div><p style="font-size:13px">Books inside sub-folders are found too. A folder of loose images becomes one book.</p>',a=>{closeSheet(true);if(a==='folder')addFolder();else if(a==='files')$('#pickFiles').click();else $('#pickSave').click()}));
+
+/* ---------- drag and drop ---------- */
+let press=null,drag=null,ghost=null,dropT=null,scrollIv=0;
+function startPress(e,el,ctx){if(e.button>0)return;const st={x:e.clientX,y:e.clientY,el,ctx,key:el.dataset.key,pid:e.pointerId,type:e.pointerType,active:false,moved:false,long:false,timer:0};press=st;
+ if(e.pointerType!=='mouse')st.timer=setTimeout(()=>{if(press===st&&!st.moved){st.long=true;beginDrag(st,st.x,st.y);try{navigator.vibrate&&navigator.vibrate(12)}catch(err){}}},340)}
+function beginDrag(st,x,y){
+ st.active=true;drag=st;ghost=document.createElement('div');ghost.className='dragghost';const sc=st.el.querySelector('.scene');ghost.innerHTML=sc?sc.innerHTML:'';document.body.appendChild(ghost);st.el.classList.add('dragging');
+ const db=$('#dropbar');const id=st.key.slice(2);
+ if(st.ctx==='stack'){const others=Object.values(S.groups).filter(g=>g.id!==svId).slice(0,5);db.innerHTML='<div class="dz" data-drop="out"><svg class="ico"><use href="#i-back"/></svg>Take out of stack</div>'+others.map(g=>'<div class="dz" data-drop="g:'+g.id+'">Move to “'+esc(gName(g))+'”</div>').join('')+'<div class="dz" data-drop="new"><svg class="ico"><use href="#i-plus"/></svg>New stack</div>'}
+ else db.innerHTML='<div class="dz" style="border-style:solid">Drop on a book or stack to stack them · drop at a book’s edge to reorder</div>'+(st.key[0]==='b'&&S.books[id].group?'':'');
+ db.classList.add('on');moveDrag(x,y);
+ clearInterval(scrollIv);scrollIv=setInterval(()=>{if(!drag)return;const y=drag.cy;if(drag.ctx==='shelf'){if(y<90)scrollBy(0,-12);else if(y>innerHeight-110)scrollBy(0,12)}else{const c=$('#car');const x=drag.cx;if(x<70)c.scrollLeft-=14;else if(x>innerWidth-70)c.scrollLeft+=14}},16);
+}
+function clearHot(){$$('.drop,.before,.after,.hot').forEach(e=>e.classList.remove('drop','before','after','hot'))}
+function moveDrag(x,y){if(!drag)return;drag.cx=x;drag.cy=y;ghost.style.left=x+'px';ghost.style.top=y+'px';clearHot();dropT=null;
+ const el=document.elementFromPoint(x,y);if(!el)return;const dz=el.closest('.dz[data-drop]');if(dz){dz.classList.add('hot');dropT={zone:dz.dataset.drop};return}
+ const sel=drag.ctx==='stack'?'.slide':'.tile';const t=el.closest(sel);if(!t||t===drag.el)return;const r=t.getBoundingClientRect(),fx=(x-r.left)/r.width;
+ if(drag.ctx==='stack'){const pos=fx<.5?'before':'after';t.classList.add(pos);dropT={key:t.dataset.key,pos};return}
+ const pos=fx<.2?'before':fx>.8?'after':'onto';t.classList.add(pos==='onto'?'drop':pos);dropT={key:t.dataset.key,pos};
+}
+function cancelDrag(){clearInterval(scrollIv);if(ghost)ghost.remove();ghost=null;if(drag)drag.el.classList.remove('dragging');drag=null;clearHot();$('#dropbar').classList.remove('on')}
+function endDrag(){const st=drag,t=dropT;cancelDrag();if(!st||!t)return;
+ const sk=st.key,sid=sk.slice(2);
+ if(st.ctx==='stack'){
+  if(t.zone==='out'){unstack(sid);return}
+  if(t.zone==='new'){const gid=newGroup(titleOf(S.books[sid]),[sid]);done('Moved to a new stack');setTimeout(()=>askText('Name the stack',gName(S.groups[gid]),v=>{if(v){S.groups[gid].name=v;done()}}),200);return}
+  if(t.zone&&t.zone.startsWith('g:')){setGroup(sid,t.zone.slice(2),0);done('Moved to “'+gName(S.groups[t.zone.slice(2)])+'”');return}
+  if(t.key){const g=S.groups[svId];const tid=t.key.slice(2);g.books=g.books.filter(x=>x!==sid);let i=g.books.indexOf(tid);if(t.pos==='after')i++;g.books.splice(i,0,sid);svIndex=i;done();scrollToSlide(i,false);return}
+  return}
+ if(!t.key||t.key===sk)return;const tk=t.key,tid=tk.slice(2);
+ if(t.pos==='onto'){
+  if(sk[0]==='b'&&tk[0]==='b'){const pos=S.order.indexOf(tk);const gid=newGroup(suggestName([sid,tid]),[sid,tid]);ensureOrder();S.order=S.order.filter(k=>k!=='g:'+gid);S.order.splice(Math.max(0,Math.min(pos,S.order.length)),0,'g:'+gid);done('Stacked “'+gName(S.groups[gid])+'”')}
+  else if(sk[0]==='b'&&tk[0]==='g'){setGroup(sid,tid,0);done('Added to “'+gName(S.groups[tid])+'”')}
+  else if(sk[0]==='g'&&tk[0]==='g'){const ids=S.groups[sid].books.slice();ids.forEach((b,i)=>setGroup(b,tid,i));done('Stacks merged into “'+gName(S.groups[tid])+'”')}
+  else if(sk[0]==='g'&&tk[0]==='b'){const pos=S.order.indexOf(tk);setGroup(tid,sid,S.groups[sid].books.length);ensureOrder();S.order=S.order.filter(k=>k!==sk);S.order.splice(Math.max(0,Math.min(pos,S.order.length)),0,sk);done('Added to “'+gName(S.groups[sid])+'”')}
+  return}
+ // reorder
+ if(S.settings.sort!=='manual'||query){const vis=visibleKeys();const rest=S.order.filter(k=>!vis.includes(k));S.order=vis.concat(rest);S.settings.sort='manual';$('#sort').value='manual'}
+ S.order=S.order.filter(k=>k!==sk);let i=S.order.indexOf(tk);if(t.pos==='after')i++;S.order.splice(i,0,sk);done();
+}
+window.addEventListener('pointermove',e=>{const st=press;if(!st||e.pointerId!==st.pid)return;const far=Math.hypot(e.clientX-st.x,e.clientY-st.y)>8;
+ if(!st.active){if(far){st.moved=true;clearTimeout(st.timer);if(st.type==='mouse')beginDrag(st,e.clientX,e.clientY);else press=null}return}
+ st.moved=st.moved||far;moveDrag(e.clientX,e.clientY)});
+window.addEventListener('pointerup',e=>{const st=press;if(!st||e.pointerId!==st.pid)return;clearTimeout(st.timer);press=null;
+ if(st.active&&st.moved){endDrag();return}
+ if(st.active){cancelDrag();if(st.long){openMenu(st.key);return}}
+ if(!st.moved)activate(st)});
+window.addEventListener('pointercancel',e=>{if(press&&e.pointerId===press.pid){clearTimeout(press.timer);press=null;cancelDrag()}});
+document.addEventListener('touchmove',e=>{if(drag)e.preventDefault()},{passive:false});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(drag)cancelDrag();else if(sheetEl)closeSheet();else if(svId&&!document.querySelector('.rd.on'))closeStack()}});
+function openMenu(k){if(k[0]==='g')stackMenu(k.slice(2));else bookMenu(k.slice(2))}
+function activate(st){const k=st.key;if(st.ctx==='stack'){const i=+st.el.dataset.i;if(i===svIndex)openBook(k.slice(2));else scrollToSlide(i,true);return}if(k[0]==='g')openStack(k.slice(2));else openBook(k.slice(2))}
+$('#main').addEventListener('pointerdown',e=>{if(e.target.closest('[data-more]'))return;const t=e.target.closest('.tile');if(t)startPress(e,t,'shelf')});
+$('#main').addEventListener('click',e=>{const m=e.target.closest('[data-more]');if(m){e.stopPropagation();openMenu(m.closest('.tile').dataset.key)}});
+$('#main').addEventListener('contextmenu',e=>{const t=e.target.closest('.tile');if(t){e.preventDefault();if(press){clearTimeout(press.timer);press=null}if(!drag)openMenu(t.dataset.key)}});
+$('#main').addEventListener('keydown',e=>{const t=e.target.closest('.tile');if(!t)return;if(e.key==='Enter'||e.key===' '){e.preventDefault();activate({key:t.dataset.key,ctx:'shelf'})}else if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){e.preventDefault();openMenu(t.dataset.key)}});
+
+/* ---------- stack view (swipe through a stack) ---------- */
+let svId=null,svIndex=0;const car=$('#car');
+function openStack(gid){svId=gid;svIndex=0;$('#sv').classList.add('on');renderStack();requestAnimationFrame(()=>{car.scrollLeft=0;flowFx()})}
+function closeStack(){svId=null;$('#sv').classList.remove('on');render()}
+function renderStack(){
+ const g=S.groups[svId];if(!g){closeStack();return}
+ const H=Math.max(200,Math.min(330,innerHeight*0.42));car.style.setProperty('--sw',Math.round(Math.min(innerWidth*0.62,H*0.72+90))+'px');
+ const nm=$('#svName');if(document.activeElement!==nm)nm.value=gName(g);$('#svCount').textContent=g.books.length+' book'+(g.books.length===1?'':'s');
+ car.innerHTML=g.books.map((id,i)=>'<div class="slide" data-key="b:'+id+'" data-i="'+i+'"><div class="scene"'+(missing(S.books[id])?' style="opacity:.5;filter:grayscale(.7)"':'')+'>'+standBook(S.books[id],H,0)+'</div></div>').join('');
+ svIndex=Math.min(svIndex,g.books.length-1);flowFx();info();
+}
+function info(){const g=S.groups[svId];if(!g)return;const id=g.books[svIndex],b=S.books[id];if(!b){$('#svInfo').innerHTML='';return}const miss=missing(b);
+ $('#svInfo').innerHTML=(g.books.length<=40?'<div class="dots">'+g.books.map((_,i)=>'<i class="'+(i===svIndex?'on':'')+'"></i>').join('')+'</div>':'<p>'+(svIndex+1)+' of '+g.books.length+'</p>')+'<h3>'+esc(titleOf(b))+'</h3><p>'+esc([b.author,fmtOf(b),progressText(b)].filter(Boolean).join(' · '))+'</p>'+(b.note?'<p style="color:var(--acc2);max-width:520px">'+esc(b.note)+'</p>':'')+
+ '<div class="row">'+(miss?'<button class="btn pri" data-sv="reconnect">Reconnect its folder</button>':'<button class="btn pri" data-sv="3d"><svg class="ico"><use href="#i-cube"/></svg>Read in 3D</button><button class="btn" data-sv="flat"><svg class="ico"><use href="#i-pages"/></svg>Read flat</button>')+'<button class="btn" data-sv="left" aria-label="Move earlier in stack" '+(svIndex?'':'disabled')+'><svg class="ico"><use href="#i-back"/></svg></button><button class="btn" data-sv="right" aria-label="Move later in stack" '+(svIndex<g.books.length-1?'':'disabled')+'><svg class="ico"><use href="#i-next"/></svg></button><button class="btn" data-sv="out">Take out</button><button class="btn" data-sv="more" aria-label="More"><svg class="ico"><use href="#i-dots"/></svg></button></div>'}
+$('#svInfo').addEventListener('click',e=>{const a=e.target.closest('[data-sv]');if(!a)return;const g=S.groups[svId],id=g.books[svIndex],k=a.dataset.sv;
+ if(k==='3d')openBook(id,'3d');else if(k==='flat')openBook(id,'flat');else if(k==='reconnect')reconnect(S.books[id].folder);else if(k==='more')bookMenu(id);
+ else if(k==='out'){unstack(id);if(S.groups[svId])renderStack()}
+ else if(k==='left'||k==='right'){const j=svIndex+(k==='left'?-1:1);[g.books[svIndex],g.books[j]]=[g.books[j],g.books[svIndex]];svIndex=j;done();renderStack();scrollToSlide(j,false)}});
+function slideW(){const s=car.querySelector('.slide');return s?s.offsetWidth:220}
+function scrollToSlide(i,smooth){car.scrollTo({left:i*slideW(),behavior:smooth?'smooth':'auto'})}
+let fxq=0;function flowFx(){const w=slideW(),c=car.scrollLeft/w;$$('.slide',car).forEach((s,i)=>{const d=i-c,ad=Math.min(3,Math.abs(d));const sc=s.firstElementChild;sc.style.transform='translateZ('+(-ad*90)+'px) rotateY('+Math.max(-60,Math.min(60,22-d*34))+'deg)';sc.style.zIndex=String(100-Math.round(ad*10))});
+ const i=Math.max(0,Math.min(Math.round(c),car.children.length-1));if(i!==svIndex){svIndex=i;info()}}
+car.addEventListener('scroll',()=>{if(!fxq)fxq=requestAnimationFrame(()=>{fxq=0;flowFx()})},{passive:true});
+car.addEventListener('pointerdown',e=>{const t=e.target.closest('.slide');if(t)startPress(e,t,'stack')});
+car.addEventListener('contextmenu',e=>{const t=e.target.closest('.slide');if(t){e.preventDefault();if(press){clearTimeout(press.timer);press=null}if(!drag)bookMenu(t.dataset.key.slice(2))}});
+$('#carPrev').addEventListener('click',()=>scrollToSlide(Math.max(0,svIndex-1),true));
+$('#carNext').addEventListener('click',()=>scrollToSlide(Math.min(car.children.length-1,svIndex+1),true));
+$('#svClose').addEventListener('click',closeStack);
+$('#svMenu').addEventListener('click',()=>stackMenu(svId));
+$('#svName').addEventListener('change',e=>{const g=S.groups[svId];if(g){g.name=e.target.value.trim()||g.name;done()}});
+document.addEventListener('keydown',e=>{if(!svId||document.querySelector('.rd.on')||sheetEl||e.target.closest('input'))return;if(e.key==='ArrowRight')scrollToSlide(Math.min(car.children.length-1,svIndex+1),true);else if(e.key==='ArrowLeft')scrollToSlide(Math.max(0,svIndex-1),true);else if(e.key==='Enter'){const g=S.groups[svId];g&&openBook(g.books[svIndex])}});
+addEventListener('resize',()=>{if(svId)renderStack()});
+
+/* ---------- reading ---------- */
+function openBook(id,mode){
+ const b=S.books[id];if(!b)return;if(missing(b)){bookMenu(id);return}
+ if(b.note&&/can’t|DRM|password|RAR-compressed/.test(b.note)&&!b.pages){bookMenu(id);return}
+ window.StacksReader.open(b,files.get(id),{mode:mode||S.settings.mode,settings:S.settings,title:titleOf(b),
+  onPage(p,n){b.lastPage=p;b.lastRead=Date.now();if(n&&(b.est||!b.pages||b.kind==='epub'||b.kind==='images'||b.kind==='comic')&&n!==b.pages){b.pages=n;b.est=false}save()},
+  onSettings(){save()},onClose(){render();if(svId)renderStack()}});
+}
+
+/* ---------- boot ---------- */
+async function boot(){
+ let raw=await idb.get('kv','state');if(!raw){try{raw=localStorage.getItem('stacks-library')}catch(e){}}
+ if(raw){try{const d=JSON.parse(raw);S={...DEF(),...d,settings:{...DEF().settings,...(d.settings||{})}};saveInfo.local=S.savedAt}catch(e){}}
+ $('#sort').value=S.settings.sort||'manual';
+ for(const[k,v]of await idb.all('thumbs'))if(v instanceof Blob)thumbs.set(k,URL.createObjectURL(v));
+ for(const[k,v]of await idb.all('handles'))if(S.folders[k])handles.set(k,v);
+ ensureOrder();render();chip();banner();
+ for(const[fid,h]of handles){const p=await h.queryPermission({mode:'readwrite'}).catch(()=>'denied');if(p==='granted')scanLinked(fid,false);else needPerm.add(fid)}
+ banner();
+ if(window.claude&&claude.use)claude.use('downloads').then(d=>{downloads=d}).catch(()=>{});
+}
+window.StacksApp={toast,save,S:()=>S,ingest,files,render};
+boot();
+})();
+</script>
+<script>
+(()=>{
+const F=window.StacksFmt;const {$,$$,esc,raf}=F;
+const rd=$('#rd'),stage=$('#rstage'),opt=$('#ropt');
+const PW=460,PH=690,PADX=40,PADT=46,PADB=58,FW=PW-2*PADX,FH=PH-PADT-PADB;
+let R=null;
+
+/* ---------- reflowable text pagination ---------- */
+const flowCSS=f=>'width:'+FW+'px;height:'+FH+'px;column-width:'+FW+'px;font-size:'+f+'px;line-height:1.55;--fh:'+(FH-8)+'px';
+async function paginate(chs,font,onProg){
+ const host=document.createElement('div');host.style.cssText='position:fixed;left:-20000px;top:0;visibility:hidden;pointer-events:none';document.body.appendChild(host);
+ const counts=[];
+ for(let i=0;i<chs.length;i++){
+  const el=document.createElement('div');el.className='flow';el.style.cssText=flowCSS(font);el.innerHTML=chs[i];host.replaceChildren(el);
+  const ims=[...el.querySelectorAll('img')];if(ims.length)await Promise.race([Promise.all(ims.map(im=>im.decode().catch(()=>{}))),new Promise(r=>setTimeout(r,1500))]);
+  counts.push(Math.max(1,Math.ceil((el.scrollWidth-2)/FW)));
+  if(i%2===1){onProg&&onProg(i+1,chs.length);await raf()}
+ }
+ host.remove();return counts;
+}
+function locate(g){const s=R.starts;let lo=0,hi=s.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(s[m]<=g)lo=m;else hi=m-1}return{c:lo,k:g-s[lo]}}
+
+/* ---------- faces ---------- */
+function face(p,cls){
+ const f=document.createElement('div');f.className='face '+(cls||'');
+ if(p<0||p>=R.n){f.classList.add('blank');return f}
+ if(R.doc.type==='img'){const im=document.createElement('img');im.alt='';im.decoding='async';im.draggable=false;f.appendChild(im);const tok=R.tok;R.doc.url(p).then(u=>{if(R&&R.tok===tok)im.src=u}).catch(err=>{if(R&&R.tok===tok){f.innerHTML='<div class="rmsg" style="color:#6b5c55"><div><b style="font-size:16px">Page '+(p+1)+' couldn’t be shown</b><p style="font-size:13px">'+esc(err.message||'')+'</p></div></div>'}})}
+ else{const{c,k}=locate(p);const pg=document.createElement('div');pg.className='fpage';pg.style.cssText='width:'+PW+'px;height:'+PH+'px';
+  pg.innerHTML='<div class="fclip" style="left:'+PADX+'px;top:'+PADT+'px;width:'+FW+'px;height:'+FH+'px"><div class="flow" style="'+flowCSS(R.font)+';transform:translateX('+(-k*FW)+'px)"></div></div><div class="folio">'+(p+1)+'</div>';
+  pg.querySelector('.flow').innerHTML=R.doc.chapters[c];f.appendChild(pg)}
+ const g=document.createElement('div');g.className='gutter';f.appendChild(g);
+ const sh=document.createElement('div');sh.className='shade';f.appendChild(sh);
+ return f;
+}
+function prefetch(p){if(R.doc.type!=='img')return;for(const d of[1,2,3,-1,4]){const q=p+d;if(q>=0&&q<R.n)R.doc.url(q).catch(()=>{})}}
+
+/* ---------- geometry ---------- */
+const aspect=()=>R.doc.type==='flow'?PW/PH:R.doc.aspect;
+function geom(){
+ const W=stage.clientWidth,H=stage.clientHeight,a=aspect();let pw,ph;
+ if(R.mode==='3d'){if(R.spread===2){pw=Math.min((W-90)/2,(H-70)*a*0.92)}else{pw=Math.min(W-60,(H-70)*a*0.92)}}
+ else{if(R.spread===2){pw=Math.min((W-16)/2,(H-16)*a)}else{pw=Math.min(W-16,(H-16)*a)}}
+ pw=Math.max(80,Math.floor(pw));ph=Math.floor(pw/a);R.pw=pw;R.ph=ph;rd.style.setProperty('--fs-scale',String(pw/PW));
+}
+/* spreads: offset o=0 → cover alone, o=1 → pairs from page 1 */
+const off=()=>R.coverAlone?0:1;
+const leaves=()=>Math.ceil((R.n+off())/2);
+const spreadOf=p=>Math.floor((p+off()+1)/2);
+const pagesOf=s=>[2*s-1-off(),2*s-off()];
+function firstVisible(s){const[l,r]=pagesOf(s);return l>=0&&l<R.n?l:Math.min(R.n-1,Math.max(0,r))}
+
+/* ---------- 3D book ---------- */
+let leafEls=new Map(),bk=null;
+function build3d(){
+ stage.innerHTML='';leafEls=new Map();geom();const{pw,ph}=R,L=leaves();
+ const T=Math.max(4,Math.min(34,R.n*0.055))*(ph/600);R.T=T;
+ const wrap=document.createElement('div');wrap.className='r3d'+(R.rtl?' rtl':'');
+ bk=document.createElement('div');bk.className='bk';bk.style.width=pw*2+'px';bk.style.height=ph+'px';
+ bk.innerHTML='<div class="board bl" style="left:-6px;top:-6px;width:'+(pw+6)+'px;height:'+(ph+12)+'px;--bz:'+(-(T+2))+'px"></div><div class="board br" style="left:'+pw+'px;top:-6px;width:'+(pw+6)+'px;height:'+(ph+12)+'px;--bz:'+(-(T+2))+'px"></div>'+
+  '<div class="stackp sl" style="left:0;width:'+pw+'px;height:'+ph+'px"><div class="edge pgV" style="transform:rotateX(90deg)"></div><div class="side pgV"></div></div>'+
+  '<div class="stackp sr" style="left:'+pw+'px;width:'+pw+'px;height:'+ph+'px"><div class="edge pgV" style="transform:rotateX(90deg)"></div><div class="side pgV"></div></div>';
+ wrap.appendChild(bk);stage.appendChild(wrap);update3d(false);
+}
+function leafEl(j){
+ const o=off(),el=document.createElement('div');el.className='leaf';el.dataset.j=j;el.style.cssText='left:'+R.pw+'px;width:'+R.pw+'px;height:'+R.ph+'px';
+ const fr=face(2*j-o,'front'+(2*j-o===0?' cover':'')),bkf=face(2*j+1-o,'back');el.appendChild(fr);el.appendChild(bkf);return el;
+}
+function leafT(j,cur){return j>=cur?'rotateY(0deg) translateZ('+(-(j-cur)*1.2)+'px)':'rotateY(-180deg) translateZ('+((cur-1-j)*1.2)+'px)'}
+function update3d(anim){
+ const L=leaves(),cur=R.cur,{pw,ph,T}=R;
+ const need=new Set();for(let j=cur-3;j<=cur+2;j++)if(j>=0&&j<L)need.add(j);
+ for(const[j,el]of leafEls)if(!need.has(j)&&!el._busy){el.remove();leafEls.delete(j)}
+ for(const j of need){let el=leafEls.get(j);if(!el){el=leafEl(j);el.style.transform=leafT(j,cur);bk.appendChild(el);leafEls.set(j,el)}else{el.classList.toggle('anim',!!anim);el.style.transform=leafT(j,cur)}}
+ const tl=Math.max(cur?1.5:0,T*cur/L),tr=Math.max(cur<L?1.5:0,T*(L-cur)/L);
+ const sl=bk.querySelector('.sl'),sr=bk.querySelector('.sr');
+ sl.style.transform='translateZ(-1px)';sl.querySelector('.edge').style.cssText='height:'+tl+'px;transform:rotateX(90deg)';sl.querySelector('.side').style.cssText='left:'+(-tl)+'px;width:'+tl+'px;transform-origin:100% 50%;transform:rotateY(-90deg)';
+ sr.style.transform='translateZ(-1px)';sr.querySelector('.edge').style.cssText='height:'+tr+'px;transform:rotateX(90deg)';sr.querySelector('.side').style.cssText='left:'+pw+'px;width:'+tr+'px;transform-origin:0 50%;transform:rotateY(90deg)';
+ sl.style.display=cur?'':'none';sr.style.display=cur<L?'':'none';bk.querySelector('.bl').style.display=cur?'':'none';bk.querySelector('.br').style.display=cur<L?'':'none';
+ let tx=0,sc=1;
+ if(R.spread===2){if(cur===0)tx=-pw/2;else if(cur===L)tx=pw/2}
+ else{tx=R.side==='left'?pw/2:-pw/2;if(cur===0)tx=-pw/2;if(cur===L)tx=pw/2}
+ if(R.rtl)tx=-tx;
+ bk.style.transform='translateX('+tx+'px) rotateX(16deg) scale('+sc+')'+(R.rtl?' scaleX(-1)':'');
+ if(R.rtl)$$('.face',bk).forEach(f=>f.style.transform=(f.classList.contains('back')?'rotateY(180deg) ':'')+'scaleX(-1)');
+}
+function turn3d(dir){
+ const L=leaves();
+ if(R.spread===1){
+  if(dir>0){if(R.side==='left'&&R.cur<L&&R.cur>0){R.side='right';update3d(true);return true}if(R.cur>=L)return false;R.cur++;R.side='left';flipFx(R.cur-1);update3d(true);if(R.cur===L)R.side='left';return true}
+  else{if(R.side==='right'&&R.cur>0&&R.cur<L){R.side='left';update3d(true);return true}if(R.cur<=0)return false;R.cur--;R.side=R.cur===0?'right':'right';flipFx(R.cur);update3d(true);return true}
+ }
+ const n=R.cur+dir;if(n<0||n>L)return false;R.cur=n;flipFx(dir>0?n-1:n);update3d(true);return true;
+}
+function flipFx(j){const el=leafEls.get(j);if(!el)return;el.classList.add('moving');el._busy=true;clearTimeout(el._t);el._t=setTimeout(()=>{el.classList.remove('moving');el._busy=false;if(R&&R.mode==='3d')update3d(false)},600)}
+function page3d(){const[l,r]=pagesOf(R.cur);if(R.spread===1){const p=R.side==='left'?l:r;return Math.max(0,Math.min(R.n-1,p>=0&&p<R.n?p:(l>=0&&l<R.n?l:r)))}return firstVisible(R.cur)}
+
+/* ---------- flat viewer ---------- */
+let fsp=null,zoom={z:1,x:0,y:0};
+function buildFlat(){stage.innerHTML='<div class="rflat"></div>';geom();drawFlat(0)}
+function flatPages(){if(R.spread===1)return[R.page];const[l,r]=pagesOf(spreadOf(R.page));return[l,r].filter(p=>p>=0&&p<R.n)}
+function drawFlat(slideFrom){
+ const host=stage.firstElementChild;if(!host)return;const ps=flatPages();const el=document.createElement('div');el.className='fsp';
+ const order=R.rtl?ps.slice().reverse():ps;
+ for(const p of order){const f=face(p,p===0?'cover':'');f.style.width=R.pw+'px';f.style.height=R.ph+'px';if(R.spread===1||ps.length===1)f.querySelector('.gutter').remove();else if(R.rtl){f.classList.add(p===order[0]?'back':'front')}else f.classList.add(p===order[0]?'back':'front');el.appendChild(f)}
+ host.replaceChildren(el);fsp=el;zoom={z:1,x:0,y:0};placeFlat(slideFrom?slideFrom*stage.clientWidth:0,false);
+ if(slideFrom){requestAnimationFrame(()=>requestAnimationFrame(()=>placeFlat(0,true)))}
+}
+function placeFlat(dx,anim){if(!fsp)return;const W=stage.clientWidth,H=stage.clientHeight,w=fsp.offsetWidth||R.pw,h=R.ph;
+ const x=(W-w)/2+zoom.x+dx,y=(H-h)/2+zoom.y;fsp.style.transition=anim?'transform .28s cubic-bezier(.2,.8,.2,1)':'none';fsp.style.transform='translate('+x+'px,'+y+'px) scale('+zoom.z+')';fsp.style.transformOrigin=(w/2)+'px '+(h/2)+'px';fsp.style.position='absolute';fsp.style.left='0';fsp.style.top='0'}
+function clampPan(){if(!fsp)return;const W=stage.clientWidth,H=stage.clientHeight,w=(fsp.offsetWidth||R.pw)*zoom.z,h=R.ph*zoom.z;const mx=Math.max(0,(w-W)/2),my=Math.max(0,(h-H)/2);zoom.x=Math.max(-mx,Math.min(mx,zoom.x));zoom.y=Math.max(-my,Math.min(my,zoom.y))}
+function stepFlat(dir){
+ let np;if(R.spread===1)np=R.page+dir;else{const s=spreadOf(R.page)+dir,L=leaves();if(s<0||s>L)return false;np=firstVisible(s)}
+ if(np<0||np>=R.n)return false;if(R.spread===2&&spreadOf(np)===spreadOf(R.page))return false;
+ const vis=R.rtl?-dir:dir;placeFlat(-vis*stage.clientWidth*0.35,true);fsp.style.opacity='0';fsp.style.transition+=',opacity .2s';
+ R.page=np;setTimeout(()=>{if(R&&R.mode==='flat')drawFlat(vis*0.35)},170);return true;
+}
+
+/* ---------- navigation ---------- */
+function curPage(){return R.mode==='3d'?page3d():R.page}
+function next(d){if(!R)return;const ok=R.mode==='3d'?turn3d(d):stepFlat(d);if(ok)after();}
+function goTo(p){p=Math.max(0,Math.min(R.n-1,p|0));R.page=p;if(R.mode==='3d'){R.cur=spreadOf(p);const[l]=pagesOf(R.cur);R.side=p===l?'left':'right';update3d(false)}else drawFlat(0);after()}
+let pageT=0;
+function after(){const p=curPage();R.page=p;$('#rRange').value=p;$('#rPg').textContent=(p+1)+' / '+R.n;prefetch(p);clearTimeout(pageT);pageT=setTimeout(()=>R&&R.cb.onPage&&R.cb.onPage(p,R.n),400)}
+function rebuild(p0){if(!R||!R.doc)return;const p=p0===undefined?curPage():p0;R.page=p;R.tok++;if(R.mode==='3d'){R.cur=spreadOf(p);const[l]=pagesOf(R.cur);R.side=p===l?'left':'right';build3d()}else buildFlat();toolbar();after()}
+
+/* ---------- pointer input ---------- */
+let pt=null,pinch=null,lastTap=0;const pts=new Map();
+stage.addEventListener('pointerdown',e=>{if(!R||!R.doc)return;stage.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pts.size===2&&R.mode==='flat'){const[a,b]=[...pts.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),z:zoom.z};pt=null;return}
+ pt={x:e.clientX,y:e.clientY,t:performance.now(),drag:false,id:e.pointerId,zx:zoom.x,zy:zoom.y};
+ if(R.mode==='3d'){const r=bk.getBoundingClientRect(),spine=r.left+r.width/2;let rel=e.clientX-spine;if(R.rtl)rel=-rel;const L=leaves();
+  if(R.spread===2||true){if(rel>0&&R.cur<L)pt.leaf={j:R.cur,dir:1};else if(rel<=0&&R.cur>0)pt.leaf={j:R.cur-1,dir:-1}}
+  pt.onBook=e.clientX>=r.left-10&&e.clientX<=r.right+10&&e.clientY>=r.top-10&&e.clientY<=r.bottom+10}});
+stage.addEventListener('pointermove',e=>{if(!R||!pts.has(e.pointerId))return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pinch&&pts.size===2){const[a,b]=[...pts.values()];zoom.z=Math.max(1,Math.min(5,pinch.z*Math.hypot(a.x-b.x,a.y-b.y)/pinch.d));clampPan();placeFlat(0,false);return}
+ if(!pt||pt.id!==e.pointerId)return;const dx=e.clientX-pt.x,dy=e.clientY-pt.y;if(!pt.drag&&Math.hypot(dx,dy)>7)pt.drag=true;if(!pt.drag)return;
+ if(R.mode==='flat'){if(zoom.z>1.01){zoom.x=pt.zx+dx;zoom.y=pt.zy+dy;clampPan();placeFlat(0,false)}else placeFlat(dx,false);return}
+ if(pt.leaf&&R.spread===2){const el=leafEls.get(pt.leaf.j);if(!el)return;let ddx=R.rtl?-dx:dx;const span=R.pw*1.25;
+  let a;if(pt.leaf.dir>0){pt.p=Math.max(0,Math.min(1,-ddx/span));a=-180*pt.p}else{pt.p=Math.max(0,Math.min(1,ddx/span));a=-180+180*pt.p}
+  el.classList.remove('anim');el.classList.add('moving');el._busy=true;el.style.transform='rotateY('+a+'deg) translateZ(3px)'}});
+function endPointer(e){if(!R)return;pts.delete(e.pointerId);if(pinch){if(pts.size<2)pinch=null;return}if(!pt||pt.id!==e.pointerId)return;const p=pt;pt=null;const dx=e.clientX-p.x,dt=performance.now()-p.t;
+ if(R.mode==='flat'){
+  if(p.drag){if(zoom.z>1.01)return;const v=dx/Math.max(1,dt);if(Math.abs(dx)>60||Math.abs(v)>0.5){const d=(dx<0?1:-1)*(R.rtl?-1:1);if(!stepFlat(d))placeFlat(0,true);else after()}else placeFlat(0,true);return}
+  const now=performance.now();if(now-lastTap<300){lastTap=0;const r=stage.getBoundingClientRect();if(zoom.z>1.01){zoom={z:1,x:0,y:0}}else{zoom.z=2.4;zoom.x=-(e.clientX-r.left-r.width/2)*1.4;zoom.y=-(e.clientY-r.top-r.height/2)*1.4;clampPan()}placeFlat(0,true);return}
+  lastTap=now;const fx=(e.clientX-stage.getBoundingClientRect().left)/stage.clientWidth;setTimeout(()=>{if(lastTap!==now||!R)return;if(zoom.z>1.01)return;if(fx<.3)next(R.rtl?1:-1);else if(fx>.7)next(R.rtl?-1:1);else rd.classList.toggle('calm')},260);return}
+ if(p.drag&&R.spread===1){if(Math.abs(dx)>40)next((dx<0?1:-1)*(R.rtl?-1:1));return}
+ if(p.drag&&p.leaf){const el=leafEls.get(p.leaf.j);const v=Math.abs(dx)/Math.max(1,dt);const go=(p.p||0)>0.3||(v>0.6&&(p.p||0)>0.05);
+  if(el){el._busy=false;el.classList.add('anim');}
+  if(go){if(R.spread===1){R.cur+=p.leaf.dir;R.side=p.leaf.dir>0?'left':'right'}else R.cur+=p.leaf.dir;flipFx(p.leaf.j);update3d(true);after()}else{if(el){el.style.transform=leafT(p.leaf.j,R.cur);setTimeout(()=>el.classList.remove('moving'),500)}}
+  return}
+ if(!p.drag){if(!p.onBook){rd.classList.toggle('calm');return}
+  if(R.spread===1){const fx=(e.clientX-stage.getBoundingClientRect().left)/stage.clientWidth;if(fx>.5)next(R.rtl?-1:1);else next(R.rtl?1:-1);return}
+  if(p.leaf)next(p.leaf.dir);else rd.classList.toggle('calm')}}
+stage.addEventListener('pointerup',endPointer);stage.addEventListener('pointercancel',e=>{pts.delete(e.pointerId);pinch=null;if(pt&&pt.leaf){const el=leafEls.get(pt.leaf.j);if(el){el._busy=false;el.classList.add('anim');el.style.transform=leafT(pt.leaf.j,R.cur)}}pt=null});
+stage.addEventListener('wheel',e=>{if(!R||!R.doc)return;e.preventDefault();
+ if(R.mode==='flat'&&(e.ctrlKey||zoom.z>1.01)){if(e.ctrlKey){zoom.z=Math.max(1,Math.min(5,zoom.z*(e.deltaY<0?1.12:0.89)));if(zoom.z<1.02)zoom={z:1,x:0,y:0}}else{zoom.x-=e.deltaX;zoom.y-=e.deltaY}clampPan();placeFlat(0,false);return}
+ const now=performance.now();if(now-(R.wheelT||0)<380)return;const d=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY;if(Math.abs(d)<8)return;R.wheelT=now;next(d>0?1:-1)},{passive:false});
+document.addEventListener('keydown',e=>{if(!R||!rd.classList.contains('on')||e.target.closest('input[type=text]'))return;
+ const k=e.key;if(k==='ArrowRight'||k==='PageDown'||(k===' '&&!e.shiftKey)){e.preventDefault();next(R.rtl&&k==='ArrowRight'?-1:1)}else if(k==='ArrowLeft'||k==='PageUp'||(k===' '&&e.shiftKey)){e.preventDefault();next(R.rtl&&k==='ArrowLeft'?1:-1)}
+ else if(k==='Home'){goTo(0)}else if(k==='End'){goTo(R.n-1)}else if(k==='Escape'){if(!opt.hidden)opt.hidden=true;else close()}});
+
+/* ---------- toolbar + options ---------- */
+function toolbar(){
+ $('#m3d').classList.toggle('on',R.mode==='3d');$('#mflat').classList.toggle('on',R.mode==='flat');
+ $('#sp1').classList.toggle('on',R.spread===1);$('#sp2').classList.toggle('on',R.spread===2);
+ rd.classList.toggle('light',!!R.st.light);$('#rRange').max=Math.max(0,R.n-1);
+}
+function setMode(m){if(!R||!R.doc)return;const p=curPage();R.mode=m;R.st.mode=m;rebuild(p);R.cb.onSettings&&R.cb.onSettings()}
+function setSpread(s){if(!R||!R.doc)return;const p=curPage();R.spread=s;R.st.spread=s;rebuild(p);R.cb.onSettings&&R.cb.onSettings()}
+$('#m3d').onclick=()=>setMode('3d');$('#mflat').onclick=()=>setMode('flat');$('#sp1').onclick=()=>setSpread(1);$('#sp2').onclick=()=>setSpread(2);
+$('#rPrev').onclick=()=>next(R&&R.rtl?1:-1);$('#rNext').onclick=()=>next(R&&R.rtl?-1:1);
+$('#rRange').addEventListener('input',e=>{$('#rPg').textContent=(+e.target.value+1)+' / '+R.n});
+$('#rRange').addEventListener('change',e=>goTo(+e.target.value));
+$('#rClose').onclick=()=>close();
+$('#rFull').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await rd.requestFullscreen()}catch(e){window.StacksApp.toast('Full screen isn’t available here')}};
+function optHTML(){const fl=R.doc&&R.doc.type==='flow';
+ return (fl?'<div class="orow"><span>Text size</span><div style="display:flex;gap:6px;align-items:center"><button class="btn" data-o="f-">A−</button><b style="min-width:30px;text-align:center">'+R.font+'</b><button class="btn" data-o="f+">A+</button></div></div>':'')+
+ '<div class="orow"><span>Reading direction</span><div class="seg"><button data-o="ltr" class="'+(R.rtl?'':'on')+'">Left → right</button><button data-o="rtl" class="'+(R.rtl?'on':'')+'">Manga</button></div></div>'+
+ '<div class="orow"><span>Two-page pairing</span><div class="seg"><button data-o="ca1" class="'+(R.coverAlone?'on':'')+'">Cover alone</button><button data-o="ca0" class="'+(R.coverAlone?'':'on')+'">From page 1</button></div></div>'+
+ '<div class="orow"><span>Room</span><div class="seg"><button data-o="dark" class="'+(R.st.light?'':'on')+'">Dark</button><button data-o="light" class="'+(R.st.light?'on':'')+'">Light</button></div></div>'+
+ (R.mode==='flat'?'<div class="orow"><span>Zoom</span><div style="display:flex;gap:6px"><button class="btn" data-o="z-">−</button><button class="btn" data-o="zw">Fit width</button><button class="btn" data-o="z+">+</button></div></div>':'')}
+$('#rOpt').onclick=e=>{e.stopPropagation();if(!R||!R.doc)return;opt.innerHTML=optHTML();opt.hidden=!opt.hidden};
+opt.addEventListener('click',async e=>{const b=e.target.closest('[data-o]');if(!b)return;const o=b.dataset.o;
+ if(o==='f-'||o==='f+'){const nf=Math.max(13,Math.min(30,R.font+(o==='f+'?2:-2)));if(nf!==R.font){const{c,k}=locate(curPage());const frac=k/Math.max(1,R.counts[c]);R.font=nf;R.st.font=nf;await layoutFlow();goTo(R.starts[c]+Math.min(R.counts[c]-1,Math.floor(frac*R.counts[c])));rebuild();R.cb.onSettings&&R.cb.onSettings()}}
+ else if(o==='ltr'||o==='rtl'){R.rtl=o==='rtl';R.b.rtl=R.rtl;rebuild();R.cb.onPage&&R.cb.onPage(curPage(),R.n)}
+ else if(o==='ca1'||o==='ca0'){R.coverAlone=o==='ca1';R.st.coverAlone=R.coverAlone;rebuild();R.cb.onSettings&&R.cb.onSettings()}
+ else if(o==='dark'||o==='light'){R.st.light=o==='light';toolbar();R.cb.onSettings&&R.cb.onSettings()}
+ else if(o==='z+'||o==='z-'){zoom.z=Math.max(1,Math.min(5,zoom.z*(o==='z+'?1.4:0.7)));if(zoom.z<1.05)zoom={z:1,x:0,y:0};clampPan();placeFlat(0,true)}
+ else if(o==='zw'){const w=fsp?fsp.offsetWidth:R.pw;zoom.z=Math.max(1,Math.min(5,(stage.clientWidth-8)/w));zoom.x=0;zoom.y=(R.ph*zoom.z-stage.clientHeight)/2;clampPan();placeFlat(0,true)}
+ opt.innerHTML=optHTML()});
+document.addEventListener('pointerdown',e=>{if(!opt.hidden&&!e.target.closest('#ropt,#rOpt'))opt.hidden=true});
+let rzT=0;addEventListener('resize',()=>{if(!R||!R.doc)return;clearTimeout(rzT);rzT=setTimeout(rebuild,150)});
+
+/* ---------- open / close ---------- */
+function msg(html){stage.innerHTML='<div class="rmsg"><div>'+html+'</div></div>'}
+async function layoutFlow(){msg('<div class="spin"></div><b>Laying out pages…</b><p id="lp"></p>');R.counts=await paginate(R.doc.chapters,R.font,(i,n)=>{const e=$('#lp');if(e)e.textContent=i+' of '+n+' chapters'});R.starts=[];let s=0;for(const c of R.counts){R.starts.push(s);s+=c}R.n=s}
+async function open(b,src,o){
+ if(R)close(true);
+ const st=o.settings;R={b,src,cb:o,st,mode:o.mode==='flat'?'flat':'3d',spread:st.spread===1||st.spread===2?st.spread:(innerWidth<innerHeight&&innerWidth<700?1:2),font:st.font||18,rtl:!!b.rtl,coverAlone:st.coverAlone!==false,page:0,cur:0,side:'right',tok:1,doc:null,n:0};
+ $('#rTitle').textContent=o.title;rd.classList.add('on');rd.classList.remove('calm');opt.hidden=true;toolbar();$('#rPg').textContent='';
+ document.body.style.overflow='hidden';msg('<div class="spin"></div><b>Opening…</b>');
+ const me=R;
+ try{const doc=await F.openDoc(b,src);if(R!==me){doc.dispose();return}R.doc=doc;if(doc.rtl&&b.rtl===undefined)R.rtl=true;
+  if(doc.type==='flow')await layoutFlow();else R.n=doc.n;if(R!==me)return;
+  if(!R.n){msg('<b>This book has no pages</b>');return}
+  R.page=Math.max(0,Math.min(R.n-1,b.lastPage||0));toolbar();rebuild();
+ }catch(err){if(R!==me)return;console.error(err);msg('<b>This book can’t be opened here</b><p>'+esc(err&&err.message||String(err))+'</p>')}
+}
+function close(silent){if(!R)return;const r=R;clearTimeout(pageT);if(r.doc){try{r.cb.onPage&&r.cb.onPage(curPage(),r.n)}catch(e){}try{r.doc.dispose()}catch(e){}}R=null;stage.innerHTML='';leafEls=new Map();rd.classList.remove('on');opt.hidden=true;document.body.style.overflow='';if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});if(!silent)r.cb.onClose&&r.cb.onClose()}
+window.StacksReader={open,close,_state:()=>R};
+})();
+</script>
+</body>
+</html>
