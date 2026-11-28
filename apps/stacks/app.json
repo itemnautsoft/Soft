@@ -2,13 +2,13 @@
   "title": "Stacks",
   "blurb": "A digital library for the folders on your device: PDF, EPUB, CBZ/CBR, DOCX, DOC, MOBI, FB2, text and image folders become 3D books as thick as their page count. Drag books into stacks, swipe through a stack, and read in 3D with page turns or flat, one page or two at a time. A save file remembers your stacks.",
   "date": "2026-11-27",
-  "updated": "2026-11-27",
+  "updated": "2026-11-28",
   "tags": [
     "mobile",
     "reader",
     "library",
     "comics"
   ],
-  "controls": "Add a folder. Drag a book onto another to stack (long-press first on touch); drop at an edge to reorder. Tap a stack to swipe through it. In the reader: drag or tap pages to turn, 3D/Flat and 1/2 pages up top, Aa for text size, manga direction and pairing. In Chrome or Edge here, linked folders rescan by themselves and get a stacks-library.json save file.",
+  "controls": "Add a folder, then Refresh to pick up new books. Select: tap books or stacks (or Select all on a search) and Move to stack. Drag a book onto another to stack (long-press first on touch); drop at an edge to reorder. Tap a stack to swipe through it. Reader: drag or tap pages, 3D/Flat and 1/2 pages up top, Aa for text size, manga direction and pairing. Works offline once opened; on iPad it keeps copies of your books inside the app.",
   "artifact": "https://claude.ai/artifact/MmvQ25upcXAfRciLRaQPnz"
 }

@@ -127,6 +127,15 @@ input[type=search],input[type=text],select{min-height:44px;border-radius:12px;bo
 .field{width:100%}
 .toast{position:fixed;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);z-index:90;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:15px;opacity:0;pointer-events:none;transition:.25s;max-width:90vw}
 .toast.on{opacity:1;transform:translateX(-50%)}
+/* select */
+.selbar{justify-content:flex-start;align-items:center;max-width:none}
+.selbar .grow{flex:1 1 200px;font-weight:600}
+.selbar .btn:disabled{opacity:.45;cursor:default}
+body.selecting .more{display:none}
+body.selecting .tile::after{content:"";position:absolute;top:8px;right:8px;z-index:5;width:28px;height:28px;border-radius:50%;border:2px solid var(--mute);background:var(--panel)}
+body.selecting .tile.sel{background:color-mix(in srgb,var(--acc) 12%,transparent);box-shadow:inset 0 0 0 2px var(--acc)}
+body.selecting .tile.sel::after{border-color:var(--acc);background:var(--acc) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/18px no-repeat}
+body.selecting .table{padding-bottom:160px}
 /* drag */
 .dragghost{position:fixed;z-index:80;pointer-events:none;width:150px;height:220px;margin:-150px 0 0 -75px;transform:scale(1.06) rotate(-4deg);filter:drop-shadow(0 18px 18px rgba(0,0,0,.35));display:flex;align-items:flex-end;justify-content:center;perspective:900px}
 .dropbar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:14px 16px max(14px,env(safe-area-inset-bottom));background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--line);transform:translateY(110%);transition:transform .2s}
@@ -236,7 +245,7 @@ input[type=search],input[type=text],select{min-height:44px;border-radius:12px;bo
 .ropt .btn{background:rgba(127,127,127,.12);border-color:rgba(127,127,127,.25);min-height:40px}
 .ropt .seg button{min-height:38px}
 @media(prefers-reduced-motion:reduce){*{transition-duration:0s!important;animation-duration:0s!important}}
-@media(max-width:600px){.bar .search{order:5;flex-basis:100%;max-width:none}.brand small{display:none}.table{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:4px 8px}.tile{height:236px}.rbar .hide-s{display:none}}
+@media(max-width:600px){.bar .search{order:5;flex-basis:100%;max-width:none}.brand small{display:none}.brand b{font-size:21px}.bar .btn.sm{padding:0 10px}.table{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:4px 8px}.tile{height:236px}.rbar .hide-s,.bar .hide-s{display:none}}
 </style>
 </head>
 <body>
@@ -270,12 +279,15 @@ input[type=search],input[type=text],select{min-height:44px;border-radius:12px;bo
   <option value="manual">My order</option><option value="title">Title</option><option value="recent">Recently read</option><option value="added">Recently added</option><option value="pages">Thickest first</option><option value="format">Format</option>
  </select>
  <button class="savechip" id="saveChip" title="Library save file"><i></i><span>Not saved yet</span></button>
+ <button class="btn sm" id="btnRefresh" title="Refresh library: look for new books" aria-label="Refresh library"><svg class="ico"><use href="#i-refresh"/></svg><span class="hide-s">Refresh</span></button>
+ <button class="btn sm" id="btnSelect" title="Select several books"><svg class="ico"><use href="#i-stack"/></svg><span>Select</span></button>
  <button class="btn sm" id="btnFolders"><svg class="ico"><use href="#i-folder"/></svg><span class="hide-s">Folders</span></button>
  <button class="btn sm pri" id="btnAdd"><svg class="ico"><use href="#i-plus"/></svg>Add</button>
 </header>
 <div class="banner" id="banner"></div>
 <main id="main"></main>
 <div class="dropbar" id="dropbar"></div>
+<div class="dropbar selbar" id="selbar" aria-live="polite"></div>
 <div class="toast" id="toast" role="status"></div>
 <input type="file" id="pickDir" webkitdirectory directory multiple hidden>
 <input type="file" id="pickFiles" multiple hidden accept=".pdf,.epub,.kepub,.cbz,.cbr,.cbt,.cb7,.zip,.rar,.tar,.7z,.doc,.docx,.odt,.rtf,.txt,.md,.markdown,.html,.htm,.xhtml,.fb2,.mobi,.azw,.azw3,.prc,.djvu,.xps,.oxps,.chm,image/*,application/pdf,application/epub+zip">
@@ -471,8 +483,15 @@ function getPdfjs(){
 }
 async function pdfOpen(file){
  const lib=await getPdfjs().catch(()=>{throw new BookErr('The PDF engine couldn’t load. PDFs need an internet connection the first time you open one.')});
- const data=new Uint8Array(await file.arrayBuffer());
- try{return await lib.getDocument({data,isEvalSupported:false,useSystemFonts:true}).promise}
+ // Read the PDF in slices on demand instead of loading the whole file into memory (big PDFs crashed iPad tabs).
+ const CH=262144,base={isEvalSupported:false,useSystemFonts:true,disableAutoFetch:true,disableStream:true,rangeChunkSize:CH};
+ try{
+  if(lib.PDFDataRangeTransport&&file.size>CH){
+   const init=new Uint8Array(await file.slice(0,CH).arrayBuffer());const tr=new lib.PDFDataRangeTransport(file.size,init);
+   tr.requestDataRange=function(b,e){file.slice(b,e).arrayBuffer().then(buf=>this.onDataRange(b,new Uint8Array(buf))).catch(err=>console.warn('pdf range',err))};
+   try{return await lib.getDocument({...base,range:tr,length:file.size}).promise}catch(e){if(e&&e.name==='PasswordException')throw e;if(file.size>120e6)throw e}
+  }
+  return await lib.getDocument({...base,data:new Uint8Array(await file.arrayBuffer())}).promise}
  catch(e){if(e&&e.name==='PasswordException')throw new BookErr('This PDF is password-protected.');throw new BookErr('This PDF couldn’t be read ('+(e&&e.message||'unknown error')+').')}
 }
 async function pdfRender(pdf,i,targetH){
@@ -700,7 +719,7 @@ async function probe(b,src){
    if(a.compressed&&!ims[0].stored)r.note=RAR_MSG;else{try{Object.assign(r,await thumbFrom(await a.blob(ims[0])))}catch(e){}}
    const ci=a.entries.find(e=>/comicinfo\.xml$/i.test(e.name));if(ci&&(ci.stored!==false)){try{const x=parseXML(await a.text(ci));const s=txt1(x,'Series'),n=txt1(x,'Number'),t=txt1(x,'Title');r.title=s?(s+(n?' #'+n:'')+(t?': '+t:'')):t;r.author=txt1(x,'Writer');r.rtl=txt1(x,'Manga')==='YesAndRightToLeft'}catch(e){}}
    break}
-  case 'pdf':{let pdf=null;if(f.size<200e6){try{pdf=await pdfOpen(f)}catch(e){if(/password/i.test(e.message)){r.note=e.message}}}
+  case 'pdf':{let pdf=null;try{pdf=await pdfOpen(f)}catch(e){if(/password/i.test(e.message)){r.note=e.message}}
    if(pdf){r.pages=pdf.numPages;try{const md=await pdf.getMetadata();r.title=(md.info&&md.info.Title||'').trim();r.author=(md.info&&md.info.Author||'').trim()}catch(e){}
     try{const p=await pdfRender(pdf,0,420);Object.assign(r,await thumbFrom(p.blob));r.aspect=p.aspect}catch(e){}pdf.destroy()}
    else{r.pages=await pdfQuickCount(f);if(!r.pages){r.pages=Math.max(1,Math.round(f.size/60000));r.est=true}}
@@ -780,10 +799,11 @@ window.StacksFmt={$,$$,esc,natCmp,extOf,baseName,dirName,stem,isImg,isJunk,hash,
 (()=>{
 const F=window.StacksFmt;const {$,$$,esc,natCmp,extOf,baseName,dirName,stem,isImg,isJunk,hash,colorFor,KIND}=F;
 const SAVE_NAME='stacks-library.json';
+const IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const FSA_OK='showDirectoryPicker' in window&&(()=>{try{return window.self===window.top}catch(e){return false}})();
 
 /* ---------- storage ---------- */
-const idb={db:null,p:null,open(){if(!this.p)this.p=new Promise(res=>{try{const r=indexedDB.open('stacks-library',1);r.onupgradeneeded=()=>{const d=r.result;for(const s of['kv','thumbs','handles'])if(!d.objectStoreNames.contains(s))d.createObjectStore(s)};r.onsuccess=()=>res(this.db=r.result);r.onerror=()=>res(null);r.onblocked=()=>res(null)}catch(e){res(null)}});return this.p},
+const idb={db:null,p:null,open(){if(!this.p)this.p=new Promise(res=>{try{const r=indexedDB.open('stacks-library',2);r.onupgradeneeded=()=>{const d=r.result;for(const s of['kv','thumbs','handles','files'])if(!d.objectStoreNames.contains(s))d.createObjectStore(s)};r.onsuccess=()=>res(this.db=r.result);r.onerror=()=>res(null);r.onblocked=()=>res(null)}catch(e){res(null)}});return this.p},
  async get(s,k){const d=await this.open();if(!d)return undefined;return new Promise(res=>{try{const q=d.transaction(s).objectStore(s).get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined)}catch(e){res(undefined)}})},
  async put(s,k,v){const d=await this.open();if(!d)return false;return new Promise(res=>{try{const t=d.transaction(s,'readwrite');t.objectStore(s).put(v,k);t.oncomplete=()=>res(true);t.onerror=()=>res(false);t.onabort=()=>res(false)}catch(e){res(false)}})},
  async del(s,k){const d=await this.open();if(!d)return;return new Promise(res=>{try{const t=d.transaction(s,'readwrite');t.objectStore(s).delete(k);t.oncomplete=res;t.onerror=res}catch(e){res()}})},
@@ -865,6 +885,7 @@ async function ingest(fid,list){
  fol.count=seen.size;fol.lastScan=Date.now();
  if(saveFile){try{mergeSave(JSON.parse(await saveFile.text()))}catch(e){}}
  for(const id of seen){const b=S.books[id];if(!b.probed||b.probeKey!==b.size||(b.hadThumb&&!thumbs.has(id)))enqueue(id)}
+ if(fol.keep)for(const id of seen)if(S.books[id].kept!==S.books[id].size)enqueueCopy(id);
  ensureOrder();render();save();banner();return seen.size;
 }
 function findMoved(name,size){return Object.values(S.books).find(b=>!files.has(b.id)&&b.name===name&&b.size===size)}
@@ -883,14 +904,30 @@ function addImageBook(fid,d,arr){
 }
 const queue=[];let qRun=0,qDone=0,qTotal=0;
 function enqueue(id){if(!queue.includes(id)){queue.push(id);qTotal++}pump()}
-function pump(){while(qRun<2&&queue.length){const id=queue.shift();qRun++;(async()=>{try{await probeBook(id)}catch(e){const b=S.books[id];if(b){b.note=e&&e.message||String(e);b.probed=true;b.probeKey=b.size;if(!b.pages){b.pages=1;b.est=true}}}
- qRun--;qDone++;soon();if(!queue.length&&!qRun){qDone=qTotal=0;save()}banner();pump()})()}}
+const UNREAD='Couldn’t read this file. If it’s in iCloud Drive or another cloud folder, open that folder in the Files app so the file downloads, then tap Refresh.';
+const isUnread=e=>!!e&&(e.name==='NotReadableError'||e.name==='NotFoundError'||e.name==='NotAllowedError'||/could not be read|not readable|I\/O|permission/i.test(e.message||''));
+function pump(){while(qRun<(IOS?1:2)&&queue.length){const id=queue.shift();qRun++;(async()=>{try{await probeBook(id)}catch(e){const b=S.books[id];if(b){const u=isUnread(e);b.note=u?UNREAD:(e&&e.message||String(e));b.readErr=u;b.probed=!u;b.probeKey=u?0:b.size;if(!b.pages){b.pages=1;b.est=true}}}
+ qRun--;qDone++;soon();if(qDone%8===0)save();if(!queue.length&&!qRun){qDone=qTotal=0;save()}banner();await F.sleep(IOS?30:0);pump()})()}}
 async function probeBook(id){
  const b=S.books[id],src=files.get(id);if(!b||!src)return;const r=await F.probe(b,src);
- Object.assign(b,{pages:r.pages||1,est:!!r.est,author:r.author||b.author||'',note:r.note||'',probed:true,probeKey:b.size,hadThumb:!!r.thumb});
+ Object.assign(b,{readErr:false,pages:r.pages||1,est:!!r.est,author:r.author||b.author||'',note:r.note||'',probed:true,probeKey:b.size,hadThumb:!!r.thumb});
  if(r.title)b.metaTitle=r.title;if(r.aspect)b.aspect=Math.max(.45,Math.min(1.5,r.aspect));if(r.rtl&&b.rtl===undefined)b.rtl=true;
  if(r.thumb){setThumb(id,r.thumb);idb.put('thumbs',id,r.thumb)}
 }
+/* ---------- kept copies: books stored inside the app so they survive reloads and work offline ---------- */
+const cq=[];let cRun=false,cDone=0,cTotal=0,cFail=0,persistAsked=false;
+function askPersist(){if(persistAsked)return;persistAsked=true;try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist().catch(()=>{})}catch(e){}}
+function enqueueCopy(id){if(!cq.includes(id)){cq.push(id);cTotal++}copyPump()}
+async function copyPump(){if(cRun)return;cRun=true;askPersist();
+ while(cq.length){const id=cq.shift(),b=S.books[id],src=files.get(id);
+  if(b&&src&&!src.kept&&b.kept!==b.size&&S.folders[b.folder]&&S.folders[b.folder].keep){
+   const ok=await idb.put('files',id,src.file?src.file:{files:src.files});
+   if(ok){b.kept=b.size}else{cFail++;if(cFail===3)toast('Some books couldn’t be kept on this device. Storage may be full, or the files are still in iCloud.',5000)}}
+  cDone++;if(cDone%10===0){save();banner()}}
+ cRun=false;cDone=cTotal=0;save();banner()}
+async function dropCopies(fid){for(const b of Object.values(S.books))if(b.folder===fid&&b.kept!==undefined){await idb.del('files',b.id);delete b.kept;const src=files.get(b.id);if(src&&src.kept)files.delete(b.id)}}
+async function loadCopies(){for(const[k,v]of await idb.all('files')){const b=S.books[k];if(!b||files.has(k))continue;
+ if(v instanceof Blob)files.set(k,{file:v instanceof File?v:new File([v],b.name),kept:true});else if(v&&Array.isArray(v.files))files.set(k,{files:v.files,kept:true})}}
 async function linkHandle(h){
  let fid=null;for(const[k,v]of handles){try{if(await v.isSameEntry(h)){fid=k;break}}catch(e){}}
  fid=fid||('f'+hash(h.name));if(handles.has(fid)&&!(await handles.get(fid).isSameEntry(h).catch(()=>false)))fid='f'+hash(h.name+Date.now());
@@ -912,11 +949,11 @@ async function addFolder(){
 $('#pickDir').addEventListener('change',async e=>{
  const fl=[...e.target.files];e.target.value='';if(!fl.length)return;
  const roots=new Map();for(const f of fl){const p=(f.webkitRelativePath||f.name).replace(/\\/g,'/');const i=p.indexOf('/');const root=i>0?p.slice(0,i):'Picked folder';const rel=i>0?p.slice(i+1):p;if(!roots.has(root))roots.set(root,[]);roots.get(root).push({file:f,rel})}
- for(const[root,list]of roots){const fid='f'+hash(root);S.folders[fid]={...(S.folders[fid]||{}),id:fid,name:root,mode:S.folders[fid]&&S.folders[fid].mode==='linked'?'linked':'picked'};scanning.on=true;scanning.name=root;banner();const n=await ingest(fid,list);scanning.on=false;toast('“'+root+'”: '+n+' book'+(n===1?'':'s')+' found')}
+ for(const[root,list]of roots){const fid='f'+hash(root);const old=S.folders[fid]||{};S.folders[fid]={...old,id:fid,name:root,mode:old.mode==='linked'?'linked':'picked',keep:old.keep??!FSA_OK};scanning.on=true;scanning.name=root;banner();const n=await ingest(fid,list);scanning.on=false;toast('“'+root+'”: '+n+' book'+(n===1?'':'s')+' found')}
  banner();
 });
 $('#pickFiles').addEventListener('change',async e=>{
- const fl=[...e.target.files];e.target.value='';if(!fl.length)return;const fid='files';S.folders[fid]={...(S.folders[fid]||{}),id:fid,name:'Added files',mode:'files'};
+ const fl=[...e.target.files];e.target.value='';if(!fl.length)return;const fid='files';const old=S.folders[fid]||{};S.folders[fid]={...old,id:fid,name:'Added files',mode:'files',keep:old.keep??!FSA_OK};
  const prev=Object.values(S.books).filter(b=>b.folder===fid&&files.has(b.id)).map(b=>({file:files.get(b.id).file,rel:b.rel})).filter(x=>x.file);
  const n=await ingest(fid,prev.concat(fl.map(f=>({file:f,rel:f.name}))));toast(fl.length+' file'+(fl.length===1?'':'s')+' added');
 });
@@ -926,15 +963,17 @@ $('#pickSave').addEventListener('change',async e=>{const f=e.target.files[0];e.t
 function banner(){
  const el=$('#banner');const parts=[];
  if(scanning.on)parts.push('<span class="grow">Looking through “'+esc(scanning.name)+'”… '+fmtN(scanning.found)+' files</span>');
+ else if(cTotal&&!qTotal){parts.push('<span class="grow">Keeping copies on this device so your books open offline: '+cDone+' / '+cTotal+'</span><span class="prog"><i style="width:'+Math.round(cDone/cTotal*100)+'%"></i></span>')}
  else if(qTotal){parts.push('<span class="grow">Measuring books — covers and page counts '+qDone+' / '+qTotal+'</span><span class="prog"><i style="width:'+Math.round(qDone/qTotal*100)+'%"></i></span>')}
  if(!scanning.on&&!qTotal){
   if(needPerm.size){const n=[...needPerm].map(f=>S.folders[f]&&S.folders[f].name).filter(Boolean);parts.push('<span class="grow">'+(n.length===1?'“'+esc(n[0])+'” needs':n.length+' folders need')+' a tap to reconnect.</span><button class="btn sm pri" data-act="reconnect">Reconnect</button>')}
-  const off=Object.values(S.folders).filter(f=>f.mode!=='linked'&&Object.values(S.books).some(b=>b.folder===f.id&&missing(b)));
-  if(off.length&&!needPerm.size)parts.push('<span class="grow">'+(off.length===1?'Books from “'+esc(off[0].name)+'” are':'Books from '+off.length+' folders are')+' shown from your save file. Pick '+(off.length===1?'the folder':'them')+' again to read'+(FSA_OK?'':' — this browser doesn’t let pages remember folders')+'.</span><button class="btn sm" data-act="'+(off[0].mode==='files'?'files':'pick')+'">Pick '+(off[0].mode==='files'?'files':'folder')+'</button>')}
+  const off=Object.values(S.folders).filter(f=>f.mode!=='linked'&&Object.values(S.books).some(b=>b.folder===f.id&&missing(b)));const unread=Object.values(S.books).filter(b=>b.readErr&&!missing(b)).length;
+  if(unread&&!off.length)parts.push('<span class="grow">'+unread+' book'+(unread===1?'':'s')+' couldn’t be read. If they’re in iCloud Drive, open the folder in Files so they download, then tap Refresh.</span><button class="btn sm" data-act="refresh">Refresh</button>');
+  if(off.length&&!needPerm.size)parts.push('<span class="grow">'+(off.length===1?'Books from “'+esc(off[0].name)+'” are':'Books from '+off.length+' folders are')+' shown from your save file, but their files aren’t on this device. Pick '+(off.length===1?'the folder':'them')+' again to read'+(off.some(f=>!f.keep)?' (or turn on “Keep copies” in Folders so this doesn’t happen again)':'')+'.</span><button class="btn sm" data-act="'+(off[0].mode==='files'?'files':'pick')+'">Pick '+(off[0].mode==='files'?'files':'folder')+'</button>')}
  el.innerHTML=parts.join('');
 }
 $('#banner').addEventListener('click',async e=>{const a=e.target.closest('[data-act]');if(!a)return;const k=a.dataset.act;
- if(k==='reconnect'){for(const f of[...needPerm])await scanLinked(f,true)}else if(k==='pick')addFolder();else if(k==='files')$('#pickFiles').click()});
+ if(k==='reconnect'){for(const f of[...needPerm])await scanLinked(f,true)}else if(k==='refresh')refreshAll();else if(k==='pick')addFolder();else if(k==='files')$('#pickFiles').click()});
 
 /* ---------- 3D book markup ---------- */
 function box(W,H,D,f){
@@ -979,9 +1018,9 @@ function progressText(b){if(b.lastPage>0&&b.pages)return'Read '+Math.min(100,Mat
 function tileHTML(k){
  const id=k.slice(2);
  if(k[0]==='g'){const g=S.groups[id];const pages=g.books.reduce((x,i)=>x+(S.books[i].pages||0),0);
-  return '<div class="tile" data-key="'+k+'" tabindex="0" role="button" aria-label="Stack: '+esc(gName(g))+', '+g.books.length+' books"><span class="badge n">'+g.books.length+'</span><button class="more" data-more aria-label="Stack options"><svg class="ico"><use href="#i-dots"/></svg></button><div class="scene">'+pileHTML(g.books)+'</div><div class="cap"><b>'+esc(gName(g))+'</b><span>'+g.books.length+' books · '+fmtN(pages)+' pp.</span></div></div>'}
+  return '<div class="tile'+(sel.has(k)?' sel':'')+'" data-key="'+k+'" tabindex="0" role="button" aria-label="Stack: '+esc(gName(g))+', '+g.books.length+' books"><span class="badge n">'+g.books.length+'</span><button class="more" data-more aria-label="Stack options"><svg class="ico"><use href="#i-dots"/></svg></button><div class="scene">'+pileHTML(g.books)+'</div><div class="cap"><b>'+esc(gName(g))+'</b><span>'+g.books.length+' books · '+fmtN(pages)+' pp.</span></div></div>'}
  const b=S.books[id],miss=missing(b);
- return '<div class="tile'+(miss?' missing':'')+'" data-key="'+k+'" tabindex="0" role="button" aria-label="'+esc(titleOf(b))+'"><span class="badge">'+esc(miss?'Offline':fmtOf(b))+'</span><button class="more" data-more aria-label="Book options"><svg class="ico"><use href="#i-dots"/></svg></button><div class="scene">'+standBook(b)+'</div><div class="cap"><b>'+esc(titleOf(b))+'</b><span>'+esc((query&&b.group&&S.groups[b.group]?gName(S.groups[b.group])+' · ':'')+progressText(b))+'</span></div></div>';
+ return '<div class="tile'+(miss?' missing':'')+(sel.has(k)?' sel':'')+'" data-key="'+k+'" tabindex="0" role="button" aria-label="'+esc(titleOf(b))+'"><span class="badge">'+esc(miss?'Offline':fmtOf(b))+'</span><button class="more" data-more aria-label="Book options"><svg class="ico"><use href="#i-dots"/></svg></button><div class="scene">'+standBook(b)+'</div><div class="cap"><b>'+esc(titleOf(b))+'</b><span>'+esc((query&&b.group&&S.groups[b.group]?gName(S.groups[b.group])+' · ':'')+progressText(b))+'</span></div></div>';
 }
 function emptyHTML(){
  const fake=(t,a,p,c)=>({id:'demo'+t,kind:'pdf',ext:'pdf',name:t,customTitle:t,author:a,pages:p,aspect:.67,_c:c});
@@ -999,7 +1038,7 @@ function render(){
  if(svId)renderStack();
 }
 $('#main').addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(!a)return;const k=a.dataset.act;if(k==='folder')addFolder();else if(k==='files')$('#pickFiles').click();else if(k==='import')$('#pickSave').click()});
-$('#q').addEventListener('input',e=>{query=e.target.value.trim();render()});
+$('#q').addEventListener('input',e=>{query=e.target.value.trim();render();if(selecting)selbar()});
 $('#sort').addEventListener('change',e=>{S.settings.sort=e.target.value;render();save()});
 
 /* ---------- sheets ---------- */
@@ -1027,7 +1066,7 @@ function bookMenu(id){
    else if(a==='out'){unstack(id)}
    else if(a==='rename')askText('Rename book',titleOf(b),v=>{b.customTitle=v||'';done()});
    else if(a==='reset'){b.lastPage=0;done()}
-   else if(a==='forget')confirmSheet('Remove from library?','“'+titleOf(b)+'” leaves your library and stacks. The file itself isn’t touched; rescanning its folder brings it back.','Remove',()=>{detach(id);delete S.books[id];files.delete(id);idb.del('thumbs',id);done('Removed')});
+   else if(a==='forget')confirmSheet('Remove from library?','“'+titleOf(b)+'” leaves your library and stacks. The file itself isn’t touched; rescanning its folder brings it back.','Remove',()=>{detach(id);delete S.books[id];files.delete(id);idb.del('thumbs',id);idb.del('files',id);done('Removed')});
   });
 }
 function unstack(id){const g=gOf(id);if(!g)return;const pos=S.order.indexOf('g:'+g.id);detach(id);ensureOrder();const k='b:'+id;S.order=S.order.filter(x=>x!==k);S.order.splice(pos<0?S.order.length:pos+1,0,k);done('Taken out of “'+gName(g)+'”')}
@@ -1043,16 +1082,19 @@ function reconnect(fid){const f=S.folders[fid];if(!f){addFolder();return}if(f.mo
 function foldersSheet(){
  const fs=Object.values(S.folders);
  const li=f=>{const n=Object.values(S.books).filter(b=>b.folder===f.id).length,m=Object.values(S.books).filter(b=>b.folder===f.id&&missing(b)).length;
-  const how=f.mode==='linked'?(needPerm.has(f.id)?'Linked · needs a tap to reconnect':'Linked · rescans itself'):f.mode==='files'?'Single files you added':'Picked · pick again after reloading';
-  return '<li><svg class="ico"><use href="#i-folder"/></svg><div class="grow"><b>'+esc(f.name)+'</b><small>'+n+' books'+(m?' · '+m+' offline':'')+' · '+how+'</small></div><button class="btn sm" data-a="scan:'+f.id+'">'+(f.mode==='linked'&&!needPerm.has(f.id)?'Rescan':'Reconnect')+'</button><button class="btn sm ghost" data-a="forget:'+f.id+'" aria-label="Forget folder"><svg class="ico"><use href="#i-x"/></svg></button></li>'};
+  const how=f.mode==='linked'?(needPerm.has(f.id)?'Linked · needs a tap to reconnect':'Linked · rescans itself'):f.mode==='files'?'Single files you added':(f.keep?'Picked · copies kept here':'Picked · pick again after reloading');
+  const kept=Object.values(S.books).filter(b=>b.folder===f.id&&b.kept!==undefined).length;
+  return '<li style="flex-wrap:wrap"><svg class="ico"><use href="#i-folder"/></svg><div class="grow"><b>'+esc(f.name)+'</b><small>'+n+' books'+(m?' · '+m+' offline':'')+' · '+how+(f.keep?' · '+kept+' kept on this device':'')+'</small></div>'+(f.mode!=='linked'?'<button class="btn sm" data-a="keep:'+f.id+'" aria-pressed="'+!!f.keep+'">'+(f.keep?'Keeping copies ✓':'Keep copies')+'</button>':'')+'<button class="btn sm" data-a="scan:'+f.id+'">'+(f.mode==='linked'&&!needPerm.has(f.id)?'Rescan':'Reconnect')+'</button><button class="btn sm ghost" data-a="forget:'+f.id+'" aria-label="Forget folder"><svg class="ico"><use href="#i-x"/></svg></button></li>'};
  const offl=Object.values(S.books).filter(missing).length;
- sheet(X+'<h2>Folders</h2><p>'+(FSA_OK?'Linked folders are remembered and rescanned on every visit.':'In this browser, folders you pick are read for this visit only. Your stacks, covers and reading spots are kept, so books show as offline until you pick the folder again.')+'</p><div class="row"><button class="btn pri" data-a="add"><svg class="ico"><use href="#i-folder"/></svg>Add a folder</button><button class="btn" data-a="files"><svg class="ico"><use href="#i-file"/></svg>Add files</button></div>'+(fs.length?'<ul class="list">'+fs.map(li).join('')+'</ul>':'<p>No folders yet.</p>')+(offl?'<div class="row"><button class="btn sm" data-a="prune">Remove '+offl+' offline book'+(offl===1?'':'s')+' from the library</button></div>':''),(a)=>{
+ sheet(X+'<h2>Folders</h2><p>'+(FSA_OK?'Linked folders are remembered and rescanned on every visit.':'This browser can’t remember where a folder is. With “Keep copies” on, Stacks stores each book inside the app, so your library opens offline and survives reloads. Tap Refresh and pick the folder again to add new books.')+'</p><p id="storeUse" style="font-size:13px"></p><div class="row"><button class="btn pri" data-a="add"><svg class="ico"><use href="#i-folder"/></svg>Add a folder</button><button class="btn" data-a="files"><svg class="ico"><use href="#i-file"/></svg>Add files</button></div>'+(fs.length?'<ul class="list">'+fs.map(li).join('')+'</ul>':'<p>No folders yet.</p>')+(offl?'<div class="row"><button class="btn sm" data-a="prune">Remove '+offl+' offline book'+(offl===1?'':'s')+' from the library</button></div>':''),(a)=>{
   if(a==='add'){closeSheet(true);addFolder()}else if(a==='files'){closeSheet(true);$('#pickFiles').click()}
+  else if(a.startsWith('keep:')){const f=S.folders[a.slice(5)];closeSheet(true);if(f.keep){confirmSheet('Stop keeping copies of “'+f.name+'”?','The copies stored inside Stacks are deleted. Your original files aren’t touched. After a reload these books show as offline until you pick the folder again.','Stop keeping',async()=>{f.keep=false;await dropCopies(f.id);done('Copies removed');banner()})}else{f.keep=true;let n=0;for(const b of Object.values(S.books))if(b.folder===f.id&&files.has(b.id)&&b.kept!==b.size){enqueueCopy(b.id);n++}done(n?'Keeping copies of '+n+' books':'Copies will be kept next time you pick this folder');banner()}}
   else if(a.startsWith('scan:')){closeSheet(true);reconnect(a.slice(5))}
-  else if(a.startsWith('forget:')){const fid=a.slice(7),f=S.folders[fid];closeSheet(true);confirmSheet('Forget “'+f.name+'”?','Its books leave your library and stacks. Nothing is deleted from your device.','Forget folder',()=>{for(const b of Object.values(S.books))if(b.folder===fid){detach(b.id);delete S.books[b.id];files.delete(b.id);idb.del('thumbs',b.id)}delete S.folders[fid];handles.delete(fid);idb.del('handles',fid);needPerm.delete(fid);if(S.settings.saveFolder===fid)S.settings.saveFolder=null;done('Folder forgotten');banner()})}
-  else if(a==='prune'){closeSheet(true);confirmSheet('Remove offline books?','Books whose files aren’t connected right now leave the library and their stacks.','Remove',()=>{for(const b of Object.values(S.books))if(missing(b)){detach(b.id);delete S.books[b.id];idb.del('thumbs',b.id)}done('Offline books removed');banner()})}
+  else if(a.startsWith('forget:')){const fid=a.slice(7),f=S.folders[fid];closeSheet(true);confirmSheet('Forget “'+f.name+'”?','Its books leave your library and stacks. Nothing is deleted from your device.','Forget folder',()=>{for(const b of Object.values(S.books))if(b.folder===fid){detach(b.id);delete S.books[b.id];files.delete(b.id);idb.del('thumbs',b.id);idb.del('files',b.id)}delete S.folders[fid];handles.delete(fid);idb.del('handles',fid);needPerm.delete(fid);if(S.settings.saveFolder===fid)S.settings.saveFolder=null;done('Folder forgotten');banner()})}
+  else if(a==='prune'){closeSheet(true);confirmSheet('Remove offline books?','Books whose files aren’t connected right now leave the library and their stacks.','Remove',()=>{for(const b of Object.values(S.books))if(missing(b)){detach(b.id);delete S.books[b.id];idb.del('thumbs',b.id);idb.del('files',b.id)}done('Offline books removed');banner()})}
  });
 }
+async function showUsage(){const el=$('#storeUse');if(!el||!navigator.storage||!navigator.storage.estimate)return;try{const e=await navigator.storage.estimate();const per=navigator.storage.persisted?await navigator.storage.persisted():false;el.textContent='Stacks is using '+(e.usage/1048576).toFixed(0)+' MB of this device’s storage'+(e.quota?' (up to '+(e.quota/1073741824).toFixed(1)+' GB available)':'')+(per?'. Protected from automatic clean-up.':'.')}catch(err){}}
 function saveSheet(){
  const fid=saveFolderId(),linked=Object.values(S.folders).filter(f=>f.mode==='linked'&&handles.has(f.id));
  sheet(X+'<h2>Library save file</h2><p>Stacks saves which books are in which stacks, their order, titles you changed and where you stopped reading. It updates on its own after every change.</p><ul class="list"><li><svg class="ico"><use href="#i-save"/></svg><div class="grow"><b>On this device</b><small>'+(saveInfo.local?'Updated '+time(saveInfo.local):'Not saved yet')+'</small></div></li>'+
@@ -1067,14 +1109,49 @@ async function exportSave(){
  if(downloads){try{await downloads.save({filename:name,data});toast('Save file exported');return}catch(e){toast('Export was cancelled');return}}
  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast('Save file exported')}catch(e){toast('Downloads are blocked here — use Copy save data instead')}
 }
-$('#btnFolders').addEventListener('click',foldersSheet);
+$('#btnFolders').addEventListener('click',()=>{foldersSheet();showUsage()});
+$('#btnRefresh').addEventListener('click',refreshAll);
+$('#btnSelect').addEventListener('click',()=>setSelecting(!selecting));
 $('#saveChip').addEventListener('click',saveSheet);
 $('#btnAdd').addEventListener('click',()=>sheet(X+'<h2>Add to your library</h2><div class="menu">'+mi('folder','Add a folder','folder')+mi('files','Add single files','file')+mi('import','Load a save file','save')+'</div><p style="font-size:13px">Books inside sub-folders are found too. A folder of loose images becomes one book.</p>',a=>{closeSheet(true);if(a==='folder')addFolder();else if(a==='files')$('#pickFiles').click();else $('#pickSave').click()}));
 
+/* ---------- refresh ---------- */
+async function refreshAll(){
+ const fs=Object.values(S.folders);if(!fs.length){addFolder();return}
+ for(const b of Object.values(S.books))if(b.readErr&&files.has(b.id)){b.probed=false;enqueue(b.id)}
+ const linked=fs.filter(f=>f.mode==='linked'&&handles.has(f.id)),others=fs.filter(f=>!(f.mode==='linked'&&handles.has(f.id)));
+ if(others.length)refreshSheet(others);
+ for(const f of linked)await scanLinked(f.id,true);
+ if(!others.length&&linked.length)toast('Library refreshed');
+}
+function refreshSheet(fs){
+ sheet(X+'<h2>Look for new books</h2><p>'+(FSA_OK?'These folders were picked rather than linked, so pick them again to look for new books.':'Safari doesn’t let web apps look inside a folder by themselves, so pick each folder again. Only new or changed books are added; everything you already have stays put.')+'</p><ul class="list">'+fs.map(f=>{const n=Object.values(S.books).filter(b=>b.folder===f.id).length;return '<li><svg class="ico"><use href="#i-folder"/></svg><div class="grow"><b>'+esc(f.name)+'</b><small>'+n+' books'+(f.lastScan?' · last looked '+new Date(f.lastScan).toLocaleDateString([],{month:'short',day:'numeric'}):'')+'</small></div><button class="btn sm pri" data-a="'+(f.mode==='files'?'files':'pick')+'">'+(f.mode==='files'?'Add files':'Pick “'+esc(f.name)+'”')+'</button></li>'}).join('')+'</ul>',
+ a=>{closeSheet(true);if(a==='files')$('#pickFiles').click();else addFolder()});
+}
+
+/* ---------- select several books ---------- */
+let selecting=false;const sel=new Set();
+function setSelecting(on){selecting=on;sel.clear();document.body.classList.toggle('selecting',on);const b=$('#btnSelect');b.classList.toggle('pri',on);b.querySelector('span').textContent=on?'Done':'Select';selbar();render()}
+function selBooks(){const out=[];for(const k of sel){if(k[0]==='b'){if(S.books[k.slice(2)])out.push(k.slice(2))}else{const g=S.groups[k.slice(2)];if(g)out.push(...g.books)}}return[...new Set(out)]}
+function selbar(){const el=$('#selbar');if(!selecting){el.classList.remove('on');return}const n=selBooks().length,vis=visibleKeys(),all=vis.length&&vis.every(k=>sel.has(k));
+ el.innerHTML='<b class="grow">'+(n?n+' book'+(n===1?'':'s')+' selected':'Tap books or stacks to select them')+'</b><button class="btn sm" data-s="all">'+(all?'Select none':query?'Select all results':'Select all')+'</button><button class="btn sm pri" data-s="move"'+(n?'':' disabled')+'><svg class="ico"><use href="#i-stack"/></svg>Move to stack…</button><button class="btn sm" data-s="out"'+(n?'':' disabled')+'>Unstack</button>';el.classList.add('on')}
+function toggleSel(k,el){if(sel.has(k))sel.delete(k);else sel.add(k);(el||document.querySelector('.tile[data-key="'+k+'"]'))?.classList.toggle('sel',sel.has(k));selbar()}
+$('#selbar').addEventListener('click',e=>{const a=e.target.closest('[data-s]');if(!a||a.disabled)return;const k=a.dataset.s;
+ if(k==='all'){const vis=visibleKeys();if(vis.every(x=>sel.has(x)))sel.clear();else vis.forEach(x=>sel.add(x));$$('.tile').forEach(t=>t.classList.toggle('sel',sel.has(t.dataset.key)));selbar()}
+ else if(k==='move')moveSheet();
+ else if(k==='out'){const ids=selBooks().filter(id=>S.books[id].group);ids.forEach(detach);setSelecting(false);done(ids.length?ids.length+' book'+(ids.length===1?'':'s')+' taken out of stacks':'None of those were in a stack')}});
+function moveSheet(){
+ const ids=selBooks();if(!ids.length)return;const gs=Object.values(S.groups).sort((a,b)=>natCmp(gName(a),gName(b)));
+ const firstPos=Math.min(...[...sel].map(k=>{const i=S.order.indexOf(k[0]==='b'&&S.books[k.slice(2)].group?'g:'+S.books[k.slice(2)].group:k);return i<0?1e9:i}));
+ sheet(X+'<h2>Move '+ids.length+' book'+(ids.length===1?'':'s')+' to…</h2><div class="menu">'+mi('new','A new stack','plus')+gs.map(g=>mi('to:'+g.id,gName(g)+' · '+g.books.length+' book'+(g.books.length===1?'':'s'),'stack')).join('')+'</div>',a=>{closeSheet(true);
+  if(a==='new')setTimeout(()=>askText('Name the new stack',suggestName(ids),v=>{const gid=newGroup(v||'New stack',ids);ensureOrder();S.order=S.order.filter(x=>x!=='g:'+gid);S.order.splice(Math.min(firstPos,S.order.length),0,'g:'+gid);setSelecting(false);done('Moved '+ids.length+' to “'+gName(S.groups[gid])+'”')}),60);
+  else if(a.startsWith('to:')){const gid=a.slice(3);ids.forEach(id=>{if(S.books[id].group!==gid)setGroup(id,gid,S.groups[gid].books.length)});setSelecting(false);done('Moved '+ids.length+' to “'+gName(S.groups[gid])+'”')}});
+}
+
 /* ---------- drag and drop ---------- */
 let press=null,drag=null,ghost=null,dropT=null,scrollIv=0;
-function startPress(e,el,ctx){if(e.button>0)return;const st={x:e.clientX,y:e.clientY,el,ctx,key:el.dataset.key,pid:e.pointerId,type:e.pointerType,active:false,moved:false,long:false,timer:0};press=st;
- if(e.pointerType!=='mouse')st.timer=setTimeout(()=>{if(press===st&&!st.moved){st.long=true;beginDrag(st,st.x,st.y);try{navigator.vibrate&&navigator.vibrate(12)}catch(err){}}},340)}
+function startPress(e,el,ctx){if(e.button>0)return;const st={nodrag:selecting&&ctx==='shelf',x:e.clientX,y:e.clientY,el,ctx,key:el.dataset.key,pid:e.pointerId,type:e.pointerType,active:false,moved:false,long:false,timer:0};press=st;
+ if(e.pointerType!=='mouse'&&!st.nodrag)st.timer=setTimeout(()=>{if(press===st&&!st.moved){st.long=true;beginDrag(st,st.x,st.y);try{navigator.vibrate&&navigator.vibrate(12)}catch(err){}}},340)}
 function beginDrag(st,x,y){
  st.active=true;drag=st;ghost=document.createElement('div');ghost.className='dragghost';const sc=st.el.querySelector('.scene');ghost.innerHTML=sc?sc.innerHTML:'';document.body.appendChild(ghost);st.el.classList.add('dragging');
  const db=$('#dropbar');const id=st.key.slice(2);
@@ -1111,7 +1188,7 @@ function endDrag(){const st=drag,t=dropT;cancelDrag();if(!st||!t)return;
  S.order=S.order.filter(k=>k!==sk);let i=S.order.indexOf(tk);if(t.pos==='after')i++;S.order.splice(i,0,sk);done();
 }
 window.addEventListener('pointermove',e=>{const st=press;if(!st||e.pointerId!==st.pid)return;const far=Math.hypot(e.clientX-st.x,e.clientY-st.y)>8;
- if(!st.active){if(far){st.moved=true;clearTimeout(st.timer);if(st.type==='mouse')beginDrag(st,e.clientX,e.clientY);else press=null}return}
+ if(!st.active){if(far){st.moved=true;clearTimeout(st.timer);if(st.type==='mouse'&&!st.nodrag)beginDrag(st,e.clientX,e.clientY);else press=null}return}
  st.moved=st.moved||far;moveDrag(e.clientX,e.clientY)});
 window.addEventListener('pointerup',e=>{const st=press;if(!st||e.pointerId!==st.pid)return;clearTimeout(st.timer);press=null;
  if(st.active&&st.moved){endDrag();return}
@@ -1119,12 +1196,12 @@ window.addEventListener('pointerup',e=>{const st=press;if(!st||e.pointerId!==st.
  if(!st.moved)activate(st)});
 window.addEventListener('pointercancel',e=>{if(press&&e.pointerId===press.pid){clearTimeout(press.timer);press=null;cancelDrag()}});
 document.addEventListener('touchmove',e=>{if(drag)e.preventDefault()},{passive:false});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(drag)cancelDrag();else if(sheetEl)closeSheet();else if(svId&&!document.querySelector('.rd.on'))closeStack()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(drag)cancelDrag();else if(selecting&&!sheetEl)setSelecting(false);else if(sheetEl)closeSheet();else if(svId&&!document.querySelector('.rd.on'))closeStack()}});
 function openMenu(k){if(k[0]==='g')stackMenu(k.slice(2));else bookMenu(k.slice(2))}
-function activate(st){const k=st.key;if(st.ctx==='stack'){const i=+st.el.dataset.i;if(i===svIndex)openBook(k.slice(2));else scrollToSlide(i,true);return}if(k[0]==='g')openStack(k.slice(2));else openBook(k.slice(2))}
+function activate(st){const k=st.key;if(selecting&&st.ctx==='shelf'){toggleSel(k,st.el);return}if(st.ctx==='stack'){const i=+st.el.dataset.i;if(i===svIndex)openBook(k.slice(2));else scrollToSlide(i,true);return}if(k[0]==='g')openStack(k.slice(2));else openBook(k.slice(2))}
 $('#main').addEventListener('pointerdown',e=>{if(e.target.closest('[data-more]'))return;const t=e.target.closest('.tile');if(t)startPress(e,t,'shelf')});
 $('#main').addEventListener('click',e=>{const m=e.target.closest('[data-more]');if(m){e.stopPropagation();openMenu(m.closest('.tile').dataset.key)}});
-$('#main').addEventListener('contextmenu',e=>{const t=e.target.closest('.tile');if(t){e.preventDefault();if(press){clearTimeout(press.timer);press=null}if(!drag)openMenu(t.dataset.key)}});
+$('#main').addEventListener('contextmenu',e=>{const t=e.target.closest('.tile');if(t){e.preventDefault();if(selecting)return;if(press){clearTimeout(press.timer);press=null}if(!drag)openMenu(t.dataset.key)}});
 $('#main').addEventListener('keydown',e=>{const t=e.target.closest('.tile');if(!t)return;if(e.key==='Enter'||e.key===' '){e.preventDefault();activate({key:t.dataset.key,ctx:'shelf'})}else if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){e.preventDefault();openMenu(t.dataset.key)}});
 
 /* ---------- stack view (swipe through a stack) ---------- */
@@ -1176,9 +1253,11 @@ async function boot(){
  $('#sort').value=S.settings.sort||'manual';
  for(const[k,v]of await idb.all('thumbs'))if(v instanceof Blob)thumbs.set(k,URL.createObjectURL(v));
  for(const[k,v]of await idb.all('handles'))if(S.folders[k])handles.set(k,v);
+ await loadCopies();
  ensureOrder();render();chip();banner();
  for(const[fid,h]of handles){const p=await h.queryPermission({mode:'readwrite'}).catch(()=>'denied');if(p==='granted')scanLinked(fid,false);else needPerm.add(fid)}
  banner();
+ if('serviceWorker' in navigator&&location.protocol==='https:'&&!/claude\.ai|claudeusercontent/.test(location.hostname)){try{if(window.self===window.top)navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}}
  if(window.claude&&claude.use)claude.use('downloads').then(d=>{downloads=d}).catch(()=>{});
 }
 window.StacksApp={toast,save,S:()=>S,ingest,files,render};
