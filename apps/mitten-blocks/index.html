@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Mitten Blocks — VR + Phone</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#111; --mag:#ff2e88; --yel:#ffd23f; --bg:#2b2340; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; overflow:hidden; background:var(--bg); font-family:Nunito,system-ui,sans-serif; color:#fff; touch-action:none; user-select:none; -webkit-user-select:none; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .top { position:fixed; top:10px; left:10px; right:10px; display:flex; gap:8px; align-items:center; pointer-events:none; }
+  .title { font-family:Bangers,Impact,sans-serif; font-size:28px; letter-spacing:1px; color:#fff; text-shadow:3px 3px 0 var(--ink); }
+  .pill { pointer-events:auto; background:rgba(0,0,0,.55); border:2px solid var(--ink); border-radius:999px; padding:5px 11px; font-size:13px; font-weight:900; box-shadow:3px 3px 0 var(--ink); display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  .dot { width:10px; height:10px; border-radius:50%; background:#999; border:2px solid var(--ink); }
+  .dot.ok { background:#a6e22e; } .dot.warn { background:var(--yel); } .dot.bad { background:#ff5a1f; }
+  .spacer { flex:1; }
+  .btn { pointer-events:auto; font:900 14px Nunito,sans-serif; color:var(--ink); background:#fff; border:3px solid var(--ink); border-radius:12px; padding:8px 12px; box-shadow:3px 3px 0 var(--ink); cursor:pointer; }
+  .btn:active { transform:translate(2px,2px); box-shadow:1px 1px 0 var(--ink); }
+  .btn.vr { background:var(--mag); color:#fff; font-family:Bangers,Impact,sans-serif; font-size:20px; letter-spacing:1px; padding:6px 14px; text-shadow:2px 2px 0 var(--ink); }
+  .btn[disabled] { opacity:.45; }
+  .bar { position:fixed; left:50%; transform:translateX(-50%); bottom:12px; display:flex; flex-direction:column; gap:8px; align-items:center; width:min(560px,calc(100% - 16px)); }
+  .row { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; width:100%; }
+  .seg { display:flex; background:rgba(0,0,0,.55); border:3px solid var(--ink); border-radius:14px; box-shadow:3px 3px 0 var(--ink); overflow:hidden; }
+  .seg button { font:900 14px Nunito,sans-serif; border:0; background:transparent; color:#fff; padding:9px 12px; cursor:pointer; min-width:54px; }
+  .seg button + button { border-left:2px solid rgba(0,0,0,.6); }
+  .seg button.on { background:var(--yel); color:var(--ink); }
+  .seg button.on.erase { background:#ff5a1f; color:#fff; }
+  .sw { width:34px; height:34px; border-radius:10px; border:3px solid var(--ink); box-shadow:2px 2px 0 var(--ink); cursor:pointer; padding:0; }
+  .sw.on { outline:3px solid #fff; outline-offset:2px; transform:translateY(-3px); }
+  .hint { font-size:12px; font-weight:700; opacity:.8; text-shadow:1px 1px 0 var(--ink); text-align:center; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:5; }
+  .modal.show { display:flex; }
+  .card { background:#fff; color:var(--ink); border:4px solid var(--ink); border-radius:18px; box-shadow:6px 6px 0 var(--ink); padding:18px; width:min(340px,90%); text-align:center; }
+  .card h2 { font-family:Bangers,Impact,sans-serif; letter-spacing:1px; margin:0 0 6px; font-size:30px; }
+  .card p { margin:0 0 14px; font-size:14px; }
+  .card .row { gap:10px; }
+  .toast { position:fixed; top:58px; left:50%; transform:translateX(-50%); background:var(--yel); color:var(--ink); border:3px solid var(--ink); box-shadow:3px 3px 0 var(--ink); border-radius:12px; padding:7px 12px; font-weight:900; font-size:13px; max-width:92%; text-align:center; opacity:0; transition:opacity .25s; pointer-events:none; z-index:4; }
+  .toast.show { opacity:1; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="top">
+  <div class="title">MITTEN BLOCKS</div>
+  <div class="pill" id="status"><span class="dot" id="dot"></span><span id="statusText">Connecting…</span></div>
+  <div class="spacer"></div>
+  <button class="btn vr" id="vrBtn" disabled>ENTER VR</button>
+</div>
+
+<div class="bar" id="bar">
+  <div class="row" id="colors"></div>
+  <div class="row">
+    <div class="seg" id="tools">
+      <button data-tool="build" class="on">＋ Build</button>
+      <button data-tool="paint">🖌 Paint</button>
+      <button data-tool="erase" class="erase">✕ Erase</button>
+    </div>
+    <div class="seg" id="shapes">
+      <button data-shape="cube" class="on">■</button>
+      <button data-shape="ball">●</button>
+      <button data-shape="cone">▲</button>
+    </div>
+    <button class="btn" id="clearBtn">Clear</button>
+  </div>
+  <div class="hint" id="hint">Tap to use the tool · drag to spin · pinch to zoom</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal" id="clearModal">
+  <div class="card">
+    <h2>CLEAR EVERYTHING?</h2>
+    <p>This removes every block for every device, the headset included. It can't be undone.</p>
+    <div class="row">
+      <button class="btn" id="clearNo">Keep it</button>
+      <button class="btn" id="clearYes" style="background:#ff5a1f;color:#fff">Clear all</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- constants ----------
+const N = 16, MAXH = 16, MAXBLOCKS = 4000;
+const COLORS = ['#ff2e88','#ffd23f','#ff5a1f','#a6e22e','#b9a3ff','#3a3a44','#ffffff','#38c6f4'];
+const SHAPES = ['cube','ball','cone'];
+const TOOLS = ['build','paint','erase'];
+const DEV_COLORS = { vr:'#ff2e88', phone:'#ffd23f', screen:'#38c6f4' };
+const TABLE_POS = new THREE.Vector3(0, 0.8, -0.6);
+const st = { tool:'build', shape:'cube', color:0 };
+const isTouch = matchMedia('(pointer:coarse)').matches;
+let device = isTouch ? 'phone' : 'screen';
+
+// ---------- renderer / scene ----------
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.xr.enabled = true;
+renderer.xr.setReferenceSpaceType('local-floor');
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#2b2340');
+scene.fog = new THREE.Fog('#2b2340', 6, 18);
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.02, 50);
+camera.position.set(0.9, 1.55, 0.55);
+
+scene.add(new THREE.HemisphereLight('#ffffff', '#5a4a7a', 1.6));
+const sun = new THREE.DirectionalLight('#ffffff', 1.8);
+sun.position.set(2, 4, 1.5); scene.add(sun);
+
+// toon ramp (3 bands)
+const ramp = new THREE.DataTexture(new Uint8Array([90,90,90,255, 170,170,170,255, 255,255,255,255]), 3, 1);
+ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
+const toon = c => new THREE.MeshToonMaterial({ color:c, gradientMap:ramp });
+const INK = new THREE.MeshBasicMaterial({ color:'#111', side:THREE.BackSide });
+
+// room floor so VR isn't a void
+const floor = new THREE.Mesh(new THREE.CircleGeometry(8, 48), toon('#3d3258'));
+floor.rotation.x = -Math.PI/2; scene.add(floor);
+const rings = new THREE.PolarGridHelper(8, 16, 8, 64, '#55477a', '#55477a');
+rings.position.y = 0.002; scene.add(rings);
+
+// pedestal (world-fixed, follows table height)
+const pedestal = new THREE.Group(); scene.add(pedestal);
+const pedMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 1, 24), toon('#3a3a44'));
+const pedInk = new THREE.Mesh(pedMesh.geometry, INK); pedInk.scale.setScalar(1.03);
+pedestal.add(pedMesh, pedInk);
+
+// the table: everything inside is in block units
+const table = new THREE.Group();
+table.position.copy(TABLE_POS);
+table.scale.setScalar(0.06);
+scene.add(table);
+
+const plate = new THREE.Mesh(new THREE.BoxGeometry(N, 0.6, N), toon('#a6e22e'));
+plate.position.y = -0.3; table.add(plate);
+const plateInk = new THREE.Mesh(plate.geometry, INK); plateInk.position.y = -0.3; plateInk.scale.set(1.012, 1.08, 1.012); table.add(plateInk);
+const grid = new THREE.GridHelper(N, N, '#1d3b0a', '#3f6e14'); grid.position.y = 0.01; table.add(grid);
+
+function layoutPedestal() {
+  const h = Math.max(0.05, table.position.y - 0.6 * table.scale.x);
+  pedestal.position.set(table.position.x, h/2, table.position.z);
+  pedestal.scale.set(1, h, 1);
+}
+layoutPedestal();
+
+// ---------- blocks ----------
+const GEO = {
+  cube: new THREE.BoxGeometry(0.96, 0.96, 0.96),
+  ball: new THREE.SphereGeometry(0.5, 18, 12),
+  cone: new THREE.ConeGeometry(0.5, 0.96, 18),
+};
+const MATS = COLORS.map(toon);
+const blocks = new Map();        // key -> {x,y,z,c,s,mesh}
+const targets = [plate];          // raycast targets
+
+const keyOf = (x,y,z) => `b${x}-${y}-${z}`;
+const inBounds = (x,y,z) => x>=0 && x<N && z>=0 && z<N && y>=0 && y<MAXH;
+const cellCenter = (x,y,z,out=new THREE.Vector3()) => out.set(x - N/2 + 0.5, y + 0.5, z - N/2 + 0.5);
+
+function cleanBlock(d) {
+  if (!d || typeof d !== 'object') return null;
+  const x = d.x|0, y = d.y|0, z = d.z|0, c = d.c|0;
+  if (!inBounds(x,y,z) || c < 0 || c >= COLORS.length || !SHAPES.includes(d.s)) return null;
+  return { x, y, z, c, s:d.s };
+}
+
+function applyLocal(key, data) {
+  const old = blocks.get(key);
+  if (old && data && old.c === data.c && old.s === data.s) return;
+  if (old) {
+    table.remove(old.mesh);
+    const i = targets.indexOf(old.mesh); if (i >= 0) targets.splice(i, 1);
+    blocks.delete(key);
+  }
+  if (!data) { updateCount(); return; }
+  const m = new THREE.Mesh(GEO[data.s], MATS[data.c]);
+  const ink = new THREE.Mesh(GEO[data.s], INK); ink.scale.setScalar(data.s === 'cube' ? 1.1 : 1.12);
+  m.add(ink);
+  cellCenter(data.x, data.y, data.z, m.position);
+  m.userData = { key, ...data };
+  table.add(m); targets.push(m);
+  blocks.set(key, { ...data, mesh:m });
+  popIn(m);
+  updateCount();
+}
+const popping = [];
+function popIn(m) { m.scale.setScalar(0.2); popping.push({ m, t:0 }); }
+
+// ---------- picking ----------
+const _v = new THREE.Vector3(), _c = new THREE.Vector3();
+function pick(raycaster) {
+  const hit = raycaster.intersectObjects(targets, false)[0];
+  if (!hit) return null;
+  const p = table.worldToLocal(_v.copy(hit.point));
+  if (hit.object === plate) {
+    const x = Math.floor(p.x + N/2), z = Math.floor(p.z + N/2);
+    if (!inBounds(x,0,z)) return null;
+    return { block:null, place:{ x, y:0, z } };
+  }
+  const b = hit.object.userData;
+  cellCenter(b.x, b.y, b.z, _c);
+  const d = p.sub(_c);
+  const ax = Math.abs(d.x), ay = Math.abs(d.y), az = Math.abs(d.z);
+  let place = { x:b.x, y:b.y, z:b.z };
+  if (ax >= ay && ax >= az) place.x += Math.sign(d.x) || 1;
+  else if (ay >= az) place.y += Math.sign(d.y) || 1;
+  else place.z += Math.sign(d.z) || 1;
+  if (!inBounds(place.x, place.y, place.z)) place = null;
+  return { block:b, place };
+}
+
+function ghostCell(t) {
+  if (!t) return null;
+  if (st.tool === 'build') return t.place;
+  return t.block;
+}
+
+function useTool(t) {
+  if (!t) return false;
+  if (st.tool === 'build') {
+    if (!t.place) return false;
+    const k = keyOf(t.place.x, t.place.y, t.place.z);
+    if (blocks.has(k)) return false;
+    if (blocks.size >= MAXBLOCKS) { toast('That’s the block limit — erase some first'); return false; }
+    write(k, { ...t.place, c:st.color, s:st.shape });
+    sfx(520 + t.place.y * 30);
+    return true;
+  }
+  if (!t.block) return false;
+  const b = t.block, k = keyOf(b.x, b.y, b.z);
+  if (st.tool === 'paint') {
+    if (b.c === st.color) return false;
+    write(k, { x:b.x, y:b.y, z:b.z, c:st.color, s:b.s });
+    sfx(700);
+  } else {
+    write(k, null);
+    sfx(220);
+  }
+  return true;
+}
+
+// ghost boxes
+function makeGhost(color) {
+  const g = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.04,1.04,1.04)),
+    new THREE.LineBasicMaterial({ color, transparent:true, opacity:0.95 }));
+  g.visible = false; table.add(g); return g;
+}
+function showGhost(g, cell, color) {
+  if (!cell) { g.visible = false; return; }
+  g.visible = true; cellCenter(cell.x, cell.y, cell.z, g.position); g.material.color.set(color);
+}
+const toolColor = () => st.tool === 'erase' ? '#ff5a1f' : COLORS[st.color];
+
+// ---------- sync: db (lasting) + room (who's here) ----------
+let db = null, room = null, readOnly = false, dbState = 'connecting';
+const pending = new Map();
+function write(key, data) {
+  if (readOnly) { toast('This copy is view-only'); return; }
+  applyLocal(key, data);
+  if (!db) return;
+  const ref = db.doc('blocks/' + key);
+  const prev = pending.get(key) || Promise.resolve();
+  const next = prev.then(() => data ? ref.set({ ...data, t:Date.now(), by:device }) : ref.delete())
+    .catch(e => {
+      if (e && e.code === 'invalid_argument') { readOnly = true; setStatus(); toast('You can view this, but not change it'); }
+      else if (e && e.code === 'quota_exceeded') toast('Storage is full — clear some blocks');
+      else if (e && e.code === 'resource_exhausted') toast('Slow down a little — too many changes at once');
+      else console.warn('db write', e);
+    });
+  pending.set(key, next);
+  next.finally(() => { if (pending.get(key) === next) pending.delete(key); });
+}
+
+async function startSync() {
+  const timer = setTimeout(() => { if (dbState === 'connecting') { dbState = 'slow'; setStatus(); } }, 10000);
+  try { db = await claude.use('db'); } catch { db = null; }
+  if (!db) { clearTimeout(timer); dbState = 'none'; setStatus(); }
+  else {
+    db.collection('blocks').onSnapshot(snap => {
+      for (const ch of snap.docChanges()) {
+        if (ch.type === 'removed') applyLocal(ch.doc.id, null);
+        else { const d = cleanBlock(ch.doc.data()); if (d && keyOf(d.x,d.y,d.z) === ch.doc.id) applyLocal(ch.doc.id, d); }
+      }
+      if (!snap.metadata.fromCache) { clearTimeout(timer); dbState = 'ok'; setStatus(); }
+    }, err => { clearTimeout(timer); dbState = 'error'; setStatus(); console.warn('db', err); });
+  }
+  try { room = await claude.use('room'); } catch { room = null; }
+  if (room) {
+    room.onPeers(ch => { renderPeers(ch.peers); setStatus(); }, () => { room = null; renderPeers([]); setStatus(); });
+    sendPresence(true);
+  }
+}
+if (window.claude && typeof window.claude.use === 'function') startSync();
+else { dbState = 'none'; setStatus(); }
+
+// presence: where my eye is and what I'm pointing at, in table units
+let lastPres = '', lastPresT = 0, myCursor = null;
+function sendPresence(force) {
+  if (!room) return;
+  const now = performance.now();
+  if (!force && now - lastPresT < 80) return;
+  const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+  cam.getWorldPosition(_v); table.worldToLocal(_v);
+  const r = n => Math.round(n * 10) / 10;
+  const pres = { dev:device, eye:[r(_v.x), r(_v.y), r(_v.z)], cur: myCursor ? [myCursor.x, myCursor.y, myCursor.z] : null, col:toolColor(), tool:st.tool };
+  const s = JSON.stringify(pres);
+  if (s === lastPres && !force) return;
+  lastPres = s; lastPresT = now;
+  room.presence(pres).catch(() => {});
+}
+
+// other devices: a little goggle or phone floating by the table, plus their ghost cursor
+const peerObjs = new Map();
+let peerCount = 1;
+function makeAvatar(dev) {
+  const g = new THREE.Group();
+  const col = DEV_COLORS[dev] || '#fff';
+  if (dev === 'vr') {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.1, 1.0), toon(col));
+    const ink = new THREE.Mesh(body.geometry, INK); ink.scale.setScalar(1.1);
+    const lensG = new THREE.CircleGeometry(0.32, 20), lensM = new THREE.MeshBasicMaterial({ color:'#111' });
+    const l1 = new THREE.Mesh(lensG, lensM), l2 = new THREE.Mesh(lensG, lensM);
+    l1.position.set(-0.5, 0, 0.51); l2.position.set(0.5, 0, 0.51);
+    const strap = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.12, 6, 24, Math.PI), toon('#3a3a44'));
+    strap.rotation.x = -Math.PI/2; strap.position.z = -0.3;
+    g.add(body, ink, l1, l2, strap);
+  } else {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.9, 0.18), toon(col));
+    const ink = new THREE.Mesh(body.geometry, INK); ink.scale.setScalar(1.1);
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.55), new THREE.MeshBasicMaterial({ color:'#111' }));
+    scr.position.z = -0.1; scr.rotation.y = Math.PI;
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.14, 16), new THREE.MeshBasicMaterial({ color:'#111' }));
+    lens.position.set(-0.22, 0.65, 0.1);
+    g.add(body, ink, scr, lens);
+  }
+  const label = textSprite(dev === 'vr' ? 'VR' : dev === 'phone' ? 'PHONE' : 'SCREEN', col);
+  label.position.y = 1.6; g.add(label);
+  return g;
+}
+function textSprite(text, col) {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96;
+  const x = cv.getContext('2d');
+  x.font = '64px Bangers, Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.lineWidth = 12; x.strokeStyle = '#111'; x.strokeText(text, 128, 50);
+  x.fillStyle = col; x.fillText(text, 128, 50);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(cv), depthTest:false }));
+  sp.scale.set(2.6, 1, 1); return sp;
+}
+function renderPeers(peers) {
+  const seen = new Set();
+  peerCount = 0;
+  for (const p of peers) {
+    peerCount++;
+    if (p.sameTab || p.kind !== 'viewer') continue;
+    const pr = p.presence || {};
+    const dev = ['vr','phone','screen'].includes(pr.dev) ? pr.dev : 'screen';
+    let o = peerObjs.get(p.peer);
+    if (!o || o.dev !== dev) {
+      if (o) { table.remove(o.avatar); table.remove(o.ghost); }
+      o = { dev, avatar:makeAvatar(dev), ghost:makeGhost(DEV_COLORS[dev]), target:new THREE.Vector3(), has:false };
+      table.add(o.avatar); peerObjs.set(p.peer, o);
+    }
+    seen.add(p.peer);
+    const e = Array.isArray(pr.eye) && pr.eye.length === 3 && pr.eye.every(Number.isFinite) ? pr.eye : null;
+    if (e) {
+      // keep avatars from sitting inside the table or too far away
+      const v = new THREE.Vector3(...e);
+      const len = v.length(); if (len > 60) v.multiplyScalar(60/len);
+      o.target.copy(v); if (!o.has) o.avatar.position.copy(v); o.has = true;
+    }
+    o.avatar.visible = !!e;
+    const cu = Array.isArray(pr.cur) && pr.cur.length === 3 && pr.cur.every(Number.isInteger) && inBounds(...pr.cur) ? pr.cur : null;
+    const gc = typeof pr.col === 'string' && /^#[0-9a-f]{6}$/i.test(pr.col) ? pr.col : DEV_COLORS[dev];
+    showGhost(o.ghost, cu ? { x:cu[0], y:cu[1], z:cu[2] } : null, gc);
+  }
+  for (const [k, o] of peerObjs) if (!seen.has(k)) { table.remove(o.avatar); table.remove(o.ghost); peerObjs.delete(k); }
+}
+
+// ---------- HUD (phone / screen) ----------
+const $ = id => document.getElementById(id);
+const colorsEl = $('colors');
+COLORS.forEach((c, i) => {
+  const b = document.createElement('button'); b.className = 'sw' + (i === st.color ? ' on' : '');
+  b.style.background = c; b.title = 'Colour ' + (i+1);
+  b.onclick = () => setColor(i); colorsEl.appendChild(b);
+});
+$('tools').onclick = e => { const t = e.target.closest('button')?.dataset.tool; if (t) setTool(t); };
+$('shapes').onclick = e => { const s = e.target.closest('button')?.dataset.shape; if (s) setShape(s); };
+$('clearBtn').onclick = () => $('clearModal').classList.add('show');
+$('clearNo').onclick = () => $('clearModal').classList.remove('show');
+$('clearYes').onclick = () => { $('clearModal').classList.remove('show'); clearAll(); };
+
+function setTool(t) { st.tool = t; syncUI(); }
+function setShape(s) { st.shape = s; if (st.tool === 'erase') st.tool = 'build'; syncUI(); }
+function setColor(i) { st.color = (i + COLORS.length) % COLORS.length; if (st.tool === 'erase') st.tool = 'build'; syncUI(); }
+function syncUI() {
+  [...colorsEl.children].forEach((b, i) => b.classList.toggle('on', i === st.color));
+  document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === st.tool));
+  document.querySelectorAll('#shapes button').forEach(b => b.classList.toggle('on', b.dataset.shape === st.shape));
+  drawMenu(); sendPresence(true);
+}
+async function clearAll() {
+  const keys = [...blocks.keys()];
+  for (let i = 0; i < keys.length; i += 10) {
+    keys.slice(i, i+10).forEach(k => write(k, null));
+    await Promise.all(keys.slice(i, i+10).map(k => pending.get(k)));
+  }
+  toast('Cleared');
+}
+
+let toastT = 0;
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+
+function setStatus() {
+  const dot = $('dot'), txt = $('statusText');
+  let cls = 'warn', s = 'Connecting…';
+  if (dbState === 'ok') {
+    cls = readOnly ? 'warn' : 'ok';
+    const others = room ? Math.max(0, peerCount - 1) : 0;
+    s = (readOnly ? 'View only' : 'Synced') + (room ? (others ? ` · ${others} other device${others>1?'s':''} here` : ' · just you') : '');
+  } else if (dbState === 'slow') { s = 'Still connecting — changes may not sync yet'; }
+  else if (dbState === 'none') { cls = 'bad'; s = 'Not syncing — open on claude.ai, signed in'; }
+  else if (dbState === 'error') { cls = 'bad'; s = 'Sync stopped — reload to reconnect'; }
+  dot.className = 'dot ' + cls; txt.textContent = s;
+  statusLine = s; drawMenu();
+}
+let blockCountText = '0 blocks';
+function updateCount() { blockCountText = `${blocks.size} block${blocks.size === 1 ? '' : 's'}`; }
+
+// ---------- phone / screen input ----------
+const orbit = new OrbitControls(camera, canvas);
+orbit.target.set(TABLE_POS.x, TABLE_POS.y + 0.1, TABLE_POS.z);
+orbit.enableDamping = true; orbit.minDistance = 0.25; orbit.maxDistance = 4; orbit.maxPolarAngle = Math.PI * 0.49;
+orbit.update();
+
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const screenGhost = makeGhost('#fff');
+let down = null;
+function rayFromEvent(e) {
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+}
+let touches = 0;
+canvas.addEventListener('pointerdown', e => { touches++; unlockAudio(); down = touches === 1 ? { x:e.clientX, y:e.clientY, t:performance.now() } : null; });
+canvas.addEventListener('pointerup', e => {
+  touches = Math.max(0, touches - 1);
+  if (!down) return;
+  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = performance.now() - down.t;
+  down = null;
+  if (moved > 9 || dt > 500 || renderer.xr.isPresenting) return;
+  rayFromEvent(e);
+  const t = pick(ray);
+  const c = ghostCell(t);
+  myCursor = c ? { x:c.x, y:c.y, z:c.z } : null;
+  useTool(t); sendPresence(true);
+});
+canvas.addEventListener('pointercancel', () => { touches = Math.max(0, touches - 1); down = null; });
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerType !== 'mouse' || renderer.xr.isPresenting) return;
+  rayFromEvent(e);
+  const c = ghostCell(pick(ray));
+  showGhost(screenGhost, c, toolColor());
+  myCursor = c ? { x:c.x, y:c.y, z:c.z } : null; sendPresence();
+});
+canvas.addEventListener('pointerleave', () => { screenGhost.visible = false; myCursor = null; sendPresence(); });
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'b') setTool('build'); else if (k === 'p') setTool('paint'); else if (k === 'e') setTool('erase');
+  else if (k >= '1' && k <= '8') setColor(+k - 1);
+});
+addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+// ---------- VR ----------
+const vrBtn = $('vrBtn');
+const onQuest = /OculusBrowser|Quest/i.test(navigator.userAgent);
+const noVR = () => {
+  vrBtn.disabled = true;
+  vrBtn.textContent = onQuest ? 'VR BLOCKED HERE' : isTouch ? 'VR ON HEADSET' : 'NO VR HERE';
+  if (onQuest) toast('This frame blocks VR — open the artifact on its own page in the Quest Browser');
+};
+if (navigator.xr && navigator.xr.isSessionSupported) {
+  navigator.xr.isSessionSupported('immersive-vr').then(ok => { if (ok) vrBtn.disabled = false; else noVR(); }).catch(noVR);
+} else noVR();
+
+vrBtn.onclick = async () => {
+  unlockAudio();
+  if (renderer.xr.isPresenting) { renderer.xr.getSession().end(); return; }
+  try {
+    const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures:['local-floor','bounded-floor','hand-tracking'] });
+    await renderer.xr.setSession(session);
+  } catch (err) {
+    console.warn(err); vrBtn.textContent = 'VR BLOCKED HERE';
+    toast('VR was blocked in this frame — open the artifact page on its own in the Quest Browser');
+  }
+};
+let helpUntil = 0;
+renderer.xr.addEventListener('sessionstart', () => {
+  device = 'vr'; orbit.enabled = false; $('bar').style.display = 'none'; vrBtn.textContent = 'EXIT VR';
+  screenGhost.visible = false; helpUntil = performance.now() + 14000; helpCard.visible = true; sendPresence(true);
+});
+renderer.xr.addEventListener('sessionend', () => {
+  device = isTouch ? 'phone' : 'screen'; orbit.enabled = true; $('bar').style.display = ''; vrBtn.textContent = 'ENTER VR';
+  helpCard.visible = false; myCursor = null; sendPresence(true);
+});
+
+// red mittens
+function mitten(left) {
+  const g = new THREE.Group(), red = toon('#e8262b');
+  const palm = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 12), red); palm.scale.set(1, 0.6, 1.25);
+  const thumb = new THREE.Mesh(new THREE.SphereGeometry(0.02, 12, 8), red); thumb.position.set(left ? 0.042 : -0.042, 0.005, -0.01);
+  const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.034, 0.03, 16), toon('#ffffff')); cuff.rotation.x = Math.PI/2; cuff.position.z = 0.055;
+  [palm, thumb, cuff].forEach(m => { const ink = new THREE.Mesh(m.geometry, INK); ink.scale.setScalar(1.12); m.add(ink); g.add(m); });
+  return g;
+}
+const hands = [];
+for (let i = 0; i < 2; i++) {
+  const ctrl = renderer.xr.getController(i);
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0,0,-1)]),
+    new THREE.LineBasicMaterial({ color:'#ffffff' }));
+  line.scale.z = 1.5; ctrl.add(line);
+  const dotM = new THREE.Mesh(new THREE.SphereGeometry(0.008, 10, 8), new THREE.MeshBasicMaterial({ color:'#ffffff' }));
+  ctrl.add(dotM);
+  scene.add(ctrl);
+  const grip = renderer.xr.getControllerGrip(i);
+  const mit = mitten(false); grip.add(mit); scene.add(grip);
+  const h = { ctrl, grip, mit, line, dotM, src:null, ghost:makeGhost('#fff'), prevBtn:[], target:null, menuHit:null };
+  ctrl.addEventListener('connected', e => {
+    h.src = e.data;
+    if (e.data.handedness === 'left') { grip.remove(h.mit); h.mit = mitten(true); grip.add(h.mit); }
+  });
+  ctrl.addEventListener('disconnected', () => { h.src = null; h.ghost.visible = false; });
+  ctrl.addEventListener('selectstart', () => onSelect(h));
+  hands.push(h);
+}
+
+// floating tool panel to the left of the table
+const MW = 512, MH = 400;
+const menuCv = document.createElement('canvas'); menuCv.width = MW; menuCv.height = MH;
+const menuTex = new THREE.CanvasTexture(menuCv); menuTex.colorSpace = THREE.SRGBColorSpace;
+const menu = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4 * MH / MW), new THREE.MeshBasicMaterial({ map:menuTex }));
+const menuBack = new THREE.Mesh(new THREE.PlaneGeometry(0.416, 0.4 * MH / MW + 0.016), new THREE.MeshBasicMaterial({ color:'#111', side:THREE.DoubleSide }));
+menuBack.position.z = -0.002; menu.add(menuBack);
+menu.visible = false; scene.add(menu);
+function placeMenu() {
+  menu.position.set(table.position.x - 0.62, table.position.y + 0.25, table.position.z + 0.25);
+  menu.lookAt(0, 1.4, 0.2);
+}
+placeMenu();
+
+const BTN = [];
+(() => {
+  for (let i = 0; i < 8; i++) BTN.push({ kind:'color', v:i, x:16 + i*61, y:62, w:54, h:54 });
+  SHAPES.forEach((s, i) => BTN.push({ kind:'shape', v:s, x:16 + i*163, y:134, w:152, h:70 }));
+  TOOLS.forEach((t, i) => BTN.push({ kind:'tool', v:t, x:16 + i*163, y:220, w:152, h:70 }));
+  BTN.push({ kind:'clear', v:0, x:16, y:306, w:152, h:46 });
+})();
+let menuHover = null, statusLine = '', clearArmed = 0;
+function rr(x, X, Y, W, H, r) { x.beginPath(); if (x.roundRect) x.roundRect(X, Y, W, H, r); else x.rect(X, Y, W, H); }
+function drawMenu() {
+  const x = menuCv.getContext('2d');
+  x.fillStyle = '#2b2340'; x.fillRect(0, 0, MW, MH);
+  x.font = '40px Bangers, Impact, sans-serif'; x.textBaseline = 'middle'; x.textAlign = 'left';
+  x.lineWidth = 8; x.strokeStyle = '#111'; x.strokeText('MITTEN BLOCKS', 16, 32); x.fillStyle = '#fff'; x.fillText('MITTEN BLOCKS', 16, 32);
+  x.font = '900 18px Nunito, sans-serif'; x.textAlign = 'right'; x.fillStyle = '#ffd23f'; x.fillText(blockCountText, MW - 16, 32);
+  for (const b of BTN) {
+    const hov = menuHover === b;
+    const on = (b.kind === 'color' && st.color === b.v) || (b.kind === 'shape' && st.shape === b.v) || (b.kind === 'tool' && st.tool === b.v);
+    x.fillStyle = '#111'; rr(x, b.x + 4, b.y + 4, b.w, b.h, 12); x.fill();
+    if (b.kind === 'color') x.fillStyle = COLORS[b.v];
+    else if (b.kind === 'clear') x.fillStyle = clearArmed > performance.now() ? '#ff5a1f' : '#555';
+    else x.fillStyle = on ? (b.v === 'erase' ? '#ff5a1f' : '#ffd23f') : (hov ? '#6b5c96' : '#4a3d6b');
+    rr(x, b.x, b.y - (hov ? 3 : 0), b.w, b.h, 12); x.fill();
+    x.lineWidth = on ? 6 : 4; x.strokeStyle = on && b.kind === 'color' ? '#fff' : '#111'; x.stroke();
+    const label = b.kind === 'shape' ? ({ cube:'■ CUBE', ball:'● BALL', cone:'▲ CONE' })[b.v]
+      : b.kind === 'tool' ? ({ build:'+ BUILD', paint:'PAINT', erase:'✕ ERASE' })[b.v]
+      : b.kind === 'clear' ? (clearArmed > performance.now() ? 'SURE? AGAIN' : 'CLEAR ALL') : '';
+    if (label) {
+      x.textAlign = 'center'; x.font = '30px Bangers, Impact, sans-serif';
+      x.fillStyle = on || b.kind === 'clear' ? '#111' : '#fff';
+      if (b.kind === 'clear') x.fillStyle = '#fff';
+      x.fillText(label, b.x + b.w/2, b.y + b.h/2 - (hov ? 3 : 0) + 2);
+    }
+  }
+  x.textAlign = 'left'; x.font = '900 15px Nunito, sans-serif'; x.fillStyle = '#ddd';
+  x.fillText(statusLine.slice(0, 44), 186, 318);
+  x.fillStyle = '#aaa'; x.fillText('A tool · B colour · X shape · sticks move table', 186, 342);
+  menuTex.needsUpdate = true;
+}
+drawMenu();
+document.fonts && document.fonts.ready.then(drawMenu);
+
+// help card for the first 14 s in VR
+const helpCv = document.createElement('canvas'); helpCv.width = 512; helpCv.height = 256;
+function drawHelp() {
+  const x = helpCv.getContext('2d');
+  x.fillStyle = '#ffd23f'; x.fillRect(0, 0, 512, 256); x.lineWidth = 10; x.strokeStyle = '#111'; x.strokeRect(5, 5, 502, 246);
+  x.fillStyle = '#111'; x.font = '44px Bangers, Impact, sans-serif'; x.textAlign = 'center'; x.fillText('BUILD TOGETHER!', 256, 52);
+  x.font = '900 22px Nunito, sans-serif';
+  ['Point + trigger: build / paint / erase', 'Panel on the left: colours, shapes, tools', 'Right stick: spin & lift the table', 'Left stick: shrink or grow it', 'Your phone sees every change live'].forEach((l, i) => x.fillText(l, 256, 100 + i*32));
+  helpTex.needsUpdate = true;
+}
+const helpTex = new THREE.CanvasTexture(helpCv); helpTex.colorSpace = THREE.SRGBColorSpace;
+drawHelp(); document.fonts && document.fonts.ready.then(drawHelp);
+const helpCard = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), new THREE.MeshBasicMaterial({ map:helpTex }));
+helpCard.visible = false; scene.add(helpCard);
+
+const tmpM = new THREE.Matrix4();
+function aimRay(h) {
+  tmpM.identity().extractRotation(h.ctrl.matrixWorld);
+  ray.ray.origin.setFromMatrixPosition(h.ctrl.matrixWorld);
+  ray.ray.direction.set(0, 0, -1).applyMatrix4(tmpM);
+  ray.far = 10;
+}
+function menuButtonAt(uv) {
+  const px = uv.x * MW, py = (1 - uv.y) * MH;
+  return BTN.find(b => px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h) || null;
+}
+function pressMenu(b) {
+  if (b.kind === 'color') setColor(b.v);
+  else if (b.kind === 'shape') setShape(b.v);
+  else if (b.kind === 'tool') setTool(b.v);
+  else if (b.kind === 'clear') {
+    if (clearArmed > performance.now()) { clearArmed = 0; clearAll(); }
+    else { clearArmed = performance.now() + 3000; drawMenu(); setTimeout(drawMenu, 3100); }
+  }
+  sfx(880, 0.05);
+}
+function onSelect(h) {
+  unlockAudio();
+  if (h.menuHit) { pressMenu(h.menuHit); buzz(h, 0.3, 30); return; }
+  if (useTool(h.target)) buzz(h, 0.6, 40);
+}
+function buzz(h, i, ms) { try { h.src?.gamepad?.hapticActuators?.[0]?.pulse(i, ms); } catch {} }
+
+function updateVR(dt) {
+  let cursor = null, anyMenu = null;
+  for (const h of hands) {
+    if (!h.src) { h.line.visible = false; continue; }
+    h.line.visible = true;
+    aimRay(h);
+    const mh = ray.intersectObject(menu, false)[0];
+    if (mh) {
+      h.menuHit = menuButtonAt(mh.uv); anyMenu = h.menuHit || anyMenu;
+      h.target = null; h.ghost.visible = false;
+      h.line.scale.z = mh.distance; h.dotM.position.set(0, 0, -mh.distance);
+    } else {
+      h.menuHit = null;
+      const hit = raycastDist();
+      h.target = pick(ray);
+      const c = ghostCell(h.target);
+      showGhost(h.ghost, c, toolColor());
+      if (c) cursor = c;
+      const d = hit ?? 1.5;
+      h.line.scale.z = d; h.dotM.position.set(0, 0, -d);
+    }
+    // sticks and buttons
+    const gp = h.src.gamepad;
+    if (gp) {
+      const ax = gp.axes, sx = dz(ax[2] || 0), sy = dz(ax[3] || 0);
+      if (h.src.handedness === 'right') {
+        table.rotation.y -= sx * dt * 1.6;
+        table.position.y = THREE.MathUtils.clamp(table.position.y - sy * dt * 0.4, 0.3, 1.7);
+      } else if (h.src.handedness === 'left') {
+        const s = THREE.MathUtils.clamp(table.scale.x * Math.exp(-sy * dt * 1.2), 0.02, 0.2);
+        table.scale.setScalar(s);
+      }
+      const pressed = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
+      const edge = i => pressed(i) && !h.prevBtn[i];
+      if (h.src.handedness === 'right') {
+        if (edge(4)) setTool(TOOLS[(TOOLS.indexOf(st.tool) + 1) % TOOLS.length]);
+        if (edge(5)) setColor(st.color + 1);
+      } else {
+        if (edge(4)) setShape(SHAPES[(SHAPES.indexOf(st.shape) + 1) % SHAPES.length]);
+        if (edge(5)) setColor(st.color - 1);
+      }
+      for (let i = 0; i < gp.buttons.length; i++) h.prevBtn[i] = pressed(i);
+    }
+  }
+  if (anyMenu !== menuHover) { menuHover = anyMenu; drawMenu(); }
+  myCursor = cursor ? { x:cursor.x, y:cursor.y, z:cursor.z } : null;
+  layoutPedestal(); placeMenu();
+}
+function raycastDist() { const h = ray.intersectObjects(targets, false)[0]; return h ? h.distance : null; }
+const dz = v => Math.abs(v) < 0.15 ? 0 : (v - Math.sign(v) * 0.15) / 0.85;
+
+// ---------- sound ----------
+let actx = null;
+function unlockAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch {} } if (actx && actx.state === 'suspended') actx.resume().catch(() => {}); }
+function sfx(f, len = 0.09) {
+  if (!actx) return;
+  const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'triangle'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 1.6, t + len);
+  g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.001, t + len + 0.05);
+  o.connect(g).connect(actx.destination); o.start(t); o.stop(t + len + 0.06);
+}
+
+// ---------- loop ----------
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const now = performance.now();
+  if (renderer.xr.isPresenting) {
+    menu.visible = true;
+    updateVR(dt);
+    if (helpCard.visible) {
+      if (now > helpUntil) helpCard.visible = false;
+      helpCard.position.set(table.position.x, table.position.y + 0.55, table.position.z - 0.2);
+      helpCard.lookAt(renderer.xr.getCamera().getWorldPosition(_v));
+    }
+  } else {
+    menu.visible = false;
+    orbit.update();
+  }
+  for (let i = popping.length - 1; i >= 0; i--) {
+    const p = popping[i]; p.t = Math.min(1, p.t + dt * 5);
+    const u = p.t - 1, back = 1 + 2.7 * u*u*u + 1.7 * u*u;   // ease-out-back
+    p.m.scale.setScalar(p.t >= 1 ? 1 : Math.max(0.05, back));
+    if (p.t >= 1) popping.splice(i, 1);
+  }
+  for (const o of peerObjs.values()) {
+    o.avatar.position.lerp(o.target, Math.min(1, dt * 8));
+    o.avatar.lookAt(table.localToWorld(_c.set(0, 1, 0)));
+    o.avatar.position.y += Math.sin(now / 400) * 0.004;
+  }
+  sendPresence();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

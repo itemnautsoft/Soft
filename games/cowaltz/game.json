@@ -1,0 +1,14 @@
+{
+  "title": "Cowaltz",
+  "blurb": "A knight, a fairy princess and a trooper defend a little blue moon from diving bees. Knock bees into each other for ricochet chains. Get stung and you swell up until a teammate runs over with an EpiPen.",
+  "date": "2026-11-15",
+  "updated": "2026-11-24",
+  "tags": [
+    "mobile",
+    "3d",
+    "bullet-hell",
+    "arcade"
+  ],
+  "controls": "Stick to move (light push tiptoes, full push runs); Knight: BASH; Fairy: hold SHOOT; Trooper: hold FIRE; tap a hero or their portrait to switch, the others are AI",
+  "artifact": "https://claude.ai/artifact/H4YBKj3D8zdhi26akuu9fW"
+}

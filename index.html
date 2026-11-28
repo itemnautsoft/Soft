@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Itemnaut — itemnaut × Claude games and apps</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#141218; --paper:#fff7e6; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:Nunito,system-ui,sans-serif;
+         background-image: radial-gradient(#14121814 1.5px, transparent 1.5px); background-size: 18px 18px; }
+  header { padding: 36px 20px 8px; text-align:center; }
+  h1 { font-family:Bangers,Impact,sans-serif; font-size: clamp(48px, 12vw, 120px); letter-spacing:3px; margin:0; line-height:.9;
+       color:#ffd400; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; text-shadow: 6px 6px 0 #ff2e88, 10px 10px 0 var(--ink); transform: rotate(-3deg); }
+  header p { font-weight:800; margin:18px 0 0; }
+  main { max-width: 1100px; margin: 24px auto 60px; padding: 0 16px; display:grid; gap:22px;
+         grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .card { display:flex; flex-direction:column; text-decoration:none; color:inherit; background:#fff; border:4px solid var(--ink);
+          border-radius:14px; box-shadow: 7px 7px 0 var(--ink); overflow:hidden; transition: transform .12s, box-shadow .12s; }
+  .card:hover, .card:focus-visible { transform: translate(-3px,-3px) rotate(-.6deg); box-shadow: 10px 10px 0 var(--ink); outline:none; }
+  .card:active { transform: translate(4px,4px); box-shadow: 3px 3px 0 var(--ink); }
+  .thumb { aspect-ratio: 16/10; background: var(--c); border-bottom:4px solid var(--ink); display:grid; place-items:center; overflow:hidden; }
+  .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb span { font-family:Bangers,Impact,sans-serif; font-size:96px; color:#fff; -webkit-text-stroke:4px var(--ink); paint-order:stroke fill; text-shadow:5px 5px 0 var(--ink); }
+  .body { padding: 12px 14px 14px; }
+  h2 { font-family:Bangers,Impact,sans-serif; letter-spacing:1px; font-size: 30px; margin:0 0 4px; }
+  .body p { margin:0 0 10px; font-weight:600; line-height:1.35; }
+  .meta { display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:13px; font-weight:800; }
+  .tag { background: var(--ink); color:#fff; border-radius: 999px; padding: 2px 9px; }
+  .date { margin-left:auto; opacity:.6; }
+  .section { font-family:Bangers,Impact,sans-serif; letter-spacing:2px; font-size:40px; max-width:1100px; margin:36px auto -6px; padding:0 16px; }
+  .empty { grid-column: 1/-1; text-align:center; font-weight:800; font-size:20px; padding:40px; }
+  footer { text-align:center; padding: 0 0 40px; font-weight:800; opacity:.7; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Itemnaut</h1>
+  <p>22 prototypes by itemnaut × Claude. Tap one to try it.</p>
+</header>
+<h2 class="section">Games</h2>
+<main>
+
+  <a class="card" href="games/fort-builder/" style="--c:#ff2e88">
+    <div class="thumb"><span>F</span></div>
+    <div class="body">
+      <h2>Fort Builder Test</h2>
+      <p>Build a pig castle on a grid with traps, guards and straw, sticks or brick walls, then sneak through it as the wolf to reach THE HOUSE. You have to clear your own castle before you can publish it.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">3d</span><span class="tag">stealth</span><span class="tag">level-editor</span>
+        <span class="date">2026-11-26</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/pawnball/" style="--c:#ffd400">
+    <div class="thumb"><img src="games/pawnball/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Pawnball</h2>
+      <p>3D: fling numbered pawns, bump friends for +1, bonk uniforms till the helmet pops. Drag to look around. Nobody crosses alone.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">arcade</span><span class="tag">physics</span><span class="tag">3d</span>
+        <span class="date">2026-11-26</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/sea-room/" style="--c:#ff5a1f">
+    <div class="thumb"><img src="games/sea-room/thumb.jpg" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Sea Room</h2>
+      <p>A calm room full of windows over the ocean, shared by Sprout, a big soft pup with a chocolate Lab&#39;s heart, and Sage, a round sage-green cat who does what she likes. Turn your phone to look around, call them with your finger or your voice, and keep a photo diary.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">3d</span><span class="tag">virtual-pet</span><span class="tag">tilt</span><span class="tag">voice</span>
+        <span class="date">2026-11-26</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/sid-dash/" style="--c:#9be22d">
+    <div class="thumb"><img src="games/sid-dash/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Sid Dash</h2>
+      <p>A Trouble Makers game: run Sid up the street to his house and on to school, dodge cars and wet floors, and grab all 3 stars to reach the next stage. Unlock crazy-eyed Scott and his poo hats.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">3d</span><span class="tag">runner</span>
+        <span class="date">2026-11-26</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/sound-exchange/" style="--c:#b79cff">
+    <div class="thumb"><img src="games/sound-exchange/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Sound Exchange</h2>
+      <p>Press a playlist into a battle creature. In battle, each creature rides the edge of its own spinning record: spin clockwise to strike as you pass the gap, counter-clockwise to block or parry. Moves are named after your songs and shouted like comic sound effects. Fill your hype, hit S, and tap to the beat.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">rpg</span><span class="tag">music</span><span class="tag">rhythm</span><span class="tag">3d</span>
+        <span class="date">2026-11-26</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/candle-kid/" style="--c:#29c5ff">
+    <div class="thumb"><img src="games/candle-kid/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Candle Kid</h2>
+      <p>Strike a match, light Lumi, and wake the sleeping candles. They tag along, shield you from the wind and keep you warm.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">ar</span><span class="tag">3d</span>
+        <span class="date">2026-11-24</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/cowaltz/" style="--c:#ff2e88">
+    <div class="thumb"><img src="games/cowaltz/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Cowaltz</h2>
+      <p>A knight, a fairy princess and a trooper defend a little blue moon from diving bees. Knock bees into each other for ricochet chains. Get stung and you swell up until a teammate runs over with an EpiPen.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">3d</span><span class="tag">bullet-hell</span><span class="tag">arcade</span>
+        <span class="date">2026-11-24</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/nextquest/" style="--c:#ffd400">
+    <div class="thumb"><img src="games/nextquest/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>NextQuest</h2>
+      <p>Your town as a hand-drawn highlighter map: plant your flag at home, walk to draw in the streets, and find shops, lore and a daily Grand Chest 2.5 miles out.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">gps</span><span class="tag">rpg</span><span class="tag">walking</span>
+        <span class="date">2026-11-24</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/tic-tac-tower-p/" style="--c:#ff5a1f">
+    <div class="thumb"><img src="games/tic-tac-tower-p/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Tic Tac Tower P</h2>
+      <p>The tower again, in highlighter green, blue, yellow and orange, with slides that overshoot and settle.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">3d</span><span class="tag">versus</span>
+        <span class="date">2026-11-24</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/ur-here/" style="--c:#9be22d">
+    <div class="thumb"><img src="games/ur-here/thumb.jpg" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>UR HERE</h2>
+      <p>A living infographic of where we are in time. Ride the UR·HERE Express from Earth&#39;s formation to the red giant sun, get off at each station and find Sunni, the man whose head is a sundial, with his rooster Gallus, nature&#39;s clock.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">infographic</span><span class="tag">time</span><span class="tag">explore</span>
+        <span class="date">2026-11-24</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/mile-square-mayhem/" style="--c:#b79cff">
+    <div class="thumb"><img src="games/mile-square-mayhem/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Mile Square Mayhem</h2>
+      <p>Cel-shaded action RPG in Hoboken: punch grumps into cheering up, and hold JUMP to fly hanging from a little pink imp. Toy Hoboken, or the real city from Google&#39;s 3D tiles.</p>
+      <div class="meta">
+        <span class="tag">3d</span><span class="tag">rpg</span><span class="tag">action</span><span class="tag">mobile</span><span class="tag">hoboken</span>
+        <span class="date">2026-11-18</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/crowd-crossing/" style="--c:#29c5ff">
+    <div class="thumb"><img src="games/crowd-crossing/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Crowd Crossing</h2>
+      <p>Frogger inside out: cars only stop for crowds. Gather strays, hold hands, cross together.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">arcade</span><span class="tag">puzzle</span>
+        <span class="date">2026-11-17</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="games/dear-tomorrow/" style="--c:#ff2e88">
+    <div class="thumb"><img src="games/dear-tomorrow/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Dear Tomorrow (test island)</h2>
+      <p>One day on an island, then you forget everything except the notes you pin to the Board. Early test build.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">puzzle</span><span class="tag">prototype</span>
+        <span class="date">2026-11-17</span>
+      </div>
+    </div>
+  </a>
+</main>
+<h2 class="section">Apps</h2>
+<main>
+
+  <a class="card" href="apps/stacks/" style="--c:#ffd400">
+    <div class="thumb"><img src="apps/stacks/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Stacks</h2>
+      <p>A digital library for the folders on your device: PDF, EPUB, CBZ/CBR, DOCX, DOC, MOBI, FB2, text and image folders become 3D books as thick as their page count. Drag books into stacks, swipe through a stack, and read in 3D with page turns or flat, one page or two at a time. A save file remembers your stacks.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">reader</span><span class="tag">library</span><span class="tag">comics</span>
+        <span class="date">2026-11-28</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="apps/artome/" style="--c:#ff5a1f">
+    <div class="thumb"><img src="apps/artome/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Artome</h2>
+      <p>Make artbooks, sketch journals and process notebooks on your phone: spreads with photos, drawings, annotations, version strips, timelines, spec cards and diagrams, laid out in the style of Japanese game artbooks. Flip through your book in 3D, place it on a table in AR, and export a print-ready PDF.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">creative</span><span class="tag">artbook</span><span class="tag">photo</span>
+        <span class="date">2026-11-27</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="apps/inshop/" style="--c:#9be22d">
+    <div class="thumb"><img src="apps/inshop/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>INshop</h2>
+      <p>Design a store, arcade, gallery, café, bookstore, makerspace, computer lab, toy store or lounge in 3D: draw rooms, hallways and floors, add stairs and stages, pick door and window styles, and place 100+ props (robot arcade cabinet, moss walls, plants), lights, posters with your own images and imported 3D models. Switch between day, overcast and night, then walk through it on screen or in VR.</p>
+      <div class="meta">
+        <span class="tag">vr</span><span class="tag">quest</span><span class="tag">3d</span><span class="tag">app</span><span class="tag">design</span>
+        <span class="date">2026-11-27</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="apps/polygo/" style="--c:#b79cff">
+    <div class="thumb"><img src="apps/polygo/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Polygo</h2>
+      <p>Lay clean low-poly faces over your sculpts by touch, or let it lay quads that follow the shape. Wrap closed rings of quads, see overlaps in red, and let Tuto lasso points or faces for you.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">3d</span><span class="tag">modelling</span><span class="tag">tool</span>
+        <span class="date">2026-11-27</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="apps/tonpet/" style="--c:#29c5ff">
+    <div class="thumb"><img src="apps/tonpet/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Tonpet</h2>
+      <p>A new wind instrument somewhere between a trumpet and a bassoon. The sound isn&#39;t samples: it&#39;s a physical model of a lip-reed and a conical reed blowing through a modelled air column, so your breath into the mic shapes and sustains every note. Record takes, capture what you play straight onto sheet music, or write notes on the staff and hear the Tonpet play them back. Save takes as WAV, MP3 or the original recording.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">music</span><span class="tag">instrument</span><span class="tag">creative</span>
+        <span class="date">2026-11-27</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="apps/panelsmith/" style="--c:#ff2e88">
+    <div class="thumb"><img src="apps/panelsmith/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Panelsmith</h2>
+      <p>Make comic pages on your phone from your own photos: draw or pick panel layouts, add American, European and manga word bubbles, design sound effects, pose 3D mannequins and creatures as panel reference — even copy a pose from a photo of a friend — with fisheye and tilt-shift lenses, and export print-ready PNG, JPEG or TIFF.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">comics</span><span class="tag">creative</span><span class="tag">photo</span>
+        <span class="date">2026-11-25</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="apps/decornaut/" style="--c:#ffd400">
+    <div class="thumb"><img src="apps/decornaut/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>Decornaut</h2>
+      <p>Decorate your real room in mixed reality: stick posters on walls and 3D models on shelves, and they stay put every time you come back. Flip to a floating island to decorate a digital space too. Send photos and models from your phone with a 4-letter code.</p>
+      <div class="meta">
+        <span class="tag">vr</span><span class="tag">mr</span><span class="tag">quest</span><span class="tag">3d</span><span class="tag">app</span>
+        <span class="date">2026-11-22</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="apps/mitten-blocks/" style="--c:#ff5a1f">
+    <div class="thumb"><span>M</span></div>
+    <div class="body">
+      <h2>Mitten Blocks</h2>
+      <p>A shared block table for VR and phone: build on your phone and it appears in the headset, build in VR and it appears on your phone. Live sync runs on the claude.ai page; this copy builds solo.</p>
+      <div class="meta">
+        <span class="tag">vr</span><span class="tag">mobile</span><span class="tag">3d</span><span class="tag">builder</span>
+        <span class="date">2026-11-21</span>
+      </div>
+    </div>
+  </a>
+  <a class="card" href="apps/rooster/" style="--c:#9be22d">
+    <div class="thumb"><img src="apps/rooster/thumb.png" alt="" loading="lazy"></div>
+    <div class="body">
+      <h2>ROOSTER</h2>
+      <p>Time management as a coil of gooey tubes: log or time what you do, autofill your usual lengths, and share your day with friends who can ask for a spot in your schedule.</p>
+      <div class="meta">
+        <span class="tag">mobile</span><span class="tag">productivity</span><span class="tag">time</span><span class="tag">social</span>
+        <span class="date">2026-11-18</span>
+      </div>
+    </div>
+  </a>
+</main>
+<footer><a href="https://github.com/itemnautsoft/Soft">source on GitHub</a></footer>
+</body>
+</html>

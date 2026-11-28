@@ -1,0 +1,28 @@
+{
+  "name": "Artome",
+  "short_name": "Artome",
+  "description": "Artbooks, sketch journals and process notebooks. A prototype by Claude (AI), made for itemnaut.",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#17161a",
+  "theme_color": "#17161a",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

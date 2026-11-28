@@ -1,0 +1,2340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="description" content="Touch-friendly low-poly modelling and retopology over imported sculpts. A prototype by Claude (AI), made for itemnaut.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Polygo">
+<meta name="theme-color" content="#f3f4f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1430" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<style>*{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
+<title>Polygo</title>
+<style>
+/* Layout: full-screen 3D canvas, one slim tool column on the right, contextual bars only when needed */
+:root{--bg:#f3f4f6;--scene:#eceef2;--panel:#ffffff;--fg:#14213d;--muted:#5c6478;--accent:#e0182d;--accent2:#ffc20e;--danger:#c8102e;--shadow:rgba(20,33,61,.18);--scrim:rgba(11,20,48,.45)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0b1430;--scene:#0f1b3d;--panel:#1a2850;--fg:#f4f5f8;--muted:#a9b2c8;--accent:#ff3347;--accent2:#ffc20e;--danger:#ff4d5e;--shadow:rgba(0,0,0,.55);--scrim:rgba(0,0,0,.6);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b1430;--scene:#0f1b3d;--panel:#1a2850;--fg:#f4f5f8;--muted:#a9b2c8;--accent:#ff3347;--accent2:#ffc20e;--danger:#ff4d5e;--shadow:rgba(0,0,0,.55);--scrim:rgba(0,0,0,.6);color-scheme:dark}
+html,body{height:100%;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+canvas{display:block;position:fixed;inset:0}
+#bar{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(10px + env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:8px;align-items:flex-end;max-height:calc(100% - 20px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow-y:auto;padding:2px 4px 6px 8px}
+.b{width:44px;height:44px;flex:none;border-radius:50%;border:2px solid var(--accent2);background:var(--panel);color:var(--fg);box-shadow:0 2px 6px var(--shadow);font-size:20px;cursor:pointer}
+.b:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.b.off{opacity:.4}
+.b.on{background:var(--accent);color:#fff}
+#lassoSvg{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:6;overflow:visible}
+#lassoSvg .rope{fill:none;stroke:#c9a06a;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+#lassoSvg #lsPath{fill:rgba(255,194,14,.3)}
+#lassoSvg.drawing #lsPath{stroke:#f2a900;stroke-width:3}#lassoSvg.drawing #lsPath2{stroke:#e0182d}
+#lassoSvg .ropeTwist{fill:none;stroke:#7d5d2e;stroke-width:4;stroke-dasharray:2 7;stroke-linecap:round;stroke-linejoin:round}
+#lassoBar{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;max-width:calc(100% - 92px);z-index:8}
+#lassoBar button{min-height:40px;padding:6px 14px;border:none;border-radius:20px;background:var(--panel);color:var(--fg);box-shadow:0 2px 6px var(--shadow);font-size:14px;cursor:pointer;touch-action:none}
+#lassoBar button:disabled{opacity:.45}
+#lsMode{display:flex;gap:2px;background:var(--panel);border-radius:20px;padding:3px;box-shadow:0 2px 6px var(--shadow)}
+#lsMode button{box-shadow:none;min-height:34px;padding:4px 12px;background:transparent}#lsMode button.on{background:var(--accent);color:#fff;font-weight:600}
+#lsCount{font-size:13px;color:var(--fg);background:var(--panel);border-radius:14px;padding:4px 10px;box-shadow:0 2px 6px var(--shadow);font-variant-numeric:tabular-nums}#lsCount:empty{display:none}
+#op{width:44px;height:120px;flex:none;writing-mode:vertical-lr;direction:rtl;accent-color:var(--accent)}
+#hint{position:fixed;left:0;right:0;bottom:calc(12px + env(safe-area-inset-bottom,0px));padding:0 max(16px,env(safe-area-inset-left,0px)) 0 max(16px,env(safe-area-inset-right,0px));text-align:center;color:var(--fg);font-size:14px;pointer-events:none;transition:opacity .6s;text-shadow:0 0 6px var(--bg),0 0 2px var(--bg)}
+#stats{position:fixed;left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));font-size:12px;color:var(--muted);pointer-events:none;font-variant-numeric:tabular-nums}
+#ask{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:0 max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));touch-action:auto;z-index:20}
+#askF{background:var(--panel);color:var(--fg);border-radius:16px;padding:18px;width:min(340px,100%);display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 30px var(--shadow)}
+#askT{margin:0;font-size:15px;line-height:1.4}
+#askI{font-size:16px;padding:8px 10px;border-radius:8px;border:1px solid var(--muted);background:var(--bg);color:var(--fg)}
+#askF .row{display:flex;gap:8px;justify-content:flex-end}
+#askF button{font-size:15px;padding:8px 16px;border-radius:20px;border:none;background:var(--bg);color:var(--fg);cursor:pointer}
+#askF #askYes{background:var(--accent);color:#fff;font-weight:600}
+#autoP{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:0 max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));touch-action:auto;z-index:20}
+#autoF{background:var(--panel);color:var(--fg);border-radius:16px;padding:18px;width:min(360px,100%);display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 30px var(--shadow)}
+#autoF .ttl{margin:0;font-size:17px;font-weight:600}
+#autoF label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:15px}
+#autoF .fc{display:flex;flex-direction:column;gap:8px}#autoF .fcTop{display:flex;justify-content:space-between;align-items:baseline;font-size:15px}
+#aNv{font-weight:600;font-variant-numeric:tabular-nums}#aN{width:100%;accent-color:var(--accent);min-height:28px}
+#aPre{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+#aPre button{min-height:48px;border:1px solid transparent;border-radius:10px;background:var(--bg);color:var(--fg);font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px}
+#aPre button small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}#aPre button.on{border-color:var(--accent);font-weight:600}
+#autoF input[type=range]{flex:1;accent-color:var(--accent)}
+#autoF input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
+#autoF .note{margin:0;font-size:13px;color:var(--muted);line-height:1.4}
+#aKind{display:flex;gap:6px;background:var(--bg);border-radius:12px;padding:4px}
+#aKind button{flex:1;min-height:44px;border:none;border-radius:9px;background:transparent;color:var(--fg);font-size:14px;cursor:pointer}
+#aKind button.on{background:var(--panel);box-shadow:0 1px 4px var(--shadow);font-weight:600}
+#aProg{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+#aProg .bar{height:8px;border-radius:4px;background:var(--bg);overflow:hidden}#aBar{display:block;height:100%;width:2%;background:var(--accent);transition:width .2s}
+#autoF .row{display:flex;gap:8px;justify-content:flex-end}
+#autoF .row button{font-size:15px;min-height:44px;padding:8px 16px;border-radius:22px;border:none;background:var(--bg);color:var(--fg);cursor:pointer}
+#autoF #aGo{background:var(--accent);color:#fff;font-weight:600}#autoF #aGo:disabled{opacity:.5}
+#warn{position:fixed;left:calc(10px + env(safe-area-inset-left,0px));top:calc(30px + env(safe-area-inset-top,0px));border:none;border-radius:16px;min-height:32px;padding:6px 12px;background:var(--danger);color:#fff;font-size:13px;font-weight:600;box-shadow:0 2px 6px var(--shadow);cursor:pointer;max-width:calc(100% - 90px);text-align:left}
+#ringUI .b{position:fixed;z-index:15;background:var(--accent);color:#fff;font-size:22px}#ringUI .b span{display:inline-block}
+#leftBar{position:fixed;left:calc(14px + env(safe-area-inset-left,0px));bottom:calc(188px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;z-index:7}
+#pad{position:fixed;left:calc(14px + env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:8px;z-index:7;width:132px}
+#padModes{display:flex;gap:6px}
+#padModes button{width:40px;height:40px;border-radius:12px;border:2px solid var(--accent2);background:var(--panel);color:var(--accent);font:700 17px/1 system-ui,-apple-system,sans-serif;box-shadow:0 2px 6px var(--shadow);cursor:pointer}
+#padModes button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#padModes button:focus-visible,#padRing:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#padRing{position:relative;width:112px;height:112px;border-radius:50%;background:var(--panel);border:3px solid var(--accent);box-shadow:0 3px 10px var(--shadow);display:grid;place-items:center;touch-action:none;cursor:grab}
+#padRing::before{content:"";position:absolute;inset:14px;border-radius:50%;border:2px dashed var(--accent2)}
+#padKnob{width:44px;height:44px;border-radius:50%;background:var(--accent2);border:3px solid var(--accent);box-shadow:0 2px 6px var(--shadow);transition:transform .18s;pointer-events:none}
+@media (max-width:700px){#hint{padding-left:calc(150px + env(safe-area-inset-left,0px))}}
+body.lassoOn #hint{bottom:calc(170px + env(safe-area-inset-bottom,0px))}   /* clear of Tuto, who stands beside the pad */
+@media (prefers-reduced-motion:reduce){#hint{transition:none}#padKnob{transition:none}}
+</style>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<div id="stats"></div>
+<div id="bar">
+<button class="b" id="bImp" title="Import sculpt">📂</button>
+<button class="b" id="bHi" title="Show/hide sculpt">👁</button>
+<input type="range" id="op" min="0.1" max="1" step="0.05" value="0.85" title="Low-poly opacity">
+<button class="b" id="bSnap" title="Snap to sculpt on/off">🧲</button>
+<button class="b off" id="bMir" title="Mirror edits across the centre">🪞</button>
+<button class="b" id="bTex" title="Use sculpt texture on low-poly">🎨</button>
+<button class="b" id="bAuto" title="Auto retopology">✨</button>
+<button class="b" id="bUndo" title="Undo">↶</button>
+<button class="b" id="bExp" title="Export OBJ">⬇</button>
+<button class="b" id="bHelp" title="Help">?</button>
+</div>
+<div id="expMenu" style="position:fixed;right:62px;display:none;flex-direction:column;gap:6px">
+<button class="b" style="border-radius:22px;width:auto;padding:0 14px;font-size:14px" data-f="obj">OBJ (quads)</button>
+<button class="b" style="border-radius:22px;width:auto;padding:0 14px;font-size:14px" data-f="glb">GLB</button>
+<button class="b" style="border-radius:22px;width:auto;padding:0 14px;font-size:14px" data-f="stl">STL</button>
+<button class="b" style="border-radius:22px;width:auto;padding:0 14px;font-size:14px" data-f="ply">PLY</button>
+</div>
+<input type="file" id="file" hidden>
+<button class="b" id="bX" title="Cancel unfinished face" style="position:fixed;left:calc(10px + env(safe-area-inset-left,0px));top:50%;transform:translateY(-50%);display:none;color:var(--danger);font-size:22px">✕</button>
+<div id="ask" hidden><form id="askF"><p id="askT"></p><input id="askI" type="number" inputmode="numeric" min="10"><div class="row"><button type="button" id="askNo">Cancel</button><button type="submit" id="askYes">OK</button></div></form></div>
+<div id="autoP" hidden><form id="autoF" novalidate>
+<p class="ttl">Auto retopology</p>
+<div id="aKind"><button type="button" data-k="quad" class="on">Quads that follow the shape</button><button type="button" data-k="tri">Quick triangles</button></div>
+<div class="fc"><div class="fcTop"><label for="aN">Faces</label><output id="aNv" for="aN">about 1,000</output></div>
+<input id="aN" type="range" min="0" max="100" step="1" value="50" aria-describedby="aNv">
+<div id="aPre"><button type="button" data-n="300">Light<small>300</small></button><button type="button" data-n="1000">Medium<small>1,000</small></button><button type="button" data-n="3000">Detailed<small>3,000</small></button><button type="button" data-n="8000">Dense<small>8,000</small></button></div></div>
+<label id="aSmL" for="aSm">Smoothness <input id="aSm" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+<label id="aMiL" for="aMi">Mirror across the centre line <input id="aMi" type="checkbox"></label>
+<p class="note">Replaces your low-poly mesh. Undo brings it back. Big counts on dense sculpts can take a minute on a phone.</p>
+<div id="aProg" hidden><div class="bar"><i id="aBar"></i></div><span id="aStage">Starting</span></div>
+<div class="row"><button type="button" id="aNo">Cancel</button><button type="submit" id="aGo">Make quads</button></div>
+</form></div>
+<button id="warn" hidden title="Show the next problem face"></button>
+<svg id="lassoSvg" hidden aria-hidden="true"><path id="lsTether" class="rope" d=""/><path id="lsPath" class="rope" d=""/><path id="lsPath2" class="ropeTwist" d=""/></svg>
+<div id="lassoBar" hidden><div id="lsMode"><button type="button" data-k="pts" class="on">Points</button><button type="button" data-k="faces">Faces</button></div>
+<span id="lsCount"></span><button type="button" id="lsScale" disabled title="Drag left or right to scale">⤢ Scale</button><button type="button" id="lsDel" disabled>Delete</button><button type="button" id="lsDone">Done</button></div>
+<div id="ringUI" hidden><button class="b" id="rA" title="Wrap a ring this way"><span>⟷</span></button><button class="b" id="rB" title="Wrap a ring this way"><span>⟷</span></button></div>
+<div id="leftBar"><button class="b" id="bTuto" title="Tuto on or off">🏀</button><button class="b" id="bLasso" title="Lasso: Tuto ropes in points or faces">➰</button></div>
+<div id="pad"><div id="padModes" role="group" aria-label="Controller mode"><button type="button" data-m="t" class="on" title="Move (transform)">T</button><button type="button" data-m="s" title="Scale">S</button><button type="button" data-m="r" title="Rotate">R</button></div>
+<div id="padRing" title="Drag here to move, scale or rotate" aria-label="Controller pad"><div id="padKnob"></div></div></div>
+<div id="hint"></div>
+<script type="text/plain" id="qremeshSrc">
+// Polygo quad remesher: the Instant Meshes method (Jakob, Tarini, Panozzo, Sorkine-Hornung 2015), written in JS.
+// 1) build a graph hierarchy of the sculpt, 2) smooth a 4-way orientation field, 3) smooth a position field
+// (a square lattice laid over the surface), 4) collapse and connect lattice points into a quad mesh, then
+// 5) project it onto the sculpt and relax it. Runs in a Web Worker; nothing here touches the page.
+'use strict';
+const QREMESH = (() => {
+const dot = (a, i, b, j) => a[i] * b[j] + a[i + 1] * b[j + 1] + a[i + 2] * b[j + 2];
+function shuffle(n, seed) { const a = new Int32Array(n); for (let i = 0; i < n; i++) a[i] = i; let s = seed >>> 0 || 1;
+  for (let i = n - 1; i > 0; i--) { s = (s * 1664525 + 1013904223) >>> 0; const j = s % (i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function csr(n, pairs) {           // adjacency lists from a Set of i*n+j keys (i<j)
+  const deg = new Int32Array(n + 1);
+  for (const k of pairs) { const i = Math.floor(k / n), j = k - i * n; deg[i + 1]++; deg[j + 1]++; }
+  for (let i = 0; i < n; i++) deg[i + 1] += deg[i];
+  const adj = new Int32Array(deg[n]), fill = deg.slice(0, n);
+  for (const k of pairs) { const i = Math.floor(k / n), j = k - i * n; adj[fill[i]++] = j; adj[fill[j]++] = i; }
+  return { off: deg, adj };
+}
+// ---- level 0: the sculpt merged onto a fine grid (keeps it fast on dense sculpts)
+function baseLevel(P, I, cell, sym) {
+  const nv = P.length / 3, key = new Map(), cid = new Int32Array(nv).fill(-1);
+  const sums = [], cnt = [];
+  const keep = new Uint8Array(I.length / 3);
+  for (let t = 0; t < I.length / 3; t++) {
+    if (sym) { const cx = (P[I[t * 3] * 3] + P[I[t * 3 + 1] * 3] + P[I[t * 3 + 2] * 3]) / 3; if (cx < 0) continue; }
+    keep[t] = 1;
+  }
+  const X = i => sym ? Math.max(0, P[i * 3]) : P[i * 3];
+  for (let t = 0; t < keep.length; t++) if (keep[t]) for (let k = 0; k < 3; k++) {
+    const v = I[t * 3 + k]; if (cid[v] >= 0) continue;
+    const kx = Math.floor(X(v) / cell) + 65536, ky = Math.floor(P[v * 3 + 1] / cell) + 65536, kz = Math.floor(P[v * 3 + 2] / cell) + 65536;
+    const kk = (kx * 131072 + ky) * 131072 + kz;     // stays below 2^53, so distinct cells never collide
+    let c = key.get(kk); if (c === undefined) { c = cnt.length; key.set(kk, c); cnt.push(0); sums.push(0, 0, 0); }
+    cid[v] = c; cnt[c]++; sums[c * 3] += X(v); sums[c * 3 + 1] += P[v * 3 + 1]; sums[c * 3 + 2] += P[v * 3 + 2];
+  }
+  const n = cnt.length, pos = new Float64Array(n * 3), nrm = new Float64Array(n * 3), area = new Float64Array(n);
+  for (let c = 0; c < n; c++) for (let k = 0; k < 3; k++) pos[c * 3 + k] = sums[c * 3 + k] / cnt[c];
+  const pairs = new Set(), tris = [];
+  for (let t = 0; t < keep.length; t++) {
+    if (!keep[t]) continue;
+    const a = I[t * 3], b = I[t * 3 + 1], c = I[t * 3 + 2];
+    const ux = X(b) - X(a), uy = P[b * 3 + 1] - P[a * 3 + 1], uz = P[b * 3 + 2] - P[a * 3 + 2];
+    const vx = X(c) - X(a), vy = P[c * 3 + 1] - P[a * 3 + 1], vz = P[c * 3 + 2] - P[a * 3 + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, ar = 0.5 * Math.hypot(nx, ny, nz);
+    const A = cid[a], B = cid[b], C = cid[c];
+    for (const q of [A, B, C]) { nrm[q * 3] += nx; nrm[q * 3 + 1] += ny; nrm[q * 3 + 2] += nz; area[q] += ar / 3; }
+    if (A === B || B === C || A === C) continue;
+    tris.push(A, B, C);
+    for (const [i, j] of [[A, B], [B, C], [C, A]]) pairs.add(i < j ? i * n + j : j * n + i);
+  }
+  for (let c = 0; c < n; c++) { const l = Math.hypot(nrm[c * 3], nrm[c * 3 + 1], nrm[c * 3 + 2]) || 1; for (let k = 0; k < 3; k++) nrm[c * 3 + k] /= l; }
+  const { off, adj } = csr(n, pairs);
+  return { n, pos, nrm, area, off, adj, tris: Int32Array.from(tris) };
+}
+// ---- coarser levels: pair up neighbours with similar normals (follows the surface, never jumps across gaps)
+function coarsen(L, seed) {
+  const n = L.n, match = new Int32Array(n).fill(-1), order = shuffle(n, seed);
+  for (const i of order) {
+    if (match[i] >= 0) continue; let best = -1, bs = -2;
+    for (let e = L.off[i]; e < L.off[i + 1]; e++) { const j = L.adj[e]; if (match[j] >= 0) continue; const s = dot(L.nrm, i * 3, L.nrm, j * 3); if (s > bs) { bs = s; best = j; } }
+    if (best >= 0 && bs > -0.2) { match[i] = best; match[best] = i; } else match[i] = i;
+  }
+  const parent = new Int32Array(n).fill(-1); let m = 0;
+  for (let i = 0; i < n; i++) if (parent[i] < 0) { parent[i] = m; parent[match[i]] = m; m++; }
+  const pos = new Float64Array(m * 3), nrm = new Float64Array(m * 3), area = new Float64Array(m);
+  for (let i = 0; i < n; i++) { const p = parent[i], w = L.area[i] + 1e-12; area[p] += w;
+    for (let k = 0; k < 3; k++) { pos[p * 3 + k] += L.pos[i * 3 + k] * w; nrm[p * 3 + k] += L.nrm[i * 3 + k] * w; } }
+  for (let p = 0; p < m; p++) { for (let k = 0; k < 3; k++) pos[p * 3 + k] /= area[p];
+    const l = Math.hypot(nrm[p * 3], nrm[p * 3 + 1], nrm[p * 3 + 2]);
+    if (l < 1e-9) { for (let i = 0; i < n; i++) if (parent[i] === p) { for (let k = 0; k < 3; k++) nrm[p * 3 + k] = L.nrm[i * 3 + k]; break; } }
+    else for (let k = 0; k < 3; k++) nrm[p * 3 + k] /= l; }
+  const pairs = new Set();
+  for (let i = 0; i < n; i++) for (let e = L.off[i]; e < L.off[i + 1]; e++) { const a = parent[i], b = parent[L.adj[e]]; if (a !== b) pairs.add(a < b ? a * m + b : b * m + a); }
+  const { off, adj } = csr(m, pairs);
+  L.parent = parent;
+  return { n: m, pos, nrm, area, off, adj };
+}
+// ---- field maths (as in the Instant Meshes source)
+const A0 = new Float64Array(3), A1 = new Float64Array(3), B0 = new Float64Array(3), B1 = new Float64Array(3);
+function cross(o, a, i, b, j) { o[0] = a[i + 1] * b[j + 2] - a[i + 2] * b[j + 1]; o[1] = a[i + 2] * b[j] - a[i] * b[j + 2]; o[2] = a[i] * b[j + 1] - a[i + 1] * b[j]; }
+// best-matching pair among {q0, n0×q0} and {q1, n1×q1}; result into ra, rb
+function compatOrient(q, i, n, j, ra, rb) {
+  A0[0] = q[i]; A0[1] = q[i + 1]; A0[2] = q[i + 2]; cross(A1, n, i, q, i);
+  B0[0] = q[j]; B0[1] = q[j + 1]; B0[2] = q[j + 2]; cross(B1, n, j, q, j);
+  const As = [A0, A1], Bs = [B0, B1]; let bs = -1, ba = 0, bb = 0;
+  for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) { const s = Math.abs(As[a][0] * Bs[b][0] + As[a][1] * Bs[b][1] + As[a][2] * Bs[b][2]); if (s > bs) { bs = s; ba = a; bb = b; } }
+  const A = As[ba], B = Bs[bb], sg = (A[0] * B[0] + A[1] * B[1] + A[2] * B[2]) < 0 ? -1 : 1;
+  ra[0] = A[0]; ra[1] = A[1]; ra[2] = A[2]; rb[0] = B[0] * sg; rb[1] = B[1] * sg; rb[2] = B[2] * sg;
+}
+function middle(p, i, n, j, out) {     // a point on both tangent planes, near the edge middle
+  const n0p1 = n[i] * p[j] + n[i + 1] * p[j + 1] + n[i + 2] * p[j + 2], n0p0 = n[i] * p[i] + n[i + 1] * p[i + 1] + n[i + 2] * p[i + 2];
+  const n1p0 = n[j] * p[i] + n[j + 1] * p[i + 1] + n[j + 2] * p[i + 2], n1p1 = n[j] * p[j] + n[j + 1] * p[j + 1] + n[j + 2] * p[j + 2];
+  const n0n1 = n[i] * n[j] + n[i + 1] * n[j + 1] + n[i + 2] * n[j + 2], den = 1 / (1 - n0n1 * n0n1 + 1e-4);
+  const l0 = 2 * (n0p1 - n0p0 - n0n1 * (n1p0 - n1p1)) * den, l1 = 2 * (n1p0 - n1p1 - n0n1 * (n0p1 - n0p0)) * den;
+  let off2 = 0, len2 = 0;
+  for (let k = 0; k < 3; k++) { const d = 0.25 * (n[i + k] * l0 + n[j + k] * l1); off2 += d * d; len2 += (p[i + k] - p[j + k]) ** 2; }
+  // nearly parallel normals can throw the exact point far along the planes' crossing line: stay near the edge
+  const sc = off2 > 0.25 * len2 ? Math.sqrt(0.25 * len2 / off2) : 1;
+  for (let k = 0; k < 3; k++) out[k] = 0.5 * (p[i + k] + p[j + k]) - 0.25 * (n[i + k] * l0 + n[j + k] * l1) * sc;
+}
+const T0 = new Float64Array(3), T1 = new Float64Array(3), MID = new Float64Array(3), F0 = new Float64Array(3), F1 = new Float64Array(3), IX = new Int32Array(4);
+// lattice points of i and j nearest each other around the edge middle; into ra, rb (and integer indices into IX)
+function compatPos(L, Q, O, i, j, s, ra, rb) {
+  const p = L.pos, n = L.nrm, I3 = i * 3, J3 = j * 3;
+  cross(T0, n, I3, Q, I3); cross(T1, n, J3, Q, J3); middle(p, I3, n, J3, MID);
+  const d0q = ((MID[0] - O[I3]) * Q[I3] + (MID[1] - O[I3 + 1]) * Q[I3 + 1] + (MID[2] - O[I3 + 2]) * Q[I3 + 2]) / s;
+  const d0t = ((MID[0] - O[I3]) * T0[0] + (MID[1] - O[I3 + 1]) * T0[1] + (MID[2] - O[I3 + 2]) * T0[2]) / s;
+  const d1q = ((MID[0] - O[J3]) * Q[J3] + (MID[1] - O[J3 + 1]) * Q[J3 + 1] + (MID[2] - O[J3 + 2]) * Q[J3 + 2]) / s;
+  const d1t = ((MID[0] - O[J3]) * T1[0] + (MID[1] - O[J3 + 1]) * T1[1] + (MID[2] - O[J3 + 2]) * T1[2]) / s;
+  const a0 = Math.floor(d0q), b0 = Math.floor(d0t), a1 = Math.floor(d1q), b1 = Math.floor(d1t);
+  let best = Infinity, bi = 0, bj = 0;
+  for (let u = 0; u < 4; u++) {
+    const ua = a0 + (u & 1), ub = b0 + (u >> 1);
+    for (let k = 0; k < 3; k++) F0[k] = O[I3 + k] + (Q[I3 + k] * ua + T0[k] * ub) * s;
+    for (let v = 0; v < 4; v++) {
+      const va = a1 + (v & 1), vb = b1 + (v >> 1);
+      let c = 0; for (let k = 0; k < 3; k++) { const d = F0[k] - (O[J3 + k] + (Q[J3 + k] * va + T1[k] * vb) * s); c += d * d; }
+      if (c < best) { best = c; bi = u; bj = v; }
+    }
+  }
+  const ua = a0 + (bi & 1), ub = b0 + (bi >> 1), va = a1 + (bj & 1), vb = b1 + (bj >> 1);
+  for (let k = 0; k < 3; k++) { ra[k] = O[I3 + k] + (Q[I3 + k] * ua + T0[k] * ub) * s; rb[k] = O[J3 + k] + (Q[J3 + k] * va + T1[k] * vb) * s; }
+  IX[0] = ua; IX[1] = ub; IX[2] = va; IX[3] = vb;
+  return best;
+}
+function roundPos(L, Q, O, i, s) {   // move i's lattice origin to the lattice point nearest its vertex
+  const I3 = i * 3; cross(T0, L.nrm, I3, Q, I3);
+  const dx = L.pos[I3] - O[I3], dy = L.pos[I3 + 1] - O[I3 + 1], dz = L.pos[I3 + 2] - O[I3 + 2];
+  const a = Math.round((dx * Q[I3] + dy * Q[I3 + 1] + dz * Q[I3 + 2]) / s), b = Math.round((dx * T0[0] + dy * T0[1] + dz * T0[2]) / s);
+  for (let k = 0; k < 3; k++) O[I3 + k] += (Q[I3 + k] * a + T0[k] * b) * s;
+}
+function tangentNorm(v, n, i) {     // project v onto the tangent plane at i and normalise; false if degenerate
+  const d = v[0] * n[i] + v[1] * n[i + 1] + v[2] * n[i + 2]; v[0] -= n[i] * d; v[1] -= n[i + 1] * d; v[2] -= n[i + 2] * d;
+  const l = Math.hypot(v[0], v[1], v[2]); if (l < 1e-12) return false; v[0] /= l; v[1] /= l; v[2] /= l; return true;
+}
+const RA = new Float64Array(3), RB = new Float64Array(3), ACC = new Float64Array(3);
+function symAxis(L, i, out) {      // the tangent direction lying in the mirror plane x = 0: n × X
+  const n = L.nrm; out[0] = 0; out[1] = n[i * 3 + 2]; out[2] = -n[i * 3 + 1]; const l = Math.hypot(out[1], out[2]); if (l < 0.2) return false; out[1] /= l; out[2] /= l; return true;
+}
+function smoothOrient(L, Q, iters, symBand) {
+  const n = L.n, N = L.nrm;
+  for (let it = 0; it < iters; it++) for (let i = 0; i < n; i++) {
+    const I3 = i * 3;
+    if (symBand && L.pos[I3] < symBand && symAxis(L, i, ACC)) { Q[I3] = ACC[0]; Q[I3 + 1] = ACC[1]; Q[I3 + 2] = ACC[2]; continue; }
+    ACC[0] = Q[I3]; ACC[1] = Q[I3 + 1]; ACC[2] = Q[I3 + 2]; let ws = 0;
+    for (let e = L.off[i]; e < L.off[i + 1]; e++) {
+      const j = L.adj[e], J3 = j * 3;
+      const sv0 = Q[I3], sv1 = Q[I3 + 1], sv2 = Q[I3 + 2]; Q[I3] = ACC[0]; Q[I3 + 1] = ACC[1]; Q[I3 + 2] = ACC[2];
+      compatOrient(Q, I3, N, J3, RA, RB); Q[I3] = sv0; Q[I3 + 1] = sv1; Q[I3 + 2] = sv2;
+      for (let k = 0; k < 3; k++) ACC[k] = RA[k] * ws + RB[k];
+      ws += 1; tangentNorm(ACC, N, I3);
+    }
+    Q[I3] = ACC[0]; Q[I3 + 1] = ACC[1]; Q[I3 + 2] = ACC[2];
+  }
+}
+function smoothPos(L, Q, O, s, iters, symBand) {
+  const n = L.n, N = L.nrm, P = L.pos;
+  for (let it = 0; it < iters; it++) for (let i = 0; i < n; i++) {
+    const I3 = i * 3; let ws = 0;
+    for (let e = L.off[i]; e < L.off[i + 1]; e++) {
+      const j = L.adj[e];
+      compatPos(L, Q, O, i, j, s, RA, RB);
+      for (let k = 0; k < 3; k++) O[I3 + k] = (RA[k] * ws + RB[k]) / (ws + 1);
+      ws += 1;
+      const d = (O[I3] - P[I3]) * N[I3] + (O[I3 + 1] - P[I3 + 1]) * N[I3 + 1] + (O[I3 + 2] - P[I3 + 2]) * N[I3 + 2];
+      for (let k = 0; k < 3; k++) O[I3 + k] -= N[I3 + k] * d;
+    }
+    roundPos(L, Q, O, i, s);
+    if (symBand && P[I3] < symBand && Math.abs(Q[I3]) < 0.3) O[I3] = 0;     // keep a lattice line on the mirror plane
+  }
+}
+// ---- closest point on the level-0 surface (for projecting the result back onto the sculpt)
+function surfaceIndex(L, cell) {
+  const g = new Map(), T = L.tris, P = L.pos;
+  const K = (x, y, z) => ((x + 65536) * 131072 + (y + 65536)) * 131072 + (z + 65536);
+  for (let t = 0; t < T.length / 3; t++) {
+    let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+    for (let k = 0; k < 3; k++) { const v = T[t * 3 + k] * 3; x0 = Math.min(x0, P[v]); x1 = Math.max(x1, P[v]); y0 = Math.min(y0, P[v + 1]); y1 = Math.max(y1, P[v + 1]); z0 = Math.min(z0, P[v + 2]); z1 = Math.max(z1, P[v + 2]); }
+    for (let x = Math.floor(x0 / cell); x <= Math.floor(x1 / cell); x++) for (let y = Math.floor(y0 / cell); y <= Math.floor(y1 / cell); y++) for (let z = Math.floor(z0 / cell); z <= Math.floor(z1 / cell); z++) {
+      const k = K(x, y, z); let a = g.get(k); if (!a) g.set(k, a = []); a.push(t); }
+  }
+  const cp = new Float64Array(3);
+  function closestTri(px, py, pz, t, out) {   // Ericson, Real-Time Collision Detection 5.1.5
+    const a = T[t * 3] * 3, b = T[t * 3 + 1] * 3, c = T[t * 3 + 2] * 3;
+    const abx = P[b] - P[a], aby = P[b + 1] - P[a + 1], abz = P[b + 2] - P[a + 2], acx = P[c] - P[a], acy = P[c + 1] - P[a + 1], acz = P[c + 2] - P[a + 2];
+    const apx = px - P[a], apy = py - P[a + 1], apz = pz - P[a + 2];
+    const d1 = abx * apx + aby * apy + abz * apz, d2 = acx * apx + acy * apy + acz * apz;
+    const set = (u, v) => { out[0] = P[a] + abx * u + acx * v; out[1] = P[a + 1] + aby * u + acy * v; out[2] = P[a + 2] + abz * u + acz * v; };
+    if (d1 <= 0 && d2 <= 0) return set(0, 0);
+    const bpx = px - P[b], bpy = py - P[b + 1], bpz = pz - P[b + 2], d3 = abx * bpx + aby * bpy + abz * bpz, d4 = acx * bpx + acy * bpy + acz * bpz;
+    if (d3 >= 0 && d4 <= d3) return set(1, 0);
+    const vc = d1 * d4 - d3 * d2; if (vc <= 0 && d1 >= 0 && d3 <= 0) return set(d1 / (d1 - d3), 0);
+    const cpx = px - P[c], cpy = py - P[c + 1], cpz = pz - P[c + 2], d5 = abx * cpx + aby * cpy + abz * cpz, d6 = acx * cpx + acy * cpy + acz * cpz;
+    if (d6 >= 0 && d5 <= d6) return set(0, 1);
+    const vb = d5 * d2 - d1 * d6; if (vb <= 0 && d2 >= 0 && d6 <= 0) return set(0, d2 / (d2 - d6));
+    const va = d3 * d6 - d5 * d4;
+    if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); return set(1 - w, w); }
+    const dn = 1 / (va + vb + vc); return set(vb * dn, vc * dn);
+  }
+  return function project(p) {   // p: [x,y,z] -> moved onto the surface (if any triangle is near)
+    const cx = Math.floor(p[0] / cell), cy = Math.floor(p[1] / cell), cz = Math.floor(p[2] / cell); let best = Infinity, bx = 0, by = 0, bz = 0;
+    for (let r = 1; r <= 2 && best === Infinity; r++) {
+      for (let x = cx - r; x <= cx + r; x++) for (let y = cy - r; y <= cy + r; y++) for (let z = cz - r; z <= cz + r; z++) {
+        const a = g.get(K(x, y, z)); if (!a) continue;
+        for (const t of a) { closestTri(p[0], p[1], p[2], t, cp); const d = (cp[0] - p[0]) ** 2 + (cp[1] - p[1]) ** 2 + (cp[2] - p[2]) ** 2; if (d < best) { best = d; bx = cp[0]; by = cp[1]; bz = cp[2]; } }
+      }
+    }
+    if (best < Infinity) { p[0] = bx; p[1] = by; p[2] = bz; }
+    return p;
+  };
+}
+// ---- 4) extraction: lattice points that coincide become one vertex; unit lattice steps become edges; trace faces
+function extract(L, Q, O, s) {
+  const n = L.n, uf = new Int32Array(n); for (let i = 0; i < n; i++) uf[i] = i;
+  const find = i => { while (uf[i] !== i) { uf[i] = uf[uf[i]]; i = uf[i]; } return i; };
+  const zero = [], unitEdges = [];
+  const qa = new Float64Array(3), qb = new Float64Array(3), Qtmp = new Float64Array(6), Ntmp = new Float64Array(6), Otmp = new Float64Array(6);
+  const tmpL = { pos: new Float64Array(6), nrm: Ntmp };
+  for (let i = 0; i < n; i++) for (let e = L.off[i]; e < L.off[i + 1]; e++) {
+    const j = L.adj[e]; if (j < i) continue;
+    compatOrient(Q, i * 3, L.nrm, j * 3, qa, qb);
+    for (let k = 0; k < 3; k++) { Qtmp[k] = qa[k]; Qtmp[3 + k] = qb[k]; Ntmp[k] = L.nrm[i * 3 + k]; Ntmp[3 + k] = L.nrm[j * 3 + k];
+      tmpL.pos[k] = L.pos[i * 3 + k]; tmpL.pos[3 + k] = L.pos[j * 3 + k]; Otmp[k] = O[i * 3 + k]; Otmp[3 + k] = O[j * 3 + k]; }
+    const cost = compatPos(tmpL, Qtmp, Otmp, 0, 1, s, RA, RB);
+    const dx = IX[0] - IX[2], dy = IX[1] - IX[3];
+    if (dx === 0 && dy === 0) zero.push([Math.hypot(O[i * 3] - O[j * 3], O[i * 3 + 1] - O[j * 3 + 1], O[i * 3 + 2] - O[j * 3 + 2]), i, j]);
+    else if (Math.abs(dx) + Math.abs(dy) === 1) unitEdges.push(i, j);
+  }
+  // merge the closest agreeing pairs first; never merge two groups that a unit edge says are one step apart,
+  // and never let a group drift wider than half a step (this is what stops runaway chaining)
+  const cx = Float64Array.from(O), cw = new Float64Array(n).fill(1), apart = Array.from({ length: n }, () => null);
+  for (let k = 0; k < unitEdges.length; k += 2) { const a = unitEdges[k], b = unitEdges[k + 1]; (apart[a] || (apart[a] = new Set())).add(b); (apart[b] || (apart[b] = new Set())).add(a); }
+  zero.sort((x, y) => x[0] - y[0]);
+  for (const [, i, j] of zero) {
+    let a = find(i), b = find(j); if (a === b) continue;
+    const d = Math.hypot(cx[a * 3] / cw[a] - cx[b * 3] / cw[b], cx[a * 3 + 1] / cw[a] - cx[b * 3 + 1] / cw[b], cx[a * 3 + 2] / cw[a] - cx[b * 3 + 2] / cw[b]);
+    if (d > 0.5 * s) continue;
+    const Sa = apart[a], Sb = apart[b];
+    let clash = false;
+    if (Sa && Sb) { const [sm, lg] = Sa.size < Sb.size ? [Sa, Sb] : [Sb, Sa]; for (const x of sm) { const r = find(x); if (r === a || r === b) { clash = true; break; } } }
+    if (!clash && Sa) for (const x of Sa) if (find(x) === b) { clash = true; break; }
+    if (clash) continue;
+    if ((Sa ? Sa.size : 0) < (Sb ? Sb.size : 0)) { const t = a; a = b; b = t; }
+    uf[b] = a; for (let k = 0; k < 3; k++) cx[a * 3 + k] += cx[b * 3 + k]; cw[a] += cw[b];
+    if (apart[b]) { if (!apart[a]) apart[a] = new Set(); for (const x of apart[b]) apart[a].add(x); apart[b] = null; }
+  }
+  // vertices
+  const id = new Int32Array(n).fill(-1); let m = 0; const root = new Int32Array(n);
+  for (let i = 0; i < n; i++) { const r = find(i); root[i] = r; if (id[r] < 0) id[r] = m++; }
+  const VP = new Float64Array(m * 3), VN = new Float64Array(m * 3), W = new Float64Array(m);
+  for (let i = 0; i < n; i++) { const c = id[root[i]], w = L.area[i] + 1e-12; W[c] += w;
+    for (let k = 0; k < 3; k++) { VP[c * 3 + k] += O[i * 3 + k] * w; VN[c * 3 + k] += L.nrm[i * 3 + k] * w; } }
+  for (let c = 0; c < m; c++) { for (let k = 0; k < 3; k++) VP[c * 3 + k] /= W[c]; const l = Math.hypot(VN[c * 3], VN[c * 3 + 1], VN[c * 3 + 2]) || 1; for (let k = 0; k < 3; k++) VN[c * 3 + k] /= l; }
+  // edges (deduplicated), dropping ones far longer than a lattice step
+  const E = new Map();
+  for (let k = 0; k < unitEdges.length; k += 2) {
+    const a = id[root[unitEdges[k]]], b = id[root[unitEdges[k + 1]]]; if (a === b) continue;
+    const key = a < b ? a * m + b : b * m + a; E.set(key, (E.get(key) || 0) + 1);
+  }
+  const nb = Array.from({ length: m }, () => []);
+  for (const [key, c] of E) { const a = Math.floor(key / m), b = key - a * m;
+    const d = Math.hypot(VP[a * 3] - VP[b * 3], VP[a * 3 + 1] - VP[b * 3 + 1], VP[a * 3 + 2] - VP[b * 3 + 2]);
+    if (d > 1.9 * s || d < 0.15 * s) continue; nb[a].push(b); nb[b].push(a); }
+  // sort each vertex's neighbours counter-clockwise around its normal, then walk faces on the left of each edge
+  const ang = (c, o) => {
+    const nx = VN[c * 3], ny = VN[c * 3 + 1], nz = VN[c * 3 + 2];
+    let ux = Math.abs(nx) < 0.9 ? 1 : 0, uy = ux ? 0 : 1, uz = 0; const d = ux * nx + uy * ny; ux -= nx * d; uy -= ny * d; uz -= nz * d;
+    const ul = Math.hypot(ux, uy, uz); ux /= ul; uy /= ul; uz /= ul;
+    const vx = ny * uz - nz * uy, vy = nz * ux - nx * uz, vz = nx * uy - ny * ux;
+    const px = VP[o * 3] - VP[c * 3], py = VP[o * 3 + 1] - VP[c * 3 + 1], pz = VP[o * 3 + 2] - VP[c * 3 + 2];
+    return Math.atan2(px * vx + py * vy + pz * vz, px * ux + py * uy + pz * uz);
+  };
+  for (let c = 0; c < m; c++) { const a = nb[c].map(o => [ang(c, o), o]).sort((x, y) => x[0] - y[0]); nb[c] = a.map(x => x[1]); }
+  const used = new Set(), faces = [];
+  for (let u = 0; u < m; u++) for (const v of nb[u]) {
+    if (used.has(u * m + v)) continue;
+    const f = [u]; let a = u, b = v, ok = true;
+    for (let steps = 0; steps < 12; steps++) {
+      used.add(a * m + b);
+      if (b === u) break;
+      f.push(b);
+      const list = nb[b], k = list.indexOf(a); if (k < 0) { ok = false; break; }
+      const c = list[(k - 1 + list.length) % list.length];
+      a = b; b = c;
+      if (steps === 11) ok = false;
+    }
+    if (ok && f.length >= 3 && b === u) {   // keep quads and tris; split 5- to 8-sided gaps into quads (and one tri)
+      if (f.length <= 4) faces.push(f);
+      else if (f.length <= 8) { const n = f.length; let k = 1;
+        while (n - k >= 3) { faces.push([f[0], f[k], f[k + 1], f[k + 2]]); k += 2; }
+        if (n - k === 2) faces.push([f[0], f[k], f[k + 1]]); }
+    }
+  }
+  return { VP, VN, m, faces };
+}
+// split every triangle into four until the sculpt has at least one point per grid cell (dense sculpts skip this)
+function refine(P, I, cell) {
+  const lim2 = (cell * 1.5) ** 2;
+  for (let pass = 0; pass < 10; pass++) {
+    const nt = I.length / 3, NP = Array.from(P), NI = [], mid = new Map(); let split = 0;
+    const L2 = (a, b) => (P[a * 3] - P[b * 3]) ** 2 + (P[a * 3 + 1] - P[b * 3 + 1]) ** 2 + (P[a * 3 + 2] - P[b * 3 + 2]) ** 2;
+    const m = (a, b) => { const k = a < b ? a * 4294967296 + b : b * 4294967296 + a; let v = mid.get(k);
+      if (v === undefined) { v = NP.length / 3; NP.push((P[a * 3] + P[b * 3]) / 2, (P[a * 3 + 1] + P[b * 3 + 1]) / 2, (P[a * 3 + 2] + P[b * 3 + 2]) / 2); mid.set(k, v); } return v; };
+    for (let t = 0; t < nt; t++) { const a = I[t * 3], b = I[t * 3 + 1], c = I[t * 3 + 2];
+      if (Math.max(L2(a, b), L2(b, c), L2(c, a)) > lim2 && NI.length < 6e6) { const ab = m(a, b), bc = m(b, c), ca = m(c, a); NI.push(a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca); split++; }
+      else NI.push(a, b, c); }
+    if (!split) break;
+    P = Float64Array.from(NP); I = Uint32Array.from(NI);
+  }
+  return { P, I };
+}
+// keep faces greedily (quads first) so every edge has at most two faces running opposite ways
+function manifold(F) {
+  const order = F.map((f, i) => i).sort((a, b) => (F[a].length === 4 ? 0 : 1) - (F[b].length === 4 ? 0 : 1));
+  const dirE = new Set(), cnt = new Map(), keep = [];
+  for (const i of order) { const f = F[i]; let ok = true;
+    for (let k = 0; k < f.length && ok; k++) { const a = f[k], b = f[(k + 1) % f.length];
+      if (dirE.has(a + '>' + b) || (cnt.get(a < b ? a + '_' + b : b + '_' + a) || 0) >= 2) ok = false; }
+    if (!ok) continue; keep.push(f);
+    for (let k = 0; k < f.length; k++) { const a = f[k], b = f[(k + 1) % f.length], key = a < b ? a + '_' + b : b + '_' + a; dirE.add(a + '>' + b); cnt.set(key, (cnt.get(key) || 0) + 1); } }
+  return keep;
+}
+// close small holes with quads. Up to 4 edges: one face. 5 to 14 edges: a new point in the middle (pressed onto the
+// sculpt) ringed by quads, which gives far better shapes than fanning from a corner. Big openings stay open.
+function fillHoles(F, V, N, project) {
+  const dir = new Set(); for (const f of F) for (let k = 0; k < f.length; k++) dir.add(f[k] + '>' + f[(k + 1) % f.length]);
+  const nxt = new Map(), be = [];
+  for (const f of F) for (let k = 0; k < f.length; k++) { const a = f[k], b = f[(k + 1) % f.length];
+    if (dir.has(b + '>' + a)) continue;               // a hole edge runs b -> a in the patch that fills it
+    be.push([b, a]); (nxt.get(b) || nxt.set(b, []).get(b)).push(a); }
+  const usedE = new Set(), out = F.slice();
+  for (const [s0, s1] of be) {
+    if (usedE.has(s0 + '>' + s1)) continue;
+    // shortest way back round to s0 along unused hole edges (copes with corners shared by two holes)
+    const par = new Map([[s1, -1]]); let q = [s1], found = false;
+    for (let depth = 0; depth < 13 && q.length && !found; depth++) { const nq = [];
+      for (const v of q) { for (const w of nxt.get(v) || []) { if (usedE.has(v + '>' + w)) continue;
+          if (w === s0) { par.set(s0, v); found = true; break; } if (par.has(w)) continue; par.set(w, v); nq.push(w); } if (found) break; }
+      q = nq; }
+    if (!found) continue;
+    const loop = []; for (let v = s0; v !== -1 && v !== undefined; v = v === s1 ? -1 : par.get(v)) loop.push(v);
+    loop.reverse();                                    // s1 ... s0 in walking order; rotate so it starts at s0
+    loop.unshift(loop.pop());
+    for (let k = 0; k < loop.length; k++) usedE.add(loop[k] + '>' + loop[(k + 1) % loop.length]);
+    if (loop.length < 3 || new Set(loop).size !== loop.length) continue;
+    const n = loop.length; if (n <= 4) { out.push(loop); continue; }
+    if (!V) { let k = 1; while (n - k >= 3) { out.push([loop[0], loop[k], loop[k + 1], loop[k + 2]]); k += 2; } if (n - k === 2) out.push([loop[0], loop[k], loop[k + 1]]); continue; }
+    const c = [0, 0, 0], cn = [0, 0, 0]; for (const q of loop) for (let d = 0; d < 3; d++) { c[d] += V[q][d] / n; cn[d] += N[q][d]; }
+    const l = Math.hypot(...cn) || 1, ci = V.push(project ? project(c) : c) - 1; N.push(cn.map(x => x / l));
+    for (let k = 0; k + 2 <= n; k += 2) { if (k + 2 === n) out.push([loop[k], loop[k + 1], loop[0], ci].filter((x, q, A) => A.indexOf(x) === q)); else out.push([loop[k], loop[k + 1], loop[k + 2], ci]); }
+    if (n % 2) out.push([loop[n - 1], loop[0], ci]);
+  }
+  return out;
+}
+// merge the two ends of any edge shorter than minLen
+function weld(V, F, N, minLen) {
+  const uf = V.map((_, i) => i), find = i => { while (uf[i] !== i) { uf[i] = uf[uf[i]]; i = uf[i]; } return i; };
+  for (const f of F) for (let k = 0; k < f.length; k++) { const a = f[k], b = f[(k + 1) % f.length];
+    if (Math.hypot(V[a][0] - V[b][0], V[a][1] - V[b][1], V[a][2] - V[b][2]) < minLen) { const x = find(a), y = find(b); if (x !== y) uf[y] = x; } }
+  const acc = new Map();
+  V.forEach((p, i) => { const r = find(i); const a = acc.get(r) || acc.set(r, [0, 0, 0, 0, 0, 0, 0]).get(r); for (let k = 0; k < 3; k++) { a[k] += p[k]; a[3 + k] += N[i][k]; } a[6]++; });
+  const nV = V.map((p, i) => { const a = acc.get(find(i)); return [a[0] / a[6], a[1] / a[6], a[2] / a[6]]; });
+  const nN = V.map((p, i) => { const a = acc.get(find(i)), l = Math.hypot(a[3], a[4], a[5]) || 1; return [a[3] / l, a[4] / l, a[5] / l]; });
+  const nF = [];
+  for (const f of F) { const g = []; for (const v of f) { const r = find(v); if (g[g.length - 1] !== r) g.push(r); } if (g.length > 1 && g[0] === g[g.length - 1]) g.pop(); if (new Set(g).size === g.length && g.length >= 3) nF.push(g); }
+  return { V: nV, F: nF, N: nN };
+}
+// drop slivers and faces that point against the sculpt's surface (or fold edge-on to it)
+function clean(V, F, N, s) {
+  return F.filter(f => {
+    let n = [0, 0, 0], m = [0, 0, 0];
+    for (let k = 0; k < f.length; k++) { const p = V[f[k]], q = V[f[(k + 1) % f.length]];
+      n[0] += (p[1] - q[1]) * (p[2] + q[2]); n[1] += (p[2] - q[2]) * (p[0] + q[0]); n[2] += (p[0] - q[0]) * (p[1] + q[1]);
+      m[0] += N[f[k]][0]; m[1] += N[f[k]][1]; m[2] += N[f[k]][2]; }
+    const area = Math.hypot(n[0], n[1], n[2]) / 2, ml = Math.hypot(m[0], m[1], m[2]) || 1;
+    if (area < 0.06 * s * s) return false;
+    if (f.length === 4) { const tri = (a, b, c) => { const u = [V[b][0] - V[a][0], V[b][1] - V[a][1], V[b][2] - V[a][2]], w = [V[c][0] - V[a][0], V[c][1] - V[a][1], V[c][2] - V[a][2]];
+        return [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]]; };
+      const t1 = tri(f[0], f[1], f[2]), t2 = tri(f[0], f[2], f[3]), t3 = tri(f[1], f[2], f[3]), t4 = tri(f[1], f[3], f[0]);
+      for (const t of [t1, t2, t3, t4]) if (t[0] * m[0] + t[1] * m[1] + t[2] * m[2] <= 0) return false; }   // concave or twisted
+    return (n[0] * m[0] + n[1] * m[1] + n[2] * m[2]) / (2 * area * ml) > 0.25;
+  });
+}
+// ---- the whole job
+function remesh(P, I, opt, progress = () => {}) {
+  const target = Math.max(20, opt.target | 0), sym = !!opt.symmetric, smooth = Math.max(0, Math.min(1, opt.smooth ?? 0.5));
+  let A = 0;
+  for (let t = 0; t < I.length / 3; t++) {
+    const a = I[t * 3] * 3, b = I[t * 3 + 1] * 3, c = I[t * 3 + 2] * 3;
+    const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2], vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
+    A += 0.5 * Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
+  }
+  if (!(A > 0)) throw new Error('empty');
+  const s = Math.sqrt(A / target);                 // lattice spacing: one quad per s x s of surface
+  let cell = s / 4; const cap = 160000;
+  if (A / (cell * cell) > cap) cell = Math.sqrt(A / cap);
+  progress('Reading the sculpt', 0.02);
+  ({ P, I } = refine(P, I, cell));
+  const L0 = baseLevel(P, I, cell, sym); if (L0.n < 8) throw new Error('small');
+  const levels = [L0];
+  while (levels[levels.length - 1].n > 150 && levels.length < 16) levels.push(coarsen(levels[levels.length - 1], 1234 + levels.length));
+  progress('Building the hierarchy', 0.08);
+  const top = levels.length - 1;
+  const Qs = [], Os = [];
+  // orientation field, coarse to fine
+  const iterO = Math.round(8 + 22 * smooth), iterP = Math.round(6 + 14 * smooth);
+  for (let l = top; l >= 0; l--) {
+    const L = levels[l], Q = new Float64Array(L.n * 3), band = sym ? Math.max(cell * 0.75, cell * Math.pow(2, l) * 0.5) : 0;
+    if (l === top) { let sd = 7; for (let i = 0; i < L.n; i++) { for (let k = 0; k < 3; k++) { sd = (sd * 1664525 + 1013904223) >>> 0; Q[i * 3 + k] = sd / 4294967296 - 0.5; }
+        const v = [Q[i * 3], Q[i * 3 + 1], Q[i * 3 + 2]]; if (!tangentNorm(v, L.nrm, i * 3)) { v[0] = 1; v[1] = 0; v[2] = 0; tangentNorm(v, L.nrm, i * 3) || (v[1] = 1); } Q.set(v, i * 3); } }
+    else { const C = levels[l + 1], QC = Qs[l + 1];
+      for (let i = 0; i < L.n; i++) { const p = L.parent[i], v = [QC[p * 3], QC[p * 3 + 1], QC[p * 3 + 2]]; if (!tangentNorm(v, L.nrm, i * 3)) { v[0] = 1; v[1] = 0; v[2] = 0; tangentNorm(v, L.nrm, i * 3); } Q.set(v, i * 3); } }
+    smoothOrient(L, Q, l === top ? iterO * 4 : iterO, band);
+    Qs[l] = Q;
+    progress('Aligning the flow', 0.1 + 0.35 * (top - l + 1) / (top + 1));
+  }
+  // position field, coarse to fine
+  for (let l = top; l >= 0; l--) {
+    const L = levels[l], Q = Qs[l], O = new Float64Array(L.n * 3), band = sym ? Math.max(cell * 0.75, cell * Math.pow(2, l) * 0.5) : 0;
+    if (l === top) { O.set(L.pos); }
+    else { const OC = Os[l + 1];
+      for (let i = 0; i < L.n; i++) { const p = L.parent[i], I3 = i * 3;
+        for (let k = 0; k < 3; k++) O[I3 + k] = OC[p * 3 + k];
+        const d = (O[I3] - L.pos[I3]) * L.nrm[I3] + (O[I3 + 1] - L.pos[I3 + 1]) * L.nrm[I3 + 1] + (O[I3 + 2] - L.pos[I3 + 2]) * L.nrm[I3 + 2];
+        for (let k = 0; k < 3; k++) O[I3 + k] -= L.nrm[I3 + k] * d;
+        roundPos(L, Q, O, i, s); } }
+    smoothPos(L, Q, O, s, l === top ? iterP * 3 : iterP, band);
+    Os[l] = O;
+    progress('Laying the grid', 0.45 + 0.35 * (top - l + 1) / (top + 1));
+  }
+  progress('Building quads', 0.82);
+  const X = extract(L0, Qs[0], Os[0], s);
+  // project onto the surface and relax
+  const project = surfaceIndex(L0, s * 0.75);
+  let V = [], N = []; for (let c = 0; c < X.m; c++) { V.push(project([X.VP[c * 3], X.VP[c * 3 + 1], X.VP[c * 3 + 2]])); N.push([X.VN[c * 3], X.VN[c * 3 + 1], X.VN[c * 3 + 2]]); }
+  let F = manifold(X.faces);
+  ({ V, F, N } = weld(V, F, N, 0.3 * s));             // points that landed almost on top of each other become one
+  F = clean(V, F, N, s); F = clean(V, manifold(fillHoles(F, V, N, project)), N, s);
+  // drop unused vertices
+  const usedV = new Int32Array(V.length).fill(-1); let nv = 0; const V2 = [], N2 = [];
+  for (const f of F) for (const v of f) if (usedV[v] < 0) { usedV[v] = nv++; V2.push(V[v]); N2.push(N[v]); }
+  F = F.map(f => f.map(v => usedV[v])); V = V2; N = N2;
+  const pin = 0.3 * s;
+  if (sym) V.forEach(p => { if (p[0] < pin) p[0] = 0; });   // centre-line points sit exactly on x = 0
+  const relax = Math.round(smooth * 4);
+  for (let r = 0; r < relax; r++) {
+    const acc = V.map(() => [0, 0, 0, 0]);
+    for (const f of F) for (let k = 0; k < f.length; k++) { const a = f[k], b = f[(k + 1) % f.length]; for (let d = 0; d < 3; d++) { acc[a][d] += V[b][d]; acc[b][d] += V[a][d]; } acc[a][3]++; acc[b][3]++; }
+    V = V.map((p, i) => { const a = acc[i]; if (!a[3]) return p; const q = [p[0] + (a[0] / a[3] - p[0]) * 0.5, p[1] + (a[1] / a[3] - p[1]) * 0.5, p[2] + (a[2] / a[3] - p[2]) * 0.5];
+      if (sym && p[0] === 0) { q[0] = 0; const r = project(q); r[0] = 0; return r; } return project(q); });
+  }
+  F = manifold(fillHoles(clean(V, F, N, s), V, N, project));
+  if (sym) {                       // pin the centre line, then mirror the half across x = 0
+    F = F.filter(f => f.every(v => V[v][0] >= 0));
+    const tw = V.map((p, i) => p[0] === 0 ? i : V.push([-p[0], p[1], p[2]]) - 1);
+    const n0 = F.length; for (let k = 0; k < n0; k++) { const f = F[k]; if (f.every(v => V[v][0] === 0)) continue; F.push(f.map(v => tw[v]).reverse()); }
+  }
+  // drop degenerate faces, and any face that would double up on an edge or face the wrong way
+  F = manifold(fillHoles(manifold(F.filter(f => new Set(f).size === f.length))));
+  progress('Done', 1);
+  return { V, F, spacing: s, levels: levels.length, base: L0.n };
+}
+return { remesh };
+})();
+if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof self.postMessage === 'function') {
+  self.onmessage = e => {
+    try {
+      const { pos, idx, opt } = e.data;
+      const r = QREMESH.remesh(pos, idx, opt, (stage, frac) => self.postMessage({ type: 'progress', stage, frac }));
+      self.postMessage({ type: 'done', V: r.V, F: r.F, spacing: r.spacing });
+    } catch (err) { self.postMessage({ type: 'error', message: String(err && err.message || err) }); }
+  };
+}
+if (typeof module !== 'undefined') module.exports = QREMESH;
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {STLLoader} from 'three/addons/loaders/STLLoader.js';
+import {PLYLoader} from 'three/addons/loaders/PLYLoader.js';
+import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
+import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
+import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
+import {STLExporter} from 'three/addons/exporters/STLExporter.js';
+import {PLYExporter} from 'three/addons/exporters/PLYExporter.js';
+import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
+import {Reflector} from 'three/addons/objects/Reflector.js';
+import {SimplifyModifier} from 'three/addons/modifiers/SimplifyModifier.js';
+import {mergeVertices,mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+
+const $=id=>document.getElementById(id);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+document.body.prepend(renderer.domElement);
+const scene=new THREE.Scene();
+function sceneBg(){const c=getComputedStyle(document.documentElement).getPropertyValue('--scene').trim();scene.background=new THREE.Color(c||'#e9ecf1')}
+sceneBg();try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',sceneBg)}catch(e){}
+new MutationObserver(sceneBg).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+const cam=new THREE.PerspectiveCamera(45,1,0.01,100);cam.position.set(0,0.6,4);
+scene.add(new THREE.HemisphereLight(0xffffff,0x888899,2.2));
+const dl=new THREE.DirectionalLight(0xffffff,1.5);dl.position.set(2,3,4);scene.add(dl);
+const el=renderer.domElement;
+
+// ---------- state ----------
+let V=[],F=[],pend=[],hist=[],VU=[],texOn=false,texMat=null;
+let high=null, size=2, snapOn=true;
+const free=()=>!high||!snapOn;
+const grid=new THREE.GridHelper(4,20,0x999999,0xdddddd);grid.position.y=-1.3;grid.visible=false;scene.add(grid);
+const hint=(t,ms=3500)=>{const h=$('hint');h.textContent=t;h.style.opacity=1;clearTimeout(hint.t);hint.t=setTimeout(()=>h.style.opacity=0,ms)};
+function ask(text,{value,ok='OK'}={}){return new Promise(res=>{const A=$('ask'),I=$('askI');$('askT').textContent=text;
+  I.hidden=value===undefined;if(value!==undefined)I.value=value;$('askYes').textContent=ok;A.hidden=false;
+  const done=v=>{A.hidden=true;$('askF').onsubmit=null;$('askNo').onclick=null;res(v)};
+  $('askF').onsubmit=e=>{e.preventDefault();done(value===undefined?true:I.value)};
+  $('askNo').onclick=()=>done(value===undefined?false:null);
+  setTimeout(()=>(value===undefined?$('askYes'):I).focus(),0)})}
+let meshVer=0;
+const save=()=>{meshVer++;hist.push(JSON.stringify([V,F]));if(hist.length>80)hist.shift()};
+const undo=()=>{meshVer++;if(!hist.length)return;[V,F]=JSON.parse(hist.pop());pend=[];rebuild()};
+
+// ---------- high-res sculpt ----------
+const hiMat=new THREE.MeshStandardMaterial({color:0xb7bac2,roughness:.8,flatShading:false});
+function geoMesh(g){g.computeVertexNormals();
+  return new THREE.Mesh(g,g.attributes.color?new THREE.MeshStandardMaterial({vertexColors:true,roughness:.8}):hiMat)}
+let highGeo=null;
+function setHigh(root){
+  meshVer++;
+  if(high)scene.remove(high);
+  root.traverse(o=>{if(o.isMesh&&!o.geometry.attributes.normal)o.geometry.computeVertexNormals()});
+  root.updateMatrixWorld(true);const bb=new THREE.Box3().setFromObject(root),c=new THREE.Vector3(),sz=new THREE.Vector3();
+  bb.getCenter(c);bb.getSize(sz);const k=2/Math.max(sz.x,sz.y,sz.z);
+  const w=new THREE.Group();w.add(root);w.scale.setScalar(k);w.position.copy(c).multiplyScalar(-k);
+  w.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+  scene.add(w);w.updateMatrixWorld(true);high=w;highGeo=null;size=2;
+  V=[];F=[];VU=[];pend=[];hist=[];rebuild();
+}
+function getHighGeo(){if(highGeo)return highGeo;const gs=[];high.updateMatrixWorld(true);
+  high.traverse(o=>{if(o.isMesh){let g=o.geometry.clone().applyMatrix4(o.matrixWorld);g=g.index?g.toNonIndexed():g;
+    const ng=new THREE.BufferGeometry();ng.setAttribute('position',g.attributes.position);gs.push(ng)}});
+  return highGeo=mergeVertices(mergeGeometries(gs))}
+function demo(){
+  const g=new THREE.IcosahedronGeometry(1,6),p=g.attributes.position,v=new THREE.Vector3();
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);
+    const n=1+.12*Math.sin(v.x*5)*Math.cos(v.y*4)+.06*Math.sin(v.z*9+v.x*3);
+    v.multiplyScalar(n);v.y*=1.25;p.setXYZ(i,v.x,v.y,v.z)}
+  g.deleteAttribute('normal');g.deleteAttribute('uv');setHigh(geoMesh(mergeVertices(g)));
+}
+function loadFile(f){
+  const name=f.name.toLowerCase(),r=new FileReader();
+  if(!/\.(obj|glb|gltf|stl|ply|fbx|dae|blend)$/.test(name))return hint('That file type is not supported. Use BLEND, OBJ, GLB, STL, PLY, FBX or DAE.',5000);
+  if(name.endsWith('.blend')){hint('Reading Blender file…',60000);
+    f.arrayBuffer().then(blendBytes).then(u=>{const r=parseBlend(u);const g=new THREE.BufferGeometry();
+      g.setAttribute('position',new THREE.BufferAttribute(r.pos,3));g.setIndex(new THREE.BufferAttribute(r.idx,1));
+      setHigh(geoMesh(g));const n=r.count+' object'+(r.count>1?'s':'');
+      if(r.warn.has('multires'))hint('Loaded '+n+'. This sculpt uses Multires, so only the base mesh came through. In Blender, apply the Multires modifier and save, then import again.',9000);
+      else if(r.warn.has('mods'))hint('Loaded '+n+'. Modifiers are not applied: apply them in Blender first if the shape looks different.',7000);
+      else hint('Loaded '+f.name+' ('+n+')')})
+    .catch(e=>{console.error(e);hint(({zstd:'This .blend is compressed and the decompressor could not load. In Blender, turn off Compress when saving, or export a .glb.',
+      notblend:'That file is not a Blender file.',nomesh:'No mesh found in that .blend file.'})[e&&e.message]||'Could not read that .blend file. In Blender, export a .glb instead.',8000)});
+    return}
+  const fromObj=root=>{let has=false;root.traverse(o=>{if(o.isMesh)has=true});
+    if(!has)return hint('No mesh found in that file');setHigh(root);hint('Loaded '+f.name)};
+  r.onload=e=>{const d=e.target.result;try{
+    if(name.endsWith('.obj'))fromObj(new OBJLoader().parse(d));
+    else if(name.endsWith('.stl')){setHigh(geoMesh(new STLLoader().parse(d)))}
+    else if(name.endsWith('.ply')){setHigh(geoMesh(new PLYLoader().parse(d)))}
+    else if(name.endsWith('.fbx'))fromObj(new FBXLoader().parse(d,''));
+    else if(name.endsWith('.dae'))fromObj(new ColladaLoader().parse(d,'').scene);
+    else new GLTFLoader().parse(d,'',gl=>fromObj(gl.scene),er=>hint('Could not read file'));
+  }catch(err){console.error(err);hint('Could not read file')}};
+  (name.endsWith('.obj')||name.endsWith('.dae'))?r.readAsText(f):r.readAsArrayBuffer(f);
+}
+
+// ---------- .blend reader (meshes only, Blender 2.6 to 5.x layouts) ----------
+async function blendBytes(buf){
+  const u=new Uint8Array(buf);
+  if(u[0]===0x1f&&u[1]===0x8b){
+    return new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer())}
+  if(u[0]===0x28&&u[1]===0xb5&&u[2]===0x2f&&u[3]===0xfd){
+    let z=null;
+    for(const url of ['https://cdn.jsdelivr.net/npm/fzstd@0.1.1/+esm','https://unpkg.com/fzstd@0.1.1/esm/index.mjs']){
+      try{z=await import(url);if(z&&z.decompress)break;z=null}catch(e){}}
+    if(!z)throw new Error('zstd');
+    const dv=new DataView(u.buffer,u.byteOffset,u.byteLength),n=u.length;
+    if(n>9&&dv.getUint32(n-4,true)===0x8F92EAB1){ // Blender writes a seek table of independent frames
+      const cnt=dv.getUint32(n-9,true),es=(u[n-5]&0x80)?12:8,t0=n-9-cnt*es,parts=[];let p=0,tot=0;
+      for(let i=0;i<cnt;i++){const cs=dv.getUint32(t0+i*es,true),d=z.decompress(u.subarray(p,p+cs));parts.push(d);tot+=d.length;p+=cs}
+      const out=new Uint8Array(tot);let o=0;for(const d of parts){out.set(d,o);o+=d.length}return out}
+    return z.decompress(u)}
+  return u}
+
+function parseBlend(u){
+  const td=new TextDecoder('latin1'),str=(o,l)=>td.decode(u.subarray(o,o+l));
+  if(str(0,7)!=='BLENDER')throw new Error('notblend');
+  let ps=8,le=true,pos=12,large=false;
+  if(u[7]===0x5f||u[7]===0x2d){ps=u[7]===0x5f?4:8;le=u[8]===0x76}
+  else{const hs=parseInt(str(7,2),10);le=str(12,1)!=='V';large=true;pos=hs||17;
+    if(!/^[A-Z0-9\0]{4}$/.test(str(pos,4)))pos=(pos+7)&~7}
+  const dv=new DataView(u.buffer,u.byteOffset,u.byteLength);
+  const i32=o=>dv.getInt32(o,le),u32=o=>dv.getUint32(o,le),u16=o=>dv.getUint16(o,le),i16=o=>dv.getInt16(o,le),f32=o=>dv.getFloat32(o,le);
+  const ptr=o=>ps===4?'0:'+u32(o):(le?u32(o+4)+':'+u32(o):u32(o)+':'+u32(o+4));
+  const NULL='0:0',hl=large?32:16+ps,blocks=[],byAddr=new Map();let dna=null;
+  while(pos+hl<=u.length){
+    const code=str(pos,4).replace(/\0/g,'');let len,old,sdna,nr;
+    if(large){sdna=i32(pos+4);old=ptr(pos+8);len=Number(dv.getBigInt64(pos+16,le));nr=Number(dv.getBigInt64(pos+24,le))}
+    else{len=i32(pos+4);old=ptr(pos+8);sdna=i32(pos+8+ps);nr=i32(pos+12+ps)}
+    if(code==='ENDB'||len<0)break;
+    const b={code,len,old,sdna,nr,off:pos+hl};pos+=hl+len;
+    if(code==='DNA1')dna=b;else{blocks.push(b);if(old!==NULL)byAddr.set(old,b)}}
+  if(!dna)throw new Error('nodna');
+  // --- SDNA: struct layouts for this file ---
+  let p=dna.off;const d0=dna.off,al=()=>{p=d0+((p-d0+3)&~3)},tag=()=>{const s=str(p,4);p+=4;return s};
+  const strs=()=>{const n=i32(p);p+=4;const a=[];for(let i=0;i<n;i++){let e=p;while(u[e])e++;a.push(str(p,e-p));p=e+1}al();return a};
+  if(tag()!=='SDNA'||tag()!=='NAME')throw new Error('nodna');
+  const names=strs();tag();const types=strs();tag();
+  const tlen=types.map((_,i)=>u16(p+i*2));p+=types.length*2;al();tag();
+  const ns=i32(p);p+=4;const structs=[],S={};
+  for(let i=0;i<ns;i++){const t=u16(p),nf=u16(p+2);p+=4;const fields={};let off=0;
+    for(let k=0;k<nf;k++){const ft=u16(p),fn=names[u16(p+2)];p+=4;
+      const isP=fn[0]==='*'||fn.startsWith('(*');let arr=1;fn.replace(/\[(\d+)\]/g,(m,d)=>{arr*=+d;return m});
+      const base=fn.replace(/^[*(]+/,'').replace(/[[)].*$/,''),size=(isP?ps:tlen[ft])*arr;
+      if(!fields[base])fields[base]={off,size,isP};off+=size}
+    const st={name:types[t],fields,size:tlen[t]};structs.push(st);S[types[t]]=st}
+  const sOf=b=>structs[b.sdna]||{},pick=(st,...k)=>k.find(n=>st&&st.fields[n])||null;
+  const Mesh=S.Mesh,CD=S.CustomData,CDL=S.CustomDataLayer;
+  if(!Mesh)throw new Error('nomesh');
+  const get=(mo,...k)=>{const n=pick(Mesh,...k);return n?i32(mo+Mesh.fields[n].off):0};
+  const blk=(mo,...k)=>{const n=pick(Mesh,...k);return n?byAddr.get(ptr(mo+Mesh.fields[n].off)):undefined};
+  function layers(mo,...k){const n=pick(Mesh,...k);if(!n||!CD||!CDL)return [];const co=mo+Mesh.fields[n].off;
+    const lb=byAddr.get(ptr(co+CD.fields.layers.off)),tl=i32(co+CD.fields.totlayer.off);if(!lb)return [];
+    const out=[],nf=CDL.fields.name;
+    for(let i=0;i<tl&&(i+1)*CDL.size<=lb.len;i++){const lo=lb.off+i*CDL.size;let nm='';
+      if(nf){const a=lo+nf.off;let q=a;while(q<a+nf.size&&u[q])q++;nm=str(a,q-a)}
+      out.push({type:i32(lo+CDL.fields.type.off),name:nm,data:byAddr.get(ptr(lo+CDL.fields.data.off))})}
+    return out}
+  const warn=new Set();
+  function readMesh(mo){
+    let nv=get(mo,'totvert','verts_num');const np=get(mo,'totpoly','faces_num'),nl=get(mo,'totloop','corners_num'),nfc=get(mo,'totface','totface_legacy');
+    const vL=layers(mo,'vdata','vert_data'),pL=layers(mo,'pdata','face_data'),lL=layers(mo,'ldata','corner_data'),fL=layers(mo,'fdata','fdata_legacy');
+    if(lL.some(l=>l.type===19))warn.add('multires');
+    let P=null;const pl=vL.find(l=>l.name==='position'&&l.data);
+    if(pl){nv=Math.min(nv,Math.floor(pl.data.len/12));P=new Float32Array(nv*3);for(let i=0;i<nv*3;i++)P[i]=f32(pl.data.off+i*4)}
+    else{const MV=S.MVert,b=blk(mo,'mvert')||(vL.find(l=>l.type===0&&l.data)||{}).data;
+      if(b&&MV&&MV.fields.co){nv=Math.min(nv,Math.floor(b.len/MV.size));P=new Float32Array(nv*3);
+        for(let i=0;i<nv;i++)for(let k=0;k<3;k++)P[i*3+k]=f32(b.off+i*MV.size+MV.fields.co.off+k*4)}}
+    if(!P||!nv)return null;
+    let st=null,ct=null,cv=null,nP=np;
+    const ob=blk(mo,'poly_offset_indices','face_offset_indices');
+    if(ob&&np>0&&ob.len>=(np+1)*4){st=new Int32Array(np);ct=new Int32Array(np);
+      for(let i=0;i<np;i++){st[i]=i32(ob.off+i*4);ct[i]=i32(ob.off+i*4+4)-st[i]}}
+    if(!st){const MP=S.MPoly,b=blk(mo,'mpoly')||(pL.find(l=>l.type===25&&l.data)||{}).data;
+      if(b&&MP&&MP.fields.loopstart){nP=Math.min(np,Math.floor(b.len/MP.size));st=new Int32Array(nP);ct=new Int32Array(nP);
+        for(let i=0;i<nP;i++){const o=b.off+i*MP.size;st[i]=i32(o+MP.fields.loopstart.off);ct[i]=i32(o+MP.fields.totloop.off)}}}
+    const cl=lL.find(l=>l.name==='.corner_vert'&&l.data);
+    if(cl){const n=Math.min(nl,Math.floor(cl.data.len/4));cv=new Int32Array(n);for(let i=0;i<n;i++)cv[i]=i32(cl.data.off+i*4)}
+    else{const ML=S.MLoop,b=blk(mo,'mloop')||(lL.find(l=>l.type===26&&l.data)||{}).data;
+      if(b&&ML&&ML.fields.v){const n=Math.min(nl,Math.floor(b.len/ML.size));cv=new Int32Array(n);for(let i=0;i<n;i++)cv[i]=i32(b.off+i*ML.size+ML.fields.v.off)}}
+    const tris=[];const ok=(a,b,c)=>a>=0&&b>=0&&c>=0&&a<nv&&b<nv&&c<nv;
+    if(st&&cv){for(let i=0;i<nP;i++){const s=st[i],c=ct[i];if(s<0||s+c>cv.length)continue;
+        for(let k=1;k<c-1;k++){const a=cv[s],b2=cv[s+k],c2=cv[s+k+1];if(ok(a,b2,c2))tris.push(a,b2,c2)}}}
+    else{const MF=S.MFace,b=blk(mo,'mface')||(fL.find(l=>l.type===4&&l.data)||{}).data;
+      if(b&&MF&&MF.fields.v1){const n=Math.min(nfc,Math.floor(b.len/MF.size));
+        for(let i=0;i<n;i++){const o=b.off+i*MF.size,v=['v1','v2','v3','v4'].map(k=>u32(o+MF.fields[k].off));
+          if(ok(v[0],v[1],v[2]))tris.push(v[0],v[1],v[2]);if(v[3]&&ok(v[0],v[2],v[3]))tris.push(v[0],v[2],v[3])}}}
+    if(!tris.length)return null;
+    return {P,tris}}
+  // --- objects that use meshes, with their world transforms ---
+  const OB=S.Object,items=[];
+  if(OB&&OB.fields.data&&OB.fields.type){const mn=pick(OB,'obmat','object_to_world');
+    for(const b of blocks){if(sOf(b).name!=='Object'||b.code!=='OB')continue;const o=b.off;
+      if(i16(o+OB.fields.type.off)!==1)continue;
+      const mb=byAddr.get(ptr(o+OB.fields.data.off));if(!mb||sOf(mb).name!=='Mesh')continue;
+      if(OB.fields.modifiers&&ptr(o+OB.fields.modifiers.off)!==NULL)warn.add('mods');
+      let m=null;if(mn){m=[];for(let k=0;k<16;k++)m.push(f32(o+OB.fields[mn].off+k*4))}
+      items.push({mb,m})}}
+  if(!items.length)for(const b of blocks)if(b.code==='ME'&&sOf(b).name==='Mesh')items.push({mb:b,m:null});
+  const cache=new Map(),parts=[];let nv=0,nt=0;
+  for(const it of items){if(!cache.has(it.mb))cache.set(it.mb,readMesh(it.mb.off));const r=cache.get(it.mb);if(!r)continue;
+    const n=r.P.length/3,Q=new Float32Array(n*3),m=it.m;
+    for(let i=0;i<n;i++){let x=r.P[i*3],y=r.P[i*3+1],z=r.P[i*3+2];
+      if(m){const X=m[0]*x+m[4]*y+m[8]*z+m[12],Y=m[1]*x+m[5]*y+m[9]*z+m[13],Z=m[2]*x+m[6]*y+m[10]*z+m[14];x=X;y=Y;z=Z}
+      Q[i*3]=x;Q[i*3+1]=z;Q[i*3+2]=-y} // Blender is Z-up, this app is Y-up
+    parts.push({Q,tris:r.tris,base:nv});nv+=n;nt+=r.tris.length}
+  if(!parts.length)throw new Error('nomesh');
+  const outP=new Float32Array(nv*3),idx=new Uint32Array(nt);let ti=0;
+  for(const pr of parts){outP.set(pr.Q,pr.base*3);for(const t of pr.tris)idx[ti++]=t+pr.base}
+  return {pos:outP,idx,count:parts.length,warn}}
+
+// ---------- surface snapping ----------
+const rc=new THREE.Raycaster();
+function hitScreen(x,y,anchor){
+  rc.setFromCamera(new THREE.Vector2(x/innerWidth*2-1,-y/innerHeight*2+1),cam);
+  if(free()){const a=anchor?new THREE.Vector3(...anchor):controls.target.clone();
+    const n=cam.getWorldDirection(new THREE.Vector3());const pl=new THREE.Plane().setFromNormalAndCoplanarPoint(n,a);
+    const pt=rc.ray.intersectPlane(pl,new THREE.Vector3());return pt?{point:pt}:null}
+  const h=rc.intersectObject(high,true);return h[0]||null}
+function snapHit(p,n){if(!high)return null;const P=new THREE.Vector3(...p),N=new THREE.Vector3(...n).normalize();
+  let best=null;for(const sg of [1,-1]){rc.set(P.clone().addScaledVector(N,sg*size*.15),N.clone().multiplyScalar(-sg));
+    rc.far=size*.6;const h=rc.intersectObject(high,true)[0];
+    if(h&&(!best||h.point.distanceTo(P)<best.point.distanceTo(P)))best=h}
+  rc.far=Infinity;return best}
+function snap(p,n){if(free())return p;const h=snapHit(p,n);return h?h.point.toArray():p}
+
+const woodMode=false,refMode=false,woodHalf=[.55,.8,.55];   // wood carving and the reference box were removed (2026-11-27)
+
+// ---------- low-poly mesh display ----------
+const lowMat=new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:.85,side:THREE.DoubleSide,
+  polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,flatShading:true,depthWrite:false});
+const lowMesh=new THREE.Mesh(new THREE.BufferGeometry(),lowMat);
+const lines=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xe0182d,depthTest:false,transparent:true}));
+const pts=new THREE.Points(new THREE.BufferGeometry(),new THREE.PointsMaterial({color:0xe0182d,size:9,sizeAttenuation:false,depthTest:false}));
+const pendL=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffc20e,depthTest:false}));
+lines.renderOrder=pts.renderOrder=pendL.renderOrder=5;
+scene.add(lowMesh,lines,pts,pendL);
+const ek=(a,b)=>a<b?a+'_'+b:b+'_'+a;
+function edges(){const m=new Map();F.forEach((f,fi)=>f.forEach((a,i)=>{const b=f[(i+1)%f.length],k=ek(a,b);
+  if(!m.has(k))m.set(k,{a,b,faces:[]});m.get(k).faces.push(fi)}));return m}
+// ---------- mirror (symmetry across the x = 0 centre plane) ----------
+let mirOn=false;
+const mirPlane=new THREE.Mesh(new THREE.PlaneGeometry(2.8,2.8),new THREE.MeshBasicMaterial({color:0xffc20e,transparent:true,opacity:.12,side:THREE.DoubleSide,depthWrite:false}));
+mirPlane.rotation.y=Math.PI/2;mirPlane.add(new THREE.LineSegments(new THREE.EdgesGeometry(mirPlane.geometry),new THREE.LineBasicMaterial({color:0xffc20e,transparent:true,opacity:.8})));
+mirPlane.visible=false;scene.add(mirPlane);
+const MT=()=>1e-4*size,CT=()=>.015*size,mp=p=>[-p[0],p[1],p[2]];
+function mir(i){const p=V[i],t=MT();if(Math.abs(p[0])<t)return i;
+  for(let j=0;j<V.length;j++){const q=V[j];if(Math.abs(q[0]+p[0])<t&&Math.abs(q[1]-p[1])<t&&Math.abs(q[2]-p[2])<t)return j}return -1}
+function addVert(p){if(mirOn&&Math.abs(p[0])<CT())p=[0,p[1],p[2]];const i=V.push(p)-1;if(mirOn&&p[0]!==0)V.push(mp(p));return i}
+function addMirFace(f){if(!mirOn)return;const m=f.map(mir);if(m.some(j=>j<0))return;const fs=new Set(f);if(m.every(j=>fs.has(j)))return;
+  const key=a=>[...a].sort((x,y)=>x-y).join(','),mk=key(m);if(F.some(g=>key(g)===mk))return;F.push(m.slice().reverse())}
+function weld(keep,drop){F=F.map(f=>f.map(j=>j===drop?keep:j>drop?j-1:j)).filter(f=>new Set(f).size>=3);V.splice(drop,1);pend=[]}
+function symmetrize(from){ // make new verts on the -x side exact mirrors of their new partners on +x
+  for(let j=from;j<V.length;j++){if(V[j][0]>=-MT())continue;const t=mp(V[j]);let bk=-1,bd=.05*size;
+    for(let k=from;k<V.length;k++){if(V[k][0]<=MT())continue;const d=Math.hypot(V[k][0]-t[0],V[k][1]-t[1],V[k][2]-t[2]);if(d<bd){bd=d;bk=k}}
+    if(bk>=0)V[j]=mp(V[bk])}}
+function fnorm(f){const a=new THREE.Vector3(...V[f[0]]),b=new THREE.Vector3(...V[f[1]]),c=new THREE.Vector3(...V[f[2]]);
+  return b.sub(a).cross(c.sub(a)).normalize().toArray()}
+function vnorm(i){const n=new THREE.Vector3();F.forEach(f=>{if(f.includes(i))n.add(new THREE.Vector3(...fnorm(f)))});
+  if(n.lengthSq()<1e-9)n.copy(cam.position).sub(new THREE.Vector3(...V[i]));return n.normalize().toArray()}
+function sampleAll(){const cnt=new Map();
+  VU=V.map((p,i)=>{const h=snapHit(p,vnorm(i));if(!h)return [0,0];let m=h.object.material;
+    if(Array.isArray(m))m=m[h.face.materialIndex]||m[0];cnt.set(m,(cnt.get(m)||0)+1);return h.uv?[h.uv.x,h.uv.y]:[0,0]});
+  let best=null,bc=0;cnt.forEach((c,m)=>{if(c>bc){bc=c;best=m}});
+  if(best&&(!texMat||texMat.userData.src!==best)){texMat=best.clone();texMat.userData.src=best;
+    Object.assign(texMat,{transparent:true,opacity:lowMat.opacity,side:THREE.DoubleSide,polygonOffset:true,
+      polygonOffsetFactor:-2,polygonOffsetUnits:-2,depthWrite:false});texMat.needsUpdate=true}}
+let triFace=[];
+function meshGeo(){const useU=texOn&&texMat&&VU.length===V.length,tp=[],tu=[];triFace=[];
+  F.forEach((f,fi)=>{for(let i=1;i<f.length-1;i++){triFace.push(fi);for(const j of [f[0],f[i],f[i+1]]){tp.push(...V[j]);if(useU)tu.push(...VU[j])}}});
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(tp,3));
+  if(useU)g.setAttribute('uv',new THREE.Float32BufferAttribute(tu,2));g.computeVertexNormals();
+  lowMesh.geometry.dispose();lowMesh.geometry=g;lowMesh.material=useU?texMat:lowMat}
+const rebuildHooks=[];
+function rebuild(){meshGeo();
+  if(texOn&&high){clearTimeout(rebuild.t);rebuild.t=setTimeout(()=>{sampleAll();meshGeo()},250)}
+  const lp=[];for(const e of edges().values())lp.push(...V[e.a],...V[e.b]);
+  lines.geometry.dispose();lines.geometry=new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute(lp,3));
+  pts.geometry.dispose();pts.geometry=new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute(V.flat(),3));
+  pendL.geometry.dispose();pendL.geometry=new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute(pend.flatMap(i=>V[i]),3));
+  $('bX').style.display=pend.length?'block':'none';
+  $('stats').textContent=V.length+' verts · '+F.length+' faces';
+  checkSoon();
+  for(const h of rebuildHooks)h();
+}
+
+// ---------- screen picking ----------
+const scr=p=>{const v=new THREE.Vector3(...p).project(cam);return [(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight,v.z]};
+function front(p){if(free())return true;const P=new THREE.Vector3(...p),d=P.clone().sub(cam.position);
+  rc.set(cam.position,d.clone().normalize());const h=rc.intersectObject(high,true)[0];return !h||h.distance>d.length()-size*.03}
+function pickV(x,y,r=22){let bi=-1,bd=r;V.forEach((p,i)=>{const s=scr(p);const d=Math.hypot(s[0]-x,s[1]-y);
+  if(d<bd&&s[2]<1&&front(p)){bd=d;bi=i}});return bi}
+function pickE(x,y,r=16){let best=null,bd=r;for(const e of edges().values()){const A=scr(V[e.a]),B=scr(V[e.b]);
+  const dx=B[0]-A[0],dy=B[1]-A[1],L=dx*dx+dy*dy||1,t=Math.max(0,Math.min(1,((x-A[0])*dx+(y-A[1])*dy)/L));
+  const d=Math.hypot(A[0]+t*dx-x,A[1]+t*dy-y);
+  if(d<bd&&front(V[e.a].map((v,k)=>(v+V[e.b][k])/2))){bd=d;best=e}}return best}
+
+// ---------- operations ----------
+function addPend(i){
+  if(pend.length>=3&&i===pend[0]){save();F.push([...pend]);addMirFace(pend);pend=[];hint('Triangle made');return rebuild()}
+  if(pend.includes(i))return;pend.push(i);
+  if(pend.length===4){save();F.push([...pend]);addMirFace(pend);pend=[];hint('Quad made')}
+  rebuild()}
+function extrude(e){const ma=mirOn?mir(e.a):-1,mb=mirOn?mir(e.b):-1,n0=V.length;save();const r=extrude1(e);
+  if(mirOn&&ma>=0&&mb>=0&&!(new Set([e.a,e.b,ma,mb]).size===2)){const me=edges().get(ek(ma,mb));
+    if(me&&me.faces.length){const r2=extrude1(me),mOf=new Map([[r.src[0],r.nw[0]],[r.src[1],r.nw[1]]]);const drops=[];
+      r2.src.forEach((sv,k)=>{const twin=mOf.get(mir(sv));if(twin==null)return;
+        if(mir(sv)===sv){V[twin][0]=0;drops.push([twin,r2.nw[k]])}else V[r2.nw[k]]=mp(V[twin])});
+      drops.sort((a,b)=>b[1]-a[1]).forEach(([k,d])=>weld(k,d))}}
+  else if(mirOn){r.src.forEach((sv,k)=>{if(mir(sv)===sv)V[r.nw[k]][0]=0});if(mir(r.src[0])===r.src[1])V[r.nw[1]]=mp(V[r.nw[0]])}
+  rebuild();hint('Extruded – drag the new edge');return r}
+function extrude1(e){
+  const f=F[e.faces[0]],i=f.indexOf(e.a),fwd=f[(i+1)%f.length]===e.b;const a=fwd?e.a:e.b,b=fwd?e.b:e.a;
+  const c=new THREE.Vector3();f.forEach(j=>c.add(new THREE.Vector3(...V[j])));c.divideScalar(f.length);
+  const A=new THREE.Vector3(...V[a]),B=new THREE.Vector3(...V[b]);
+  const dir=A.clone().add(B).multiplyScalar(.5).sub(c).normalize().multiplyScalar(A.distanceTo(B));
+  const n=fnorm(f);const na=V.push(snap(A.clone().add(dir).toArray(),n))-1,nb=V.push(snap(B.clone().add(dir).toArray(),n))-1;
+  F.push([b,a,na,nb]);return {src:[a,b],nw:[na,nb]}}
+function loopCut(e0){if(!e0.faces.every(fi=>F[fi].length===4))return hint('Loop cuts need quads');
+  const ma=mirOn?mir(e0.a):-1,mb=mirOn?mir(e0.b):-1,pa=mp(V[e0.a]),pb=mp(V[e0.b]),n0=V.length;save();loop1(e0);
+  if(mirOn&&ma>=0&&mb>=0&&new Set([e0.a,e0.b,ma,mb]).size>2){const find=p=>V.findIndex(q=>Math.hypot(q[0]-p[0],q[1]-p[1],q[2]-p[2])<MT());
+    const me=edges().get(ek(find(pa),find(pb)));if(me&&me.faces.every(fi=>F[fi].length===4))loop1(me)}
+  if(mirOn)symmetrize(n0);rebuild();hint('Edge loop added')}
+function loop1(e0){const em=edges();const mid=new Map(),done=new Set(),newF=[];
+  const midOf=(a,b)=>{const k=ek(a,b);if(!mid.has(k)){const p=V[a].map((v,j)=>(v+V[b][j])/2);
+    const q=snap(p,vnorm(a));if(mirOn){const A=mir(a),B=mir(b);if(A===b||(A===a&&B===b))q[0]=0}mid.set(k,V.push(q)-1)}return mid.get(k)};
+  const walk=(a,b,fi)=>{while(fi!=null&&!done.has(fi)&&F[fi].length===4){done.add(fi);const f=F[fi];
+    let i=f.indexOf(a);if(f[(i+1)%4]!==b){i=f.indexOf(b);[a,b]=[b,a]}
+    const v0=f[i],v1=f[(i+1)%4],v2=f[(i+2)%4],v3=f[(i+3)%4],m1=midOf(v0,v1),m2=midOf(v2,v3);
+    newF.push([fi,[v0,m1,m2,v3],[m1,v1,v2,m2]]);
+    const nx=em.get(ek(v2,v3));a=v2;b=v3;fi=nx?nx.faces.find(x=>!done.has(x)):null}};
+  e0.faces.forEach(fi=>walk(e0.a,e0.b,fi));
+  const rm=new Set(newF.map(x=>x[0]));F=F.filter((f,i)=>!rm.has(i));newF.forEach(x=>F.push(x[1],x[2]))}
+function delV(i){const m=mirOn?mir(i):-1,ds=[...new Set([i,m].filter(x=>x>=0))].sort((a,b)=>b-a);save();
+  for(const d of ds){F=F.filter(f=>!f.includes(d)).map(f=>f.map(j=>j>d?j-1:j));V.splice(d,1)}pend=[];rebuild();hint(ds.length>1?'Points deleted':'Point deleted')}
+// ---------- mesh health: overlapping, crossing, folded and twisted faces ----------
+// Pure check (also used by the tests): returns [{f, kind}] for faces that overlap or cross others,
+// fold back over a neighbour, or twist into a bow-tie.
+function findProblems(V, F) {
+  const nf = F.length; if (!nf || nf > 20000) return [];
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dt = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const nz = a => { const l = Math.hypot(a[0], a[1], a[2]); return l > 1e-15 ? [a[0] / l, a[1] / l, a[2] / l] : [0, 0, 0]; };
+  const tn = (a, b, c) => nz(cr(sub(V[b], V[a]), sub(V[c], V[a])));
+  const N = [], C = [], R = []; let el = 0, ec = 0;
+  for (const f of F) {
+    let n = [0, 0, 0], c = [0, 0, 0];
+    for (let k = 0; k < f.length; k++) { const p = V[f[k]], q = V[f[(k + 1) % f.length]];
+      n[0] += (p[1] - q[1]) * (p[2] + q[2]); n[1] += (p[2] - q[2]) * (p[0] + q[0]); n[2] += (p[0] - q[0]) * (p[1] + q[1]);
+      c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; el += Math.hypot(...sub(p, q)); ec++; }
+    c = c.map(x => x / f.length); N.push(nz(n)); C.push(c);
+    R.push(Math.max(...f.map(v => Math.hypot(...sub(V[v], c)))));
+  }
+  const avg = el / Math.max(1, ec), out = new Map(), mark = (i, k) => { if (!out.has(i)) out.set(i, k); };
+  // twisted quads: the two halves face opposite ways along both diagonals
+  F.forEach((f, i) => { if (f.length !== 4) return;
+    if (dt(tn(f[0], f[1], f[2]), tn(f[0], f[2], f[3])) < -0.2 && dt(tn(f[1], f[2], f[3]), tn(f[1], f[3], f[0])) < -0.2) mark(i, 'twist'); });
+  // folds: neighbours across an edge that face opposite ways
+  const E = new Map();
+  F.forEach((f, i) => f.forEach((a, k) => { const b = f[(k + 1) % f.length], key = a < b ? a + '_' + b : b + '_' + a; (E.get(key) || E.set(key, []).get(key)).push([i, a]); }));
+  for (const L of E.values()) { if (L.length !== 2) continue; const [[i, ai], [j, aj]] = L; const same = ai === aj;
+    const d = dt(N[i], N[j]) * (same ? -1 : 1); if (d < -0.3) { mark(i, 'fold'); mark(j, 'fold'); } }
+  // overlaps: faces close together that cross, or lie on top of each other
+  const cell = Math.max(avg * 1.5, 1e-6), grid = new Map(), K = (x, y, z) => x + ',' + y + ',' + z;
+  C.forEach((c, i) => { const k = K(Math.floor(c[0] / cell), Math.floor(c[1] / cell), Math.floor(c[2] / cell)); (grid.get(k) || grid.set(k, []).get(k)).push(i); });
+  const tris = f => { const t = []; for (let k = 1; k < f.length - 1; k++) t.push([f[0], f[k], f[k + 1]]); return t; };
+  const shrink = (i, t) => t.map(v => { const p = V[v], c = C[i]; return [c[0] + (p[0] - c[0]) * 0.94, c[1] + (p[1] - c[1]) * 0.94, c[2] + (p[2] - c[2]) * 0.94]; });
+  const segTri = (p, q, A, B, Cc) => {       // does segment pq cross triangle ABC?
+    const e1 = sub(B, A), e2 = sub(Cc, A), d = sub(q, p), h = cr(d, e2), a = dt(e1, h); if (Math.abs(a) < 1e-14) return false;
+    const f = 1 / a, s = sub(p, A), u = f * dt(s, h); if (u < 0 || u > 1) return false;
+    const qq = cr(s, e1), v = f * dt(d, qq); if (v < 0 || u + v > 1) return false; const t = f * dt(e2, qq); return t >= 0 && t <= 1; };
+  const tri3 = (T, U) => { for (let k = 0; k < 3; k++) { if (segTri(T[k], T[(k + 1) % 3], U[0], U[1], U[2]) || segTri(U[k], U[(k + 1) % 3], T[0], T[1], T[2])) return true; } return false; };
+  const tri2 = (T, U, ax, ay) => {            // 2D overlap (separating axis) after projecting onto a plane
+    const P = T.map(p => [dt(p, ax), dt(p, ay)]), Q = U.map(p => [dt(p, ax), dt(p, ay)]);
+    for (const S of [P, Q]) for (let k = 0; k < 3; k++) { const a = S[k], b = S[(k + 1) % 3], nx = b[1] - a[1], ny = a[0] - b[0];
+      let p0 = Infinity, p1 = -Infinity, q0 = Infinity, q1 = -Infinity;
+      for (const v of P) { const x = v[0] * nx + v[1] * ny; p0 = Math.min(p0, x); p1 = Math.max(p1, x); }
+      for (const v of Q) { const x = v[0] * nx + v[1] * ny; q0 = Math.min(q0, x); q1 = Math.max(q1, x); }
+      if (p1 <= q0 || q1 <= p0) return false; }
+    return true; };
+  for (let i = 0; i < nf; i++) {
+    const c = C[i], gx = Math.floor(c[0] / cell), gy = Math.floor(c[1] / cell), gz = Math.floor(c[2] / cell);
+    for (let x = gx - 1; x <= gx + 1; x++) for (let y = gy - 1; y <= gy + 1; y++) for (let z = gz - 1; z <= gz + 1; z++) {
+      const L = grid.get(K(x, y, z)); if (!L) continue;
+      for (const j of L) {
+        if (j <= i || (out.has(i) && out.get(i) === 'overlap' && out.has(j) && out.get(j) === 'overlap')) continue;
+        if (Math.hypot(...sub(C[i], C[j])) > R[i] + R[j]) continue;
+        let shared = 0; for (const v of F[i]) if (F[j].includes(v)) shared++; if (shared >= 2) continue;
+        const flat = Math.abs(dt(N[i], N[j])) > 0.7 && Math.abs(dt(N[i], sub(C[j], C[i]))) < 0.3 * avg;
+        let hit = false;
+        let ax = null, ay = null; if (flat) { ax = nz(Math.abs(N[i][0]) < 0.9 ? cr(N[i], [1, 0, 0]) : cr(N[i], [0, 1, 0])); ay = cr(N[i], ax); }
+        for (const t of tris(F[i])) { const T = shrink(i, t); for (const u of tris(F[j])) { const U = shrink(j, u);
+          if (flat ? tri2(T, U, ax, ay) : tri3(T, U)) { hit = true; break; } } if (hit) break; }
+        if (hit) { out.set(i, 'overlap'); out.set(j, 'overlap'); }
+      }
+    }
+  }
+  return [...out].map(([f, kind]) => ({ f, kind }));
+}
+// Make every face in a connected patch run the same way round, facing out from the model's centre.
+// Changes only the order of each face's points (so exported normals agree), never positions.
+function fixWinding(F, V, center) {
+  const nf = F.length, E = new Map(), seen = new Uint8Array(nf);
+  F.forEach((f, i) => f.forEach((a, k) => { const b = f[(k + 1) % f.length], key = a < b ? a + '_' + b : b + '_' + a; (E.get(key) || E.set(key, []).get(key)).push(i); }));
+  const has = (f, a, b) => { const k = f.indexOf(a); return k >= 0 && f[(k + 1) % f.length] === b; };
+  let changed = 0;
+  for (let s = 0; s < nf; s++) {
+    if (seen[s]) continue; const comp = [s], q = [s]; seen[s] = 1;
+    while (q.length) { const i = q.pop(), f = F[i];
+      for (let k = 0; k < f.length; k++) { const a = f[k], b = f[(k + 1) % f.length], key = a < b ? a + '_' + b : b + '_' + a;
+        for (const j of E.get(key)) { if (seen[j]) continue; if (has(F[j], a, b)) { F[j].reverse(); changed++; } seen[j] = 1; comp.push(j); q.push(j); } } }
+    let vote = 0;
+    for (const i of comp) { const f = F[i]; let n = [0, 0, 0], c = [0, 0, 0];
+      for (let k = 0; k < f.length; k++) { const p = V[f[k]], r = V[f[(k + 1) % f.length]];
+        n[0] += (p[1] - r[1]) * (p[2] + r[2]); n[1] += (p[2] - r[2]) * (p[0] + r[0]); n[2] += (p[0] - r[0]) * (p[1] + r[1]); c[0] += p[0] / f.length; c[1] += p[1] / f.length; c[2] += p[2] / f.length; }
+      vote += n[0] * (c[0] - center[0]) + n[1] * (c[1] - center[1]) + n[2] * (c[2] - center[2]); }
+    if (vote < 0) for (const i of comp) { F[i].reverse(); changed++; }
+  }
+  return changed;
+}
+// Ring tool: cut a slice through the sculpt along each side of quad fi (a plane holding that side and the quad's
+// normal). A slice through a closed sculpt is always a closed loop, so the ring is laid out along those two loops
+// with evenly spaced points and always reconnects exactly onto the starting quad.
+// pos/idx: the sculpt's merged triangles in world space. Returns {made, closed, why}.
+function sliceLoops(pos, idx, n, d) {
+  const nodes = new Map(), pts = [], adj = [];
+  const sd = i => { const v = pos[i * 3] * n[0] + pos[i * 3 + 1] * n[1] + pos[i * 3 + 2] * n[2] - d; return v === 0 ? 1e-12 : v; };
+  const node = (a, b, da, db) => { const k = a < b ? a * 4294967296 + b : b * 4294967296 + a; let id = nodes.get(k);
+    if (id === undefined) { const t = da / (da - db); id = pts.length; nodes.set(k, id); adj.push([]);
+      pts.push([pos[a * 3] + (pos[b * 3] - pos[a * 3]) * t, pos[a * 3 + 1] + (pos[b * 3 + 1] - pos[a * 3 + 1]) * t, pos[a * 3 + 2] + (pos[b * 3 + 2] - pos[a * 3 + 2]) * t]); }
+    return id; };
+  for (let t = 0; t < idx.length / 3; t++) {
+    const v = [idx[t * 3], idx[t * 3 + 1], idx[t * 3 + 2]], s = v.map(sd);
+    if ((s[0] > 0) === (s[1] > 0) && (s[1] > 0) === (s[2] > 0)) continue;
+    const hits = [];
+    for (let k = 0; k < 3; k++) { const a = v[k], b = v[(k + 1) % 3]; if ((s[k] > 0) !== (s[(k + 1) % 3] > 0)) hits.push(node(a, b, s[k], s[(k + 1) % 3])); }
+    if (hits.length === 2 && hits[0] !== hits[1]) { adj[hits[0]].push(hits[1]); adj[hits[1]].push(hits[0]); }
+  }
+  const seen = new Uint8Array(pts.length), loops = [];
+  for (let st = 0; st < pts.length; st++) {
+    if (seen[st]) continue;
+    const loop = [st]; seen[st] = 1; let prev = -1, cur = st, closed = false;
+    for (;;) {
+      const nb = adj[cur].filter(x => x !== prev); if (adj[cur].length !== 2) break;
+      const nx = nb[0]; if (nx === undefined) break;
+      if (nx === st) { closed = true; break; }
+      if (seen[nx]) break;
+      seen[nx] = 1; loop.push(nx); prev = cur; cur = nx;
+    }
+    loops.push({ p: loop.map(i => pts[i]), closed });
+  }
+  return loops;
+}
+function sliceRing(V, F, fi, axis, pos, idx) {
+  const f = F[fi]; if (!f || f.length !== 4) return { made: [], closed: false, why: 'quad' };
+  const [a, b, c, d] = f; let B0, B1, F0, F1;
+  if (axis === 0) { B0 = a; F0 = b; B1 = d; F1 = c; } else { B0 = a; F0 = d; B1 = b; F1 = c; }
+  const sub = (p, q) => [p[0] - q[0], p[1] - q[1], p[2] - q[2]], dt = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
+  const cr = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]], len = p => Math.hypot(p[0], p[1], p[2]);
+  let qn = [0, 0, 0]; for (let k = 0; k < 4; k++) { const p = V[f[k]], r = V[f[(k + 1) % 4]]; qn[0] += (p[1] - r[1]) * (p[2] + r[2]); qn[1] += (p[2] - r[2]) * (p[0] + r[0]); qn[2] += (p[0] - r[0]) * (p[1] + r[1]); }
+  const L = (len(sub(V[F0], V[B0])) + len(sub(V[F1], V[B1]))) / 2; if (!(L > 1e-9) || len(qn) < 1e-12) return { made: [], closed: false, why: 'flat' };
+  const rails = [];
+  for (const [Bk, Fk] of [[B0, F0], [B1, F1]]) {
+    let pn = cr(sub(V[Fk], V[Bk]), qn); const pl = len(pn); if (pl < 1e-12) return { made: [], closed: false, why: 'flat' }; pn = pn.map(x => x / pl);
+    const loops = sliceLoops(pos, idx, pn, dt(pn, V[Fk]));
+    // the loop passing closest to this side of the quad, and where the side's two corners sit along it
+    let best = null;
+    for (const lp of loops) { const P = lp.p, n = P.length; if (n < 3) continue;
+      const proj = q => { let bd = Infinity, bs = 0, acc = 0;
+        for (let k = 0; k < (lp.closed ? n : n - 1); k++) { const A = P[k], B = P[(k + 1) % n], ab = sub(B, A), l2 = dt(ab, ab) || 1e-30;
+          const u = Math.max(0, Math.min(1, dt(sub(q, A), ab) / l2)), x = [A[0] + ab[0] * u, A[1] + ab[1] * u, A[2] + ab[2] * u], dd = len(sub(q, x)), sl = Math.sqrt(l2);
+          if (dd < bd) { bd = dd; bs = acc + u * sl; } acc += sl; }
+        return [bd, bs, acc]; };
+      const [dF, sF, per] = proj(V[Fk]), [dB, sB] = proj(V[Bk]);
+      if (!best || dF + dB < best.err) best = { lp, sF, sB, per, err: dF + dB };
+    }
+    if (!best) return { made: [], closed: false, why: 'open' };
+    if (!best.lp.closed) return { made: [], closed: false, why: 'open' };
+    if (best.err > 0.75 * L) return { made: [], closed: false, why: 'far' };
+    const fwdArc = ((best.sF - best.sB) % best.per + best.per) % best.per, dir = fwdArc <= best.per / 2 ? 1 : -1;
+    const arcBF = Math.min(fwdArc, best.per - fwdArc);
+    rails.push({ ...best, dir, rest: best.per - arcBF });
+  }
+  const N = Math.round((rails[0].rest + rails[1].rest) / 2 / L);
+  if (N < 3) return { made: [], closed: false, why: 'small' };
+  const pointAt = (rl, s) => { const P = rl.lp.p, n = P.length; s = ((s % rl.per) + rl.per) % rl.per; let acc = 0;
+    for (let k = 0; k < n; k++) { const A = P[k], B = P[(k + 1) % n], sl = len(sub(B, A)); if (acc + sl >= s || k === n - 1) { const u = sl > 0 ? Math.min(1, (s - acc) / sl) : 0; return [A[0] + (B[0] - A[0]) * u, A[1] + (B[1] - A[1]) * u, A[2] + (B[2] - A[2]) * u]; } acc += sl; } return P[0].slice(); };
+  const n0 = V.length, r = [[F0], [F1]];
+  for (let k = 0; k < 2; k++) { const rl = rails[k]; for (let j = 1; j < N; j++) r[k].push(V.push(pointAt(rl, rl.sF + rl.dir * j * rl.rest / N)) - 1); }
+  r[0].push(B0); r[1].push(B1);
+  const fwd = f[(f.indexOf(F0) + 1) % 4] === F1, made = [];
+  for (let j = 0; j < N; j++) { const f0 = r[0][j], f1 = r[1][j], n0_ = r[0][j + 1], n1_ = r[1][j + 1];
+    const nf = fwd ? [f1, f0, n0_, n1_] : [f0, f1, n1_, n0_]; F.push(nf); made.push(nf); }
+  return { made, closed: true, why: 'closed', n0 };
+}
+
+// ---------- auto retopology: quads (background worker, loaded on tap) or quick triangles ----------
+let qWorker = null, autoKind = 'quad';
+function setAutoKind(k) { autoKind = k; document.querySelectorAll('#aKind button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+  $('aSmL').hidden = $('aMiL').hidden = k !== 'quad'; $('aGo').textContent = k === 'quad' ? 'Make quads' : 'Make triangles'; }
+document.querySelectorAll('#aKind button').forEach(b => b.onclick = () => setAutoKind(b.dataset.k));
+// faces slider: 100 to 10,000 on a log scale, rounded to friendly numbers, with quick picks
+const facesAt = t => { const n = 100 * Math.pow(100, t / 100); return n < 1000 ? Math.round(n / 50) * 50 : n < 3000 ? Math.round(n / 100) * 100 : Math.round(n / 500) * 500; };
+const sliderFor = n => Math.round(Math.log(n / 100) / Math.log(100) * 100);
+function showFaces() { const n = facesAt(+$('aN').value); $('aNv').textContent = 'about ' + n.toLocaleString('en-US');
+  document.querySelectorAll('#aPre button').forEach(b => b.classList.toggle('on', +b.dataset.n === n)); return n; }
+$('aN').oninput = showFaces;
+document.querySelectorAll('#aPre button').forEach(b => b.onclick = () => { $('aN').value = sliderFor(+b.dataset.n); showFaces(); });
+function auto() { if (!high) return hint('Load a sculpt first'); $('aMi').checked = mirOn; setAutoKind(autoKind); showFaces();
+  $('aProg').hidden = true; $('aGo').disabled = false; $('autoP').hidden = false; }
+function closeAuto() { if (qWorker) { qWorker.terminate(); qWorker = null; hint('Stopped'); } $('autoP').hidden = true; }
+$('aNo').onclick = closeAuto;
+$('autoF').onsubmit = e => { e.preventDefault(); const n = showFaces();
+  if (autoKind === 'tri') { $('autoP').hidden = true; runTri(n); } else runQuad(n, +$('aSm').value, $('aMi').checked); };
+function runQuad(n, smooth, symmetric) {
+  const g = getHighGeo(), pos = new Float32Array(g.attributes.position.array);
+  const idx = g.index ? new Uint32Array(g.index.array) : Uint32Array.from({ length: pos.length / 3 }, (_, i) => i);
+  const url = URL.createObjectURL(new Blob([$('qremeshSrc').textContent], { type: 'text/javascript' }));
+  try { qWorker = new Worker(url); } catch (err) { URL.revokeObjectURL(url); return hint('This browser would not start the background worker'); }
+  $('aProg').hidden = false; $('aGo').disabled = true; $('aBar').style.width = '2%'; $('aStage').textContent = 'Starting';
+  qWorker.onmessage = e => { const d = e.data; URL.revokeObjectURL(url);
+    if (d.type === 'progress') { $('aBar').style.width = Math.round(d.frac * 100) + '%'; $('aStage').textContent = d.stage; return; }
+    qWorker.terminate(); qWorker = null; $('autoP').hidden = true;
+    if (d.type === 'error') return hint(d.message === 'small' ? 'The sculpt is too small for that many faces' : 'Quad retopology failed: ' + d.message, 6000);
+    if (!d.F.length) return hint('No quads came out. Try more faces.', 5000);
+    save(); V = d.V; F = d.F; pend = []; rebuild();
+    const q = F.filter(f => f.length === 4).length;
+    hint(F.length + ' faces, ' + Math.round(100 * q / F.length) + '% quads. Undo brings back your old mesh.', 6000); };
+  qWorker.onerror = () => { URL.revokeObjectURL(url); if (qWorker) qWorker.terminate(); qWorker = null; $('autoP').hidden = true; hint('Quad retopology stopped with an error', 5000); };
+  qWorker.postMessage({ pos, idx, opt: { target: n, smooth, symmetric } }, [pos.buffer, idx.buffer]);
+}
+function runTri(n) {
+  hint('Working…'); setTimeout(() => { const g = getHighGeo().clone(); const tri = (g.index ? g.index.count : g.attributes.position.count) / 3;
+    const s = new SimplifyModifier().modify(g, Math.max(0, Math.floor(g.attributes.position.count * (1 - n / tri))));
+    const p = s.attributes.position, ix = s.index; save(); V = []; for (let i = 0; i < p.count; i++) V.push([p.getX(i), p.getY(i), p.getZ(i)]);
+    F = []; for (let i = 0; i < ix.count; i += 3) F.push([ix.getX(i), ix.getX(i + 1), ix.getX(i + 2)]); pend = []; rebuild(); hint('Triangles made: ' + F.length); }, 50);
+}
+// ---------- mesh health: tint problem faces red, count them, jump to each ----------
+const badMat = new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: .6, side: THREE.DoubleSide, depthWrite: false,
+  polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+const badMesh = new THREE.Mesh(new THREE.BufferGeometry(), badMat); badMesh.renderOrder = 3; scene.add(badMesh);
+let bad = [], badAt = -1;
+function checkSoon() { if (checkSoon.t) return; checkSoon.t = setTimeout(() => { checkSoon.t = 0; runCheck(); }, 160); }
+function runCheck() {
+  if (woodMode || !F.length) { bad = []; return showBad(); }
+  const c = high ? new THREE.Box3().setFromObject(high).getCenter(new THREE.Vector3()).toArray()
+    : V.reduce((a, p) => [a[0] + p[0] / V.length, a[1] + p[1] / V.length, a[2] + p[2] / V.length], [0, 0, 0]);
+  if (fixWinding(F, V, c)) meshGeo();
+  bad = findProblems(V, F); showBad();
+}
+function showBad() {
+  const tp = []; for (const b of bad) { const f = F[b.f]; if (!f) continue; for (let i = 1; i < f.length - 1; i++) tp.push(...V[f[0]], ...V[f[i]], ...V[f[i + 1]]); }
+  badMesh.geometry.dispose(); badMesh.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(tp, 3));
+  badMesh.visible = !woodMode && bad.length > 0;
+  const n = { overlap: 0, fold: 0, twist: 0 }; bad.forEach(b => n[b.kind]++);
+  const parts = []; if (n.overlap) parts.push(n.overlap + ' overlapping'); if (n.fold) parts.push(n.fold + ' folded'); if (n.twist) parts.push(n.twist + ' twisted');
+  $('warn').hidden = !bad.length || woodMode; $('warn').textContent = '⚠ ' + parts.join(' · ');
+  if (badAt >= bad.length) badAt = -1;
+}
+$('warn').onclick = () => {      // swing the camera round to the next problem face
+  if (!bad.length) return; badAt = (badAt + 1) % bad.length; const f = F[bad[badAt].f]; if (!f) return;
+  const C = new THREE.Vector3(); f.forEach(v => C.add(new THREE.Vector3(...V[v]))); C.divideScalar(f.length);
+  const N = new THREE.Vector3(...fnorm(f)); if (N.dot(cam.position.clone().sub(C)) < 0) N.negate();
+  const dist = Math.max(size * .6, Math.min(size * 2, cam.position.distanceTo(controls.target)));
+  controls.target.copy(C); cam.position.copy(C).addScaledVector(N, dist); controls.update();
+  const what = { overlap: 'overlaps another face', fold: 'is folded back over its neighbour', twist: 'is twisted' }[bad[badAt].kind];
+  hint('Problem ' + (badAt + 1) + ' of ' + bad.length + ': this face ' + what, 4000);
+};
+// ---------- ring tool: hold a quad, tap an arrow ----------
+let ringAt = null;
+function holdQuad(x, y) {
+  rc.setFromCamera(new THREE.Vector2(x / innerWidth * 2 - 1, -y / innerHeight * 2 + 1), cam);
+  const h = rc.intersectObject(lowMesh, false)[0]; if (!h) return;
+  const fi = triFace[h.faceIndex], f = F[fi]; if (!f) return;
+  const n = h.face.normal.clone(); if (n.dot(rc.ray.direction) > 0) n.negate();
+  const canRing = f.length === 4 && !free();
+  ringAt = { fi };
+  if (!canRing) return hint(f.length !== 4 ? 'The ring tool starts from a quad' : 'The ring tool wraps around a sculpt: load one and keep snapping on', 4000);
+  const C = new THREE.Vector3(); f.forEach(v => C.add(new THREE.Vector3(...V[v]))); C.divideScalar(f.length); const c = scr(C.toArray());
+  const mid = (i, j) => new THREE.Vector3(...V[f[i]]).add(new THREE.Vector3(...V[f[j]])).multiplyScalar(.5);
+  const place = (id, axis) => { const btn = $(id);
+    const a = axis === 0 ? [mid(0, 3), mid(1, 2)] : [mid(0, 1), mid(3, 2)], s0 = scr(a[0].toArray()), s1 = scr(a[1].toArray());
+    let dx = s1[0] - s0[0], dy = s1[1] - s0[1]; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+    const px = Math.max(28, Math.min(innerWidth - 28, c[0] + dx * 70)), py = Math.max(28, Math.min(innerHeight - 28, c[1] + dy * 70));
+    btn.style.left = (px - 22) + 'px'; btn.style.top = (py - 22) + 'px'; btn.firstChild.style.transform = 'rotate(' + Math.atan2(dy, dx) + 'rad)'; };
+  place('rA', 0); place('rB', 1);
+  $('ringUI').hidden = false;
+  hint('Tap an arrow to wrap a ring of quads that way', 4000);
+}
+const hideRing = () => { $('ringUI').hidden = true; };
+function doRing(axis) {
+  hideRing(); const fi = ringAt && ringAt.fi; if (fi == null || !F[fi] || F[fi].length !== 4) return;
+  const sx = Math.sign(F[fi].reduce((s, v) => s + V[v][0], 0));
+  const g = getHighGeo(); save(); const nV = V.length;
+  const r = sliceRing(V, F, fi, axis, g.attributes.position.array, g.index.array);
+  if (!r.made.length) { hist.pop(); return hint({ open: 'This slice of the sculpt has an opening, so a ring can\'t close here', far: 'Couldn\'t follow the sculpt from this quad. Check it sits on the sculpt',
+    small: 'That ring would be fewer than three quads', flat: 'This quad is too thin to start a ring' }[r.why] || 'Could not start a ring from this quad', 4500); }
+  let mirNote = '';
+  if (mirOn) {
+    const nR = V.length, crossed = sx !== 0 && V.slice(nV, nR).some(p => p[0] * sx < -CT());
+    if (crossed) mirNote = ' It crosses the centre line, so it was not mirrored.';
+    else { for (let j = nV; j < nR; j++) { if (Math.abs(V[j][0]) < CT()) V[j][0] = 0; else V.push(mp(V[j])); } r.made.forEach(f => addMirFace(f)); }
+  }
+  rebuild();
+  hint('Ring closed: ' + (r.made.length + 1) + ' quads all the way round.' + mirNote, 5000);
+}
+$('rA').onclick = () => doRing(0); $('rB').onclick = () => doRing(1);
+
+function exportOBJ(){let s='# polygo export\n';const uv=texOn&&VU.length===V.length;V.forEach(p=>s+='v '+p.map(v=>v.toFixed(5)).join(' ')+'\n');
+  if(uv)VU.forEach(u=>s+='vt '+u[0].toFixed(5)+' '+u[1].toFixed(5)+'\n');
+  F.forEach(f=>s+='f '+f.map(i=>uv?(i+1)+'/'+(i+1):i+1).join(' ')+'\n');const a=document.createElement('a');
+  dl_(new Blob([s],{type:'text/plain'}),'polygo.obj')}
+const dlP=(window.claude&&window.claude.use)?Promise.resolve(window.claude.use('downloads')).catch(()=>null):null;
+function crc32(u){let c=~0;for(let i=0;i<u.length;i++){c^=u[i];for(let k=0;k<8;k++)c=(c>>>1)^(0xEDB88320&-(c&1))}return (~c)>>>0}
+function zip1(name,d){const n=new TextEncoder().encode(name),crc=crc32(d),dt=((2026-1980)<<9)|(1<<5)|1;
+  const L=new DataView(new ArrayBuffer(30));L.setUint32(0,0x04034b50,true);L.setUint16(4,20,true);L.setUint16(12,dt,true);
+  L.setUint32(14,crc,true);L.setUint32(18,d.length,true);L.setUint32(22,d.length,true);L.setUint16(26,n.length,true);
+  const C=new DataView(new ArrayBuffer(46));C.setUint32(0,0x02014b50,true);C.setUint16(4,20,true);C.setUint16(6,20,true);C.setUint16(14,dt,true);
+  C.setUint32(16,crc,true);C.setUint32(20,d.length,true);C.setUint32(24,d.length,true);C.setUint16(28,n.length,true);
+  const E=new DataView(new ArrayBuffer(22));E.setUint32(0,0x06054b50,true);E.setUint16(8,1,true);E.setUint16(10,1,true);
+  E.setUint32(12,46+n.length,true);E.setUint32(16,30+n.length+d.length,true);
+  return new Blob([L,n,d,C,n,E],{type:'application/zip'})}
+async function dl_(blob,n){
+  if(!dlP){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=n;a.click();return hint('Exported '+n)}
+  const d=await dlP;if(!d)return hint('Saving files is not available in this view');
+  const z=zip1(n,new Uint8Array(await blob.arrayBuffer()));
+  try{await d.save({filename:n+'.zip',data:z});hint('Saved '+n+'.zip. Unzip it to get your '+n.split('.').pop().toUpperCase()+' file')}
+  catch(e){hint(e&&e.code==='declined'?'Save cancelled':'Could not save the file'+(e&&e.code?' ('+e.code+')':''))}}
+function lowObj(){let mt=new THREE.MeshStandardMaterial({color:0xffffff});if(lowMesh.material===texMat){mt=texMat.clone();Object.assign(mt,{transparent:false,opacity:1,depthWrite:true,polygonOffset:false})}
+  const m=new THREE.Mesh(lowMesh.geometry.clone(),mt);m.name='polygo';return m}
+function exportAs(fmt){if(!F.length)return hint('Nothing to export yet');
+  if(fmt==='obj')return exportOBJ();
+  if(fmt==='stl')return dl_(new Blob([new STLExporter().parse(lowObj(),{binary:true})]),'polygo.stl');
+  if(fmt==='ply')return new PLYExporter().parse(lowObj(),r=>dl_(new Blob([r]),'polygo.ply'),{binary:true});
+  if(fmt==='glb')new GLTFExporter().parse(lowObj(),r=>dl_(new Blob([r]),'polygo.glb'),e=>hint('Export failed'),{binary:true})}
+
+
+// ---------- touch gestures (registered before OrbitControls so we can claim a touch) ----------
+let TG=null,G=null,touches=0,lastTap={t:0,k:null};
+el.addEventListener('pointerdown',e=>{touches++;if(!$('ringUI').hidden)hideRing();
+  if(LS.on&&touches>1){if(LS.phase==='draw'){LS.phase='idle';LS.poly=null;drawPath();lsTether.setAttribute('d','')}if(LS.drag)endDrag();controls.enabled=true;return}
+  if(LS.on){lsDown(e);return}
+  if(touches>1){if(G){clearTimeout(G.lp);G=null}if(TG){if(TG.moved)TUTO.release();TG=null}controls.enabled=true;return}
+  if(TUTO.hit(e.clientX,e.clientY)){TG={x:e.clientX,y:e.clientY,moved:false};controls.enabled=false;return}
+  const x=e.clientX,y=e.clientY,vi=pickV(x,y),ed=vi<0?pickE(x,y):null;
+  G={x,y,t:performance.now(),vi,ed,moved:false,saved:false,hitStart:hitScreen(x,y,ed?V[ed.a].map((v,k)=>(v+V[ed.b][k])/2):undefined)};
+  controls.enabled=!(vi>=0||ed);
+  G.lp=setTimeout(()=>{if(!G||G.moved)return;
+    if(G.vi>=0)delV(G.vi);else if(G.ed)loopCut(G.ed);else holdQuad(G.x,G.y);G=null;controls.enabled=true},550)});
+el.addEventListener('pointermove',e=>{if(LS.on){lsMove(e);return}if(TG){if(!TG.moved&&Math.hypot(e.clientX-TG.x,e.clientY-TG.y)>7){TG.moved=true;TUTO.grabAt(TG.x,TG.y)}if(TG.moved)TUTO.dragTo(e.clientX,e.clientY);return}
+if(!G)return;const dx=e.clientX-G.x,dy=e.clientY-G.y;
+  if(!G.moved&&Math.hypot(dx,dy)>7){G.moved=true;clearTimeout(G.lp)}
+  if(!G.moved||controls.enabled)return;
+  if(!G.saved){save();G.saved=true;if(mirOn){if(G.vi>=0)G.mv=mir(G.vi);else if(G.ed)G.me=[mir(G.ed.a),mir(G.ed.b)]}}
+  const h=hitScreen(e.clientX,e.clientY,G.vi>=0?V[G.vi]:G.hitStart&&G.hitStart.point.toArray());
+  if(G.vi>=0){if(h){V[G.vi]=h.point.toArray();if(mirOn&&G.mv===G.vi)V[G.vi][0]=0;else if(mirOn&&G.mv>=0)V[G.mv]=mp(V[G.vi])}}
+  else if(G.ed&&h&&G.hitStart){const d=h.point.clone().sub(G.hitStart.point);G.hitStart=h;
+    const cn=cam.position.clone().normalize().toArray();
+    for(const i of [G.ed.a,G.ed.b])V[i]=snap(new THREE.Vector3(...V[i]).add(d).toArray(),vnorm(i)||cn);
+    if(mirOn&&G.me){const ab=[G.ed.a,G.ed.b];ab.forEach((i,k)=>{const m=G.me[k];if(m===i)V[i][0]=0;else if(m>=0&&!ab.includes(m))V[m]=mp(V[i])});
+      if(G.me[0]===G.ed.b)V[G.ed.b]=mp(V[G.ed.a])}}
+  rebuild()});
+const up=e=>{touches=Math.max(0,touches-1);if(LS.on){lsUp(e);return}if(TG){const g=TG;TG=null;if(g.moved)TUTO.release();else TUTO.poke(g.x);setTimeout(()=>controls.enabled=true,0);return}
+  if(!G)return;clearTimeout(G.lp);const g=G;G=null;
+  setTimeout(()=>controls.enabled=true,0);
+  if(g.moved||performance.now()-g.t>400)return;
+  // it's a tap
+  const now=performance.now(),key=g.vi>=0?'v'+g.vi:g.ed?'e'+ek(g.ed.a,g.ed.b):'s';
+  const dbl=now-lastTap.t<320&&lastTap.k===key;lastTap={t:now,k:key};
+  if(g.vi>=0)return addPend(g.vi);
+  if(g.ed){if(dbl)extrude(g.ed);return}
+  if(g.hitStart){save();addPend(addVert(g.hitStart.point.toArray()))}
+  else if(pend.length){pend=[];rebuild();hint('Cleared')}};
+el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+
+const controls=new OrbitControls(cam,el);controls.enableDamping=true;
+controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
+
+// ---------- buttons ----------
+$('bImp').onclick=()=>$('file').click();
+$('file').onchange=e=>{if(e.target.files[0])loadFile(e.target.files[0]);e.target.value=''};
+$('bHi').onclick=()=>{if(!high)return;high.visible=!high.visible;$('bHi').classList.toggle('off',!high.visible)};
+$('bMir').onclick=()=>{mirOn=!mirOn;$('bMir').classList.toggle('off',!mirOn);mirPlane.visible=mirOn;
+  hint(mirOn?'Mirror on: edits copy across the centre line':'Mirror off')};
+$('bSnap').onclick=()=>{snapOn=!snapOn;$('bSnap').classList.toggle('off',!snapOn);grid.visible=free();
+  hint(snapOn?'Snapping to sculpt':'Free modelling: points go on a plane facing you, drags move freely')};
+$('bX').onclick=()=>{pend=[];rebuild();hint('Cancelled')};
+$('op').oninput=e=>{lowMat.opacity=+e.target.value;if(texMat)texMat.opacity=+e.target.value};
+$('bTex').classList.add('off');
+$('bTex').onclick=()=>{texOn=!texOn;$('bTex').classList.toggle('off',!texOn);
+  if(texOn){sampleAll();if(!texMat)hint('No material found on the sculpt');else hint('Low-poly uses the sculpt texture')}else hint('Plain blue view');meshGeo()};
+$('bAuto').onclick=auto;$('bUndo').onclick=undo;$('bExp').onclick=()=>{const m=$('expMenu'),r=$('bExp').getBoundingClientRect();m.style.top=r.top+'px';m.style.display=m.style.display==='flex'?'none':'flex'};
+document.querySelectorAll('#expMenu button').forEach(b=>b.onclick=()=>{$('expMenu').style.display='none';exportAs(b.dataset.f)});
+const HELP='Controller (bottom left): pick T to move, S to scale, R to rotate, then drag on the pad; it works on the lasso catch, or the whole mesh · ➰ Lasso: draw a loop and Tuto ropes in the points or faces inside; drag them to move, use Scale or Delete · Hold a quad: ring tool · Red faces overlap or fold, tap the warning to see each · Poke Tuto to shoo him, drag him to carry him · Mirror button: copy edits across the centre · Tap sculpt: drop point (4 make a quad, tap the first to close a triangle) · Drag point or edge: move it on the surface · Double-tap edge: extrude · Hold edge: edge loop · Hold point: delete · One finger on empty space: orbit · Two fingers: zoom and pan';
+$('bHelp').onclick=()=>hint(HELP);
+addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='z')undo()});
+
+// ======================= TUTO =======================
+// Tuto, from itemnautsoft/Tuto (Tuto Maker). His body, poses and dribble below are copied from that game unchanged,
+// so he moves exactly as he does there. Only the outline shader, the ball and the behaviour at the end are new here.
+const TUTO = (() => {
+// Polygo palette (itemnaut's red / white / yellow reference): white body, navy trousers, red boots, gloves and
+// joystick, yellow head. The Tuto game keeps its own colours; only this copy changes.
+const COL = { head: 0xFFC20E, face: 0xE4F400, torso: 0xF7F7F4, pants: 0x1F3F8F, red: 0xE0182D, lav: 0xE0182D, lavDark: 0x1B2B5E, sticker: 0xF7F7F4, ink: 0x161216 };
+const ramp = new THREE.DataTexture(new Uint8Array([120, 195, 255]), 3, 1, THREE.RedFormat);
+ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
+const matCache = {};
+function toon(color) { return matCache[color] || (matCache[color] = new THREE.MeshToonMaterial({ color, gradientMap: ramp })); }
+// ink outline (the game uses OutlineEffect on the whole scene; here only Tuto gets one, as an inverted hull)
+const OL = new THREE.ShaderMaterial({ side: THREE.BackSide, uniforms: { c: { value: new THREE.Color(COL.ink) } },
+  vertexShader: 'void main(){vec4 p=modelViewMatrix*vec4(position,1.);vec3 n=normalize(normalMatrix*normal);p.xyz+=n*(-p.z)*0.0032;gl_Position=projectionMatrix*p;}',
+  fragmentShader: 'uniform vec3 c;void main(){gl_FragColor=vec4(c,1.);}' });
+const mesh = (g, c, outline = true) => { const m = new THREE.Mesh(g, toon(c)); if (outline) { const o = new THREE.Mesh(g, OL); o.raycast = () => {}; m.add(o); } return m; };
+const noOl = m => m;
+const FLIP_DUR = 0.62, tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion();
+const ease = k => k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const wrapPi = a => Math.atan2(Math.sin(a), Math.cos(a));
+const lerp = (a, b, k) => a + (b - a) * k;
+// Tuto Maker's default ball colour (yellow), with ink seams
+const mkSeamMat = new THREE.MeshBasicMaterial({ color: 0x161216 });
+function mkMakeBall(r) {
+  const g = new THREE.Group(); const body = mesh(new THREE.SphereGeometry(r, 22, 16), 0xFFE45E); body.castShadow = true; g.add(body);
+  for (const [rx, ry] of [[0, 0], [Math.PI / 2, 0], [0, Math.PI / 2]]) { const t = new THREE.Mesh(new THREE.TorusGeometry(r * 1.004, r * 0.05, 6, 30), mkSeamMat); t.rotation.set(rx, ry, 0); g.add(t); }
+  return g;
+}
+const TU = { hero: null, db: null, gr: null, held: false, flipT: -1, gliding: false, charging: false, shot: false, shAmt: 0, dribble: true, grounded: true };
+
+// ---------- character (from Tuto) ----------
+// elbows and knees follow from the swing the pose already chose: arms bend as they swing forward, legs bend as they swing back or lift
+function limbBends(P, runAmt) {
+  for (const [hip, kn, sh, el] of [[P.hipL, P.knL, P.shL, P.elL], [P.hipR, P.knR, P.shR, P.elR]]) {
+    const hx = hip.rotation.x;
+    kn.rotation.x = Math.min(1.9, Math.max(0, hx) * 1.1 + Math.max(0, -hx - 0.4) * 0.55 + 0.04);
+    const over = Math.min(1, Math.max(0, (Math.abs(sh.rotation.z) - 1.6) / 1.0));
+    el.rotation.x = -(0.14 + Math.max(0, -sh.rotation.x) * 0.9 * (0.4 + 0.6 * runAmt)) * (1 - over);
+  }
+}
+function buildCharacter(pal = { head: COL.head, torso: COL.torso, red: COL.red }) {
+  const root = new THREE.Group();     // origin at feet, +Y up, +Z forward
+  // flip pivot sits at the middle of the character (stick-cap top is at ~3.2) so flips
+  // and upside-down stick-spins rotate around the right point
+  const FLIP_C = 1.6;
+  const flip = new THREE.Group(); flip.position.y = FLIP_C; flip.rotation.order = 'YXZ'; root.add(flip);
+  const offs = new THREE.Group(); offs.position.y = -FLIP_C; flip.add(offs);
+  const body = new THREE.Group(); offs.add(body);
+  const parts = { flip, FLIP_C };
+
+  // legs + boots (legs 50% longer than v1)
+  const LIFT = 0.25; // everything above the hips moves up by the extra leg length
+  const bootGeo = new RoundedBoxGeometry(0.3, 0.22, 0.4, 4, 0.09);
+  for (const s of [-1, 1]) {
+    const hip = new THREE.Group(); hip.position.set(0.16 * s, 0.62 + LIFT, 0); body.add(hip);
+    // two-segment leg: thigh, knee joint, shin + boot (total length unchanged)
+    const thigh = mesh(new THREE.CylinderGeometry(0.1, 0.099, 0.35, 14), COL.pants); thigh.position.y = -0.175; hip.add(thigh);
+    const kn = new THREE.Group(); kn.position.y = -0.35; hip.add(kn);
+    kn.add(mesh(new THREE.SphereGeometry(0.103, 14, 10), COL.pants));
+    const shin = mesh(new THREE.CylinderGeometry(0.099, 0.1, 0.34, 14), COL.pants); shin.position.y = -0.17; kn.add(shin);
+    const boot = mesh(bootGeo, pal.red); boot.position.set(0.01 * s, -0.4, 0.05); kn.add(boot);
+    // boot shaft: covers the ankle
+    const shaftB = mesh(new THREE.CylinderGeometry(0.122, 0.135, 0.2, 18), pal.red); shaftB.position.set(0.005 * s, -0.25, 0.0); kn.add(shaftB);
+    parts[s < 0 ? 'knL' : 'knR'] = kn;
+    parts[s < 0 ? 'hipL' : 'hipR'] = hip;
+  }
+  // pants (big round hips)
+  const pants = mesh(new THREE.SphereGeometry(1, 28, 18), COL.pants);
+  pants.scale.set(0.37, 0.29, 0.3); pants.position.y = 0.74 + LIFT; body.add(pants);
+  // torso
+  const torso = mesh(new THREE.CylinderGeometry(0.17, 0.3, 0.32, 24), pal.torso);
+  torso.position.y = 0.99 + LIFT; body.add(torso);
+  // match the torso's depth/width ratio to the pants (0.30/0.37) so the waistline sits level all the way round
+  const TORSO_Z = 0.3 / 0.37; torso.scale.z = TORSO_Z; parts.torsoZ = TORSO_Z;
+  const neck = mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.16, 16), pal.torso);
+  neck.position.y = 1.18 + LIFT; body.add(neck);
+  // arms + mittens (arms 50% longer than v1)
+  for (const s of [-1, 1]) {
+    const sh = new THREE.Group(); sh.position.set(0.24 * s, 1.08 + LIFT, 0); sh.rotation.z = 0.38 * s; body.add(sh);
+    // two-segment arm: upper arm, elbow joint, forearm + glove (reach unchanged)
+    const upper = mesh(new THREE.CapsuleGeometry(0.07, 0.15, 4, 10), pal.torso); upper.position.y = -0.135; sh.add(upper);
+    const el = new THREE.Group(); el.position.y = -0.27; sh.add(el);
+    el.add(mesh(new THREE.SphereGeometry(0.074, 12, 10), pal.torso));
+    const fore = mesh(new THREE.CapsuleGeometry(0.066, 0.14, 4, 10), pal.torso); fore.position.y = -0.13; el.add(fore);
+    const mitt = mesh(new THREE.SphereGeometry(0.13, 18, 14), pal.red); mitt.scale.set(1, 1.08, 0.9); mitt.position.y = -0.27; el.add(mitt);
+    const thumb = mesh(new THREE.SphereGeometry(0.055, 12, 10), pal.red); thumb.position.set(-0.09 * s, -0.22, 0.07); el.add(thumb);
+    // glove cuff: covers the wrist
+    const cuff = mesh(new THREE.CylinderGeometry(0.088, 0.105, 0.15, 16), pal.red); cuff.position.y = -0.15; el.add(cuff);
+    parts[s < 0 ? 'elL' : 'elR'] = el;
+    parts[s < 0 ? 'shL' : 'shR'] = sh;
+  }
+
+  // head
+  const head = new THREE.Group(); head.position.y = 1.8 + LIFT; body.add(head); parts.head = head;
+  const HR = 0.62;
+  head.add(mesh(new THREE.SphereGeometry(HR, 40, 28), pal.head));
+  // face: black rim + yellow-green disc (spherical caps facing +Z)
+  const rim = mesh(new THREE.SphereGeometry(HR + 0.006, 40, 16, 0, Math.PI * 2, 0, 0.98).rotateX(Math.PI / 2), COL.ink, false);
+  const face = mesh(new THREE.SphereGeometry(HR + 0.012, 40, 16, 0, Math.PI * 2, 0, 0.9).rotateX(Math.PI / 2), COL.face, false);
+  head.add(rim, face);
+  const Z = new THREE.Vector3(0, 0, 1);
+  const onFace = (m, x, y, z, off) => {
+    const d = new THREE.Vector3(x, y, z).normalize();
+    m.position.copy(d).multiplyScalar(HR + off);
+    m.quaternion.setFromUnitVectors(Z, d); head.add(m); return m;
+  };
+  parts.eyes = [];
+  for (const s of [-1, 1]) {
+    const eye = mesh(new THREE.SphereGeometry(1, 12, 10), COL.ink, false);
+    eye.scale.set(0.034, 0.048, 0.02); onFace(eye, 0.11 * s, 0.25, 1, 0.012);
+    parts.eyes.push(eye);
+  }
+  const nose = mesh(new THREE.SphereGeometry(1, 18, 14), COL.red);
+  nose.scale.set(0.085, 0.12, 0.09); onFace(nose, 0, 0.0, 1, 0.04);
+  const mouth = mesh(new THREE.TorusGeometry(0.115, 0.014, 6, 20, Math.PI).rotateZ(Math.PI), COL.ink, false);
+  onFace(mouth, 0, -0.27, 1, 0.022);
+
+  // collar + analog stick
+  const collar = mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.16, 24), pal.head);
+  collar.position.y = HR - 0.04; head.add(collar);
+  const collarLine = mesh(new THREE.TorusGeometry(0.205, 0.012, 6, 28), COL.ink, false);
+  collarLine.rotation.x = Math.PI / 2; collarLine.position.y = HR + 0.04; head.add(collarLine);
+  const stick = new THREE.Group(); stick.position.y = HR + 0.05; head.add(stick); parts.stick = stick;
+  const spinG = new THREE.Group(); stick.add(spinG); parts.spin = spinG;
+  const shaft = mesh(new THREE.CylinderGeometry(0.085, 0.09, 0.3, 16), COL.lav); shaft.position.y = 0.15; spinG.add(shaft);
+  const under = mesh(new THREE.CylinderGeometry(0.44, 0.42, 0.05, 36), COL.lavDark); under.position.y = 0.3; spinG.add(under);
+  const dome = mesh(new THREE.SphereGeometry(0.44, 36, 12, 0, Math.PI * 2, 0, Math.PI / 2), COL.lav);
+  dome.scale.y = 0.36; dome.position.y = 0.32; spinG.add(dome);
+  const topY = 0.32 + 0.44 * 0.36;
+  const stk = mesh(new THREE.SphereGeometry(1, 20, 10), COL.sticker, false);
+  stk.scale.set(0.12, 0.035, 0.12); stk.position.y = topY - 0.01; spinG.add(stk);
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2 + 0.4;
+    const nub = mesh(new THREE.SphereGeometry(1, 10, 8), COL.sticker, false);
+    nub.scale.set(0.035, 0.025, 0.035); nub.position.set(Math.cos(a) * 0.17, topY - 0.025, Math.sin(a) * 0.17); spinG.add(nub);
+  }
+  parts.torso = torso; parts.headY = head.position.y; parts.shY = 1.08 + LIFT;
+  return { root, body, parts };
+}
+
+// ---------- shared character posing (used for you and for other players) ----------
+function newAnim() { return { runPhase: 0, runAmt: 0, blinkAt: 1500 + Math.random() * 2500, blinkStart: -1e4, spinV: 0 }; }
+// ---- two-bone arm IK (used by the dribble): shoulder at (-0.24, 1.33, 0) for Tuto's right arm; the other arm is solved mirrored
+const IK_S = [-0.24, 1.33, 0], IK_L1 = 0.27, IK_L2 = 0.27, IK_Q0 = [-0.45, -0.5, -0.7];
+const IK_LO = [-2.9, -3.0, -2.6], IK_HI = [0.5, 1.3, 0];
+function ikFK(q, o) {
+  const st = Math.sin(q[0]), ct = Math.cos(q[0]), sp = Math.sin(q[1]), cp = Math.cos(q[1]), se = Math.sin(q[2]), ce = Math.cos(q[2]);
+  const ux = st, uy = -ct * cp, uz = -ct * sp;
+  o[0] = IK_S[0] + IK_L1 * ux + IK_L2 * ux * ce; o[1] = IK_S[1] + IK_L1 * uy + IK_L2 * (uy * ce + sp * se); o[2] = IK_S[2] + IK_L1 * uz + IK_L2 * (uz * ce - cp * se);
+}
+const _ikH = [0, 0, 0], _ikH2 = [0, 0, 0];
+function ikSolve(q, tx, ty, tz) {
+  for (let it = 0; it < 4; it++) {
+    ikFK(q, _ikH); const r = [tx - _ikH[0], ty - _ikH[1], tz - _ikH[2]], J = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    for (let j = 0; j < 3; j++) { const qq = q.slice(); qq[j] += 1e-3; ikFK(qq, _ikH2); for (let i = 0; i < 3; i++) J[i][j] = (_ikH2[i] - _ikH[i]) / 1e-3; }
+    const A = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], b = [0, 0, 0], lam = 0.03;
+    for (let i = 0; i < 3; i++) { for (let j = 0; j < 3; j++) { let s = 0; for (let k = 0; k < 3; k++) s += J[k][i] * J[k][j]; A[i][j] = s + (i === j ? lam : 0); } let s = 0; for (let k = 0; k < 3; k++) s += J[k][i] * r[k]; b[i] = s + 0.03 * (IK_Q0[i] - q[i]); }
+    const det = A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) - A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) + A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
+    if (Math.abs(det) < 1e-9) return;
+    const dq = [0, 0, 0];
+    for (let c = 0; c < 3; c++) { const M = A.map(row => row.slice()); for (let i = 0; i < 3; i++) M[i][c] = b[i]; dq[c] = (M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) - M[0][1] * (M[1][0] * M[2][2] - M[1][2] * M[2][0]) + M[0][2] * (M[1][0] * M[2][1] - M[1][1] * M[2][0])) / det; }
+    for (let j = 0; j < 3; j++) q[j] = Math.min(IK_HI[j], Math.max(IK_LO[j], q[j] + Math.max(-0.6, Math.min(0.6, dq[j]))));
+  }
+}
+const _dbM = new THREE.Matrix4(), _dbV = new THREE.Vector3();
+const legDrop = (hip, kn) => 0.69 - (0.35 * Math.cos(hip) + 0.34 * Math.cos(hip + kn));
+// the dribble's pose layer: runs after the base pose so it can lean, bend the legs and put each hand exactly on the ball
+function dbApplyPose(ch, D, dt) {
+  const P = ch.parts, body = ch.body, k = D.k, L = (a, b, w) => a + (b - a) * w;
+  body.position.y += D.bobY * k; body.position.x = D.shX * k; body.rotation.x += D.leanX * k; body.rotation.z += D.leanZ * k;
+  P.head.rotation.x += D.headX * k; P.head.rotation.z += D.headZ * k;
+  if (D.legW > 0.002) {
+    const w = D.legW * k, aL = L(P.hipL.rotation.x, D.hipL, w), aR = L(P.hipR.rotation.x, D.hipR, w), kL = L(P.knL.rotation.x, D.knL, w), kR = L(P.knR.rotation.x, D.knR, w);
+    P.hipL.rotation.x = aL; P.hipR.rotation.x = aR; P.knL.rotation.x = kL; P.knR.rotation.x = kR;
+    P.hipL.rotation.z = L(P.hipL.rotation.z, -D.spread, w); P.hipR.rotation.z = L(P.hipR.rotation.z, D.spread, w);
+    body.position.y -= Math.max(0, Math.min(legDrop(aL, kL), legDrop(aR, kR))) * w;
+  }
+  body.updateMatrix(); _dbM.copy(body.matrix).invert();
+  for (const h of ['R', 'L']) {
+    const T = D.T[h]; if (!T) continue;
+    const sh = h === 'R' ? P.shL : P.shR, el = h === 'R' ? P.elL : P.elR, q = D.q[h], sg = h === 'R' ? 1 : -1;
+    _dbV.copy(T).applyMatrix4(_dbM); ikSolve(q, _dbV.x * sg, _dbV.y, _dbV.z);
+    const w = D.w[h] * k;
+    sh.rotation.z = L(sh.rotation.z, q[0] * sg, w); sh.rotation.x = L(sh.rotation.x, q[1], w); el.rotation.x = L(el.rotation.x, q[2], w);
+  }
+}
+function poseCharacter(ch, s, dt) {
+  const P = ch.parts, F = P.flip, A = ch.anim;
+  const mag = s.mag, grounded = s.grounded, zr = s.zr ? 1 : 0;
+  A.runAmt += ((grounded && s.ride < 0.5 ? mag : 0) - A.runAmt) * Math.min(1, 10 * dt);
+  A.runPhase += dt * (6 + 9 * mag) * (grounded ? 1 : 0) * (zr ? 1.6 : 1);
+  const runAmt = A.runAmt, sw = Math.sin(A.runPhase), t = s.t;
+  const id = grounded && s.ride < 0.5 ? (1 - runAmt) * (1 - s.sit) : 0;
+  const sp = t * Math.PI * 2 / 1.4, sway = Math.sin(sp), bounce = Math.abs(Math.cos(sp));
+  const br = Math.sin(t * Math.PI * 2 / 3.2) * (0.6 + 0.4 * (grounded ? 1 - runAmt : 0));
+  P.torso.scale.set(1 + 0.07 * br, 1 + 0.05 * br, (1 + 0.08 * br) * P.torsoZ);
+  P.head.position.y = P.headY + 0.028 * br;
+  P.shL.position.y = P.shR.position.y = P.shY + 0.022 * br;
+  P.hipL.rotation.z = P.hipR.rotation.z = 0;
+  let flipX = null, flipY = null;
+  const body = ch.body;
+  if (s.dance >= 0) {
+    const ph = s.dance;
+    body.position.y = 0; body.rotation.set(0, 0, 0);
+    if (ph < 2.4) {
+      const w = ph * Math.PI * 2 / 0.8, s1 = Math.sin(w);
+      P.hipL.rotation.x = -0.7 * Math.max(0, s1); P.hipR.rotation.x = -0.7 * Math.max(0, -s1);
+      P.hipL.rotation.z = 0.25 * Math.max(0, s1); P.hipR.rotation.z = -0.25 * Math.max(0, -s1);
+      P.shL.rotation.x = -1.3 + 0.6 * s1; P.shR.rotation.x = -1.3 - 0.6 * s1;
+      P.shL.rotation.z = -0.6; P.shR.rotation.z = 0.6;
+      body.position.y = 0.06 * Math.abs(Math.cos(w));
+      flipX = 0; flipY = 0.45 * s1;
+    } else if (ph < 2.8) {
+      const k = ease((ph - 2.4) / 0.4);
+      flipX = Math.PI * k; flipY = 0;
+      P.hipL.rotation.z = -0.6 * k; P.hipR.rotation.z = 0.6 * k;
+      P.shL.rotation.z = -0.38 - 1.0 * k; P.shR.rotation.z = 0.38 + 1.0 * k; P.shL.rotation.x = P.shR.rotation.x = 0;
+      P.hipL.rotation.x = P.hipR.rotation.x = 0;
+    } else if (ph < 6.0) {
+      const spin = (ph - 2.8) * (14 * Math.PI / 3.2);
+      flipX = Math.PI; flipY = spin;
+      P.hipL.rotation.z = -0.75 - 0.25 * Math.sin(spin * 0.5); P.hipR.rotation.z = 0.75 + 0.25 * Math.sin(spin * 0.5);
+      P.hipL.rotation.x = 0.45 * Math.sin(spin * 0.5); P.hipR.rotation.x = -0.45 * Math.sin(spin * 0.5);
+      P.shL.rotation.z = -1.5; P.shR.rotation.z = 1.5; P.shL.rotation.x = P.shR.rotation.x = 0;
+    } else if (ph < 7.4) {
+      flipX = Math.PI - 0.3; flipY = 0;
+      P.hipL.rotation.x = -1.3; P.hipR.rotation.z = 0.95; P.hipR.rotation.x = 0.2;
+      P.shL.rotation.z = -2.2; P.shR.rotation.z = 0.9; P.shL.rotation.x = 0; P.shR.rotation.x = 0.6;
+    } else {
+      const k = ease((ph - 7.4) / 0.4);
+      flipX = Math.PI - 0.3 + (Math.PI + 0.3) * k; flipY = 0;
+      P.hipL.rotation.x = -1.3 * (1 - k); P.hipR.rotation.z = 0.95 * (1 - k);
+      P.shL.rotation.z = -0.38 - 1.8 * (1 - k); P.shR.rotation.z = 0.38 + 0.5 * (1 - k);
+      P.shL.rotation.x = 0; P.shR.rotation.x = 0;
+    }
+  } else if (grounded) {
+    const legAmp = (0.85 + 0.25 * zr) * runAmt;
+    P.hipL.rotation.x = sw * legAmp - 0.35 * id * Math.max(0, -sway);
+    P.hipR.rotation.x = -sw * legAmp - 0.35 * id * Math.max(0, sway);
+    if (zr) { P.shL.rotation.x = 1.0 + sw * 0.25; P.shR.rotation.x = 1.0 - sw * 0.25; }
+    else {
+      P.shL.rotation.x = -sw * 0.9 * runAmt + 0.4 * id * Math.sin(sp + 1);
+      P.shR.rotation.x = sw * 0.9 * runAmt - 0.4 * id * Math.sin(sp + 1);
+    }
+    const flap = 0.1 * runAmt + 0.18 * id * bounce;
+    P.shL.rotation.z = -0.38 - flap; P.shR.rotation.z = 0.38 + flap;
+    body.position.y = Math.abs(sw) * 0.09 * runAmt + 0.04 * id * bounce;
+    body.rotation.x = (0.12 + 0.2 * zr) * runAmt;
+    body.rotation.z = 0.09 * id * sway;
+    if (s.sit > 0.001) {          // sitting with his back against the collar
+      const k = s.sit;
+      P.hipL.rotation.x = lerp(P.hipL.rotation.x, -1.5, k); P.hipR.rotation.x = lerp(P.hipR.rotation.x, -1.42, k);
+      P.hipL.rotation.z = lerp(0, -0.12, k); P.hipR.rotation.z = lerp(0, 0.12, k);
+      P.shL.rotation.x = lerp(P.shL.rotation.x, 0.45, k); P.shR.rotation.x = lerp(P.shR.rotation.x, 0.45, k);
+      P.shL.rotation.z = lerp(P.shL.rotation.z, -0.62, k); P.shR.rotation.z = lerp(P.shR.rotation.z, 0.62, k);
+      body.position.y = lerp(body.position.y, -0.66, k);
+      body.rotation.x = lerp(body.rotation.x, -0.3, k);
+      body.rotation.z = lerp(body.rotation.z, 0, k);
+    }
+  } else if (s.flipT >= 0) {
+    const k = Math.min(1, s.flipT / FLIP_DUR), tuck = Math.sin(k * Math.PI);
+    flipX = k >= 1 ? 0 : Math.PI * 2 * ease(k); flipY = 0;
+    P.hipL.rotation.x = P.hipR.rotation.x = -1.5 * tuck;
+    P.shL.rotation.x = P.shR.rotation.x = -1.2 * tuck;
+    P.shL.rotation.z = -0.38 - 0.3 * tuck; P.shR.rotation.z = 0.38 + 0.3 * tuck;
+    body.position.y = 0; body.rotation.set(0, 0, 0);
+  } else {
+    const k = Math.min(1, s.airT * 8), g = s.glide;
+    P.hipL.rotation.x = lerp(-0.9 * k, 0.35, g); P.hipR.rotation.x = lerp(0.35 * k, 0.5, g);
+    P.shL.rotation.x = lerp(-0.4 * k, 0, g); P.shR.rotation.x = lerp(-0.4 * k, 0, g);
+    P.shL.rotation.z = lerp(-0.38 - 1.6 * k, -1.5, g); P.shR.rotation.z = lerp(0.38 + 1.6 * k, 1.5, g);
+    body.position.y = 0; body.rotation.x = lerp(0.05, 0.35, g); body.rotation.z = Math.sin(t * 3) * 0.08 * g;
+  }
+  if (s.ride > 0.01) {            // astride a dinosaur, holding on in front
+    const k = s.ride;
+    P.hipL.rotation.x = lerp(P.hipL.rotation.x, -1.2, k); P.hipR.rotation.x = lerp(P.hipR.rotation.x, -1.2, k);
+    P.hipL.rotation.z = lerp(P.hipL.rotation.z, -0.75, k); P.hipR.rotation.z = lerp(P.hipR.rotation.z, 0.75, k);
+    P.shL.rotation.x = lerp(P.shL.rotation.x, -0.9 + 0.1 * Math.sin(t * 9), k); P.shR.rotation.x = lerp(P.shR.rotation.x, -0.9 - 0.1 * Math.sin(t * 9), k);
+    P.shL.rotation.z = lerp(P.shL.rotation.z, -0.3, k); P.shR.rotation.z = lerp(P.shR.rotation.z, 0.3, k);
+    body.position.y = lerp(body.position.y, -0.62 + Math.abs(Math.sin(t * 9)) * 0.05 * mag, k);
+    body.rotation.x = lerp(body.rotation.x, 0.15, k); body.rotation.z = lerp(body.rotation.z, 0, k);
+  }
+  if (s.hold > 0.01) {            // arms straight up, holding something overhead
+    const k = s.hold;
+    P.shL.rotation.z = lerp(P.shL.rotation.z, -2.75, k); P.shR.rotation.z = lerp(P.shR.rotation.z, 2.75, k);
+    P.shL.rotation.x = lerp(P.shL.rotation.x, -0.15, k); P.shR.rotation.x = lerp(P.shR.rotation.x, -0.15, k);
+  }
+  if (s.held) {                   // being carried: kick and wave
+    P.hipL.rotation.x = Math.sin(t * 14) * 0.9; P.hipR.rotation.x = -Math.sin(t * 14) * 0.9;
+    P.shL.rotation.z = -1.2 - Math.sin(t * 11) * 0.6; P.shR.rotation.z = 1.2 + Math.sin(t * 11 + 1) * 0.6;
+    body.rotation.set(0.1, 0, 0); body.position.y = 0;
+  }
+  if (s.grab > 0.01) {            // gripping a point or line: crouch and reach, or hang by the arms
+    const k = s.grab, hg = s.grabUp, sq = s.grabLow * (1 - hg), t2 = s.t;
+    const L = (a, b, w) => a + (b - a) * w;
+    P.hipL.rotation.x = L(P.hipL.rotation.x, L(-1.25 * sq, 0.12 + 0.1 * Math.sin(t2 * 2.1), hg), k); P.hipR.rotation.x = L(P.hipR.rotation.x, L(-1.1 * sq, -0.1 - 0.1 * Math.sin(t2 * 2.1), hg), k);
+    P.hipL.rotation.z = L(P.hipL.rotation.z, -0.1 * hg, k); P.hipR.rotation.z = L(P.hipR.rotation.z, 0.1 * hg, k);
+    P.shL.rotation.x = L(P.shL.rotation.x, L(-1.25, -0.05, hg), k); P.shR.rotation.x = L(P.shR.rotation.x, L(-1.25, -0.05, hg), k);
+    P.shL.rotation.z = L(P.shL.rotation.z, L(-0.3, -2.85, hg), k); P.shR.rotation.z = L(P.shR.rotation.z, L(0.3, 2.85, hg), k);
+    body.position.y = L(body.position.y, -0.55 * sq, k); body.rotation.x = L(body.rotation.x, 0.3 * sq, k); body.rotation.z = L(body.rotation.z, 0.06 * Math.sin(t2 * 1.7) * hg, k);
+  }
+  if (s.atkK) {                   // a rival's moves: punch, kick, and the two-handed grab
+    const k = s.atkK, tt = Math.min(1, Math.max(0, s.atkT)), L = (x, y, w) => x + (y - x) * w;
+    const kf = (frames) => { for (let i = 1; i < frames.length; i++) if (tt <= frames[i][0]) { const [t0, a] = frames[i - 1], [t1, b] = frames[i]; const u = (tt - t0) / (t1 - t0 || 1); return a + (b - a) * u * u * (3 - 2 * u); } return frames[frames.length - 1][1]; };
+    if (k === 'p') {
+      P.shL.rotation.x = kf([[0, -0.2], [0.3, 0.8], [0.5, -1.57], [0.78, -1.4], [1, -0.2]]); P.shL.rotation.z = -0.15; P.elL.rotation.x = kf([[0, -0.2], [0.3, -1.1], [0.5, -0.05], [1, -0.2]]);
+      P.shR.rotation.x = -1.0; P.shR.rotation.z = 0.3; P.elR.rotation.x = -1.3; body.rotation.x = kf([[0, 0], [0.5, 0.25], [1, 0]]); P.hipL.rotation.x = 0.35; P.hipR.rotation.x = -0.35;
+    } else if (k === 'k') {
+      P.hipR.rotation.x = kf([[0, 0], [0.3, 0.7], [0.5, -1.65], [0.78, -1.5], [1, 0]]); P.hipL.rotation.x = 0.1; body.rotation.x = kf([[0, 0], [0.3, 0.1], [0.5, -0.3], [1, 0]]);
+      P.shL.rotation.z = -0.7; P.shR.rotation.z = 0.7; P.shL.rotation.x = -0.3; P.shR.rotation.x = -0.3;
+    } else if (k === 'g') {
+      const w = Math.min(1, tt * 2.2); P.shL.rotation.x = L(P.shL.rotation.x, -1.5, w); P.shR.rotation.x = L(P.shR.rotation.x, -1.5, w);
+      P.shL.rotation.z = L(P.shL.rotation.z, -0.2, w); P.shR.rotation.z = L(P.shR.rotation.z, 0.2, w); P.elL.rotation.x = L(P.elL.rotation.x, -0.2, w); P.elR.rotation.x = L(P.elR.rotation.x, -0.2, w);
+      body.rotation.x = L(body.rotation.x, 0.25, w);
+    }
+  }
+  if (s.shAmt > 0.01) {           // the jump-shot form: coil, set the ball high in an L, extend, flick, hold the follow-through
+    const a = s.shAmt, ld = s.shLoad, ex = s.shExt, L = (x, y, w) => x + (y - x) * w, ss = Math.min(1, Math.max(0, ex));
+    P.shL.rotation.x = L(P.shL.rotation.x, L(-1.5, -2.35, ss), a); P.shL.rotation.z = L(P.shL.rotation.z, L(-0.42, -0.6, ss), a);   // elbow flared so the arm clears Tuto's big head
+   
+    P.elL.rotation.x = L(P.elL.rotation.x, L(-1.0, -0.12 - 0.3 * Math.sin(Math.min(1, ss) * Math.PI), ss), a);        // L-shape, then the wrist flick
+    P.shR.rotation.x = L(P.shR.rotation.x, L(-1.5, -0.4, ss), a); P.shR.rotation.z = L(P.shR.rotation.z, L(-0.45, 0.35, ss), a);   // guide hand cups the ball, then falls away
+    P.elR.rotation.x = L(P.elR.rotation.x, L(-1.0, -0.2, ss), a);
+    P.hipL.rotation.x = L(P.hipL.rotation.x, L(-0.5 * ld, 0.3, ss), a * 0.85); P.hipR.rotation.x = L(P.hipR.rotation.x, L(-0.35 * ld, -1.15, ss), a * 0.9);   // coil, then the fadeaway: lean back and kick one leg out
+    body.position.y = L(body.position.y, -0.4 * ld * (1 - ss), a); body.rotation.x = L(body.rotation.x, 0.12 * ld * (1 - ss) - 0.42 * ss, a);
+    if (P.head) P.head.rotation.x = L(P.head.rotation.x, -0.22 * ss, a);
+  }
+  limbBends(P, runAmt);
+  if (s.db && s.db.k > 0.002) dbApplyPose(ch, s.db, dt);
+  if (flipX !== null) { F.rotation.x = flipX; F.rotation.y = flipY; }
+  else {
+    const kk = Math.min(1, 14 * dt);
+    F.rotation.x = wrapPi(F.rotation.x) * (1 - kk); F.rotation.y = wrapPi(F.rotation.y) * (1 - kk);
+  }
+  P.head.rotation.z = s.dance >= 0 ? 0 : Math.sin(A.runPhase * 0.5) * 0.05 * runAmt - 0.1 * id * Math.sin(sp - 0.5);
+  P.head.rotation.x = s.dance >= 0 ? 0 : -0.05 * id * bounce - 0.12 * s.sit;
+  // blinking
+  const now = s.tms;
+  if (now > A.blinkAt) { A.blinkStart = now; A.blinkAt = now + (Math.random() < 0.2 ? 240 : 1800 + Math.random() * 3600); }
+  const bk = now - A.blinkStart < 130 ? Math.sin(Math.PI * (now - A.blinkStart) / 130) : 0;
+  P.eyes.forEach(e => e.scale.set(0.034 * (1 + 0.3 * bk), 0.048 * (1 - 0.88 * bk), 0.02));
+  // the stick on his head tilts toward the input (sx, sz: input direction in his own frame)
+  const sm = Math.hypot(s.sx, s.sz);
+  const target = sm > 0.02 ? tmpQ.setFromAxisAngle(tmpV.set(s.sz, 0, -s.sx).normalize(), 0.5 * Math.min(1, sm)) : tmpQ.identity();
+  P.stick.quaternion.slerp(target, Math.min(1, 18 * dt));
+  A.spinV += ((s.gliding ? 28 : 0) - A.spinV) * Math.min(1, 3 * dt);
+  P.spin.rotation.y += A.spinV * dt;
+}
+
+
+// ---- Dribbling: Tuto always has a basketball in Maker. Idle he dances while handling it (crossovers, between the legs, behind the back,
+// finger spins, rolling it across his arms). Moving he dribbles on the run, and when he flips direction he spins or jukes.
+const DB = { R: 0.2, TOP: 0.7, HX: 0.4 };
+const dbHx = h => h === 'R' ? -DB.HX : DB.HX, dbOther = h => h === 'R' ? 'L' : 'R';
+const dbSm = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+function dbState() {
+  if (TU.db) return TU.db;
+  const g = mkMakeBall(DB.R);
+  const sh = new THREE.Mesh(new THREE.CircleGeometry(0.2, 18).rotateX(-Math.PI / 2), noOl(new THREE.MeshBasicMaterial({ color: 0x161216, transparent: true, opacity: 0.28, depthWrite: false })));
+  g.visible = sh.visible = false; TU.hero.root.add(g, sh);
+  const D = { k: 0, bobY: 0, shX: 0, leanX: 0, leanZ: 0, headX: 0, headZ: 0, legW: 0, hipL: 0, hipR: 0, knL: 0, knR: 0, spread: 0, yaw: 0, T: { R: new THREE.Vector3(), L: new THREE.Vector3() }, w: { R: 0, L: 0 }, q: { R: [-0.4, -0.5, -0.7], L: [-0.4, -0.5, -0.7] } };
+  return TU.db = { g, sh, D, k: 0, t: 0, hand: 'R', beat: null, queue: [], idx: 0, bp: new THREE.Vector3(-DB.HX, DB.TOP, 0.38), snapT: 0, rt: null, sp: null, idleT: 0, nextShow: 5 + Math.random() * 3, showN: 0,
+    run: false, runT: 0, stopT: 9, prevRun: 0, startGap: 9, hd: 0, hdLast: 0, cool: 0, legW: 0, spinA: 0, rollA: 0, last: '' };
+}
+function dbPick(S, moving) {
+  if (S.queue.length) { S.beat = S.queue.shift(); S.beat.u = 0; S.beat.s = S.bp.clone(); return; }
+  const W = [['dr', moving ? 0.38 : 0.4], ['cx', moving ? 0.27 : 0.25], ['bb', moving ? 0.15 : 0.13], ['bl', moving ? 0.2 : 0.22]];
+  let r = Math.random(), type = 'dr'; for (const [n, w] of W) { if (r < w) { type = n; break; } r -= w; }
+  if (type !== 'dr' && S.last !== 'dr' && Math.random() < 0.6) type = 'dr';
+  S.last = type; S.beat = { type, from: S.hand, to: type === 'dr' ? S.hand : dbOther(S.hand), u: 0, dur: moving ? 0.46 : 0.5, s: S.bp.clone() };
+}
+function dbBallAt(b, u, o) {   // where the ball is during a beat (root-local)
+  const fall = u < 0.5 ? Math.pow(2 * u, 1.7) : Math.pow(2 * (1 - u), 1.7), y = DB.TOP - (DB.TOP - DB.R) * fall, x0 = dbHx(b.from), x1 = dbHx(b.to), sm = u * u * (3 - 2 * u);
+  let x = x0, z = 0.38;
+  if (b.type === 'cx') { x = x0 + (x1 - x0) * sm; z = 0.4 + 0.1 * Math.sin(u * Math.PI); }
+  else if (b.type === 'bb') { x = x0 + (x1 - x0) * sm; z = 0.05 - 0.5 * Math.sin(u * Math.PI); }
+  else if (b.type === 'bl') { x = x0 * 0.55 * (1 - sm) + x1 * 0.8 * sm; z = 0.42 - 0.72 * sm; }
+  const bi = dbSm(0, 0.3, u); o.set(b.s.x + (x - b.s.x) * bi, y, b.s.z + (z - b.s.z) * bi); return o;
+}
+const _dbA = new THREE.Vector3(), _dbB = new THREE.Vector3();
+function mkDribbleStep(dt, mag, mx, mz) {
+  const B = TU, S = dbState(), D = S.D, moving = mag > 0.1 && !B.gr && !B.held;
+  const free = !B.gr && !B.held && B.flipT < 0 && !B.gliding && !B.charging && !B.shot && B.shAmt < 0.05 && B.dribble;
+  const carry = free && !B.grounded, normal = free && B.grounded;
+  S.k += ((free ? 1 : 0) - S.k) * Math.min(1, 9 * dt); D.k = S.k;
+  const vis = S.k > 0.03; S.g.visible = S.sh.visible = vis;
+  if (!vis) { D.yaw = 0; return null; }
+  S.t += dt; D.yaw = 0; D.bobY = D.shX = D.leanX = D.leanZ = D.headX = D.headZ = 0; D.spread = 0.1;
+  D.T.R.set(0, 0, 0); D.T.L.set(0, 0, 0); D.w.R = D.w.L = 1;
+  const want = _dbA, tR = D.T.R, tL = D.T.L;
+  const guard = (h, out, amp) => { const sg = h === 'R' ? -1 : 1; out.set(sg * 0.6, 1.02 + amp * Math.sin(S.t * 9 + (h === 'R' ? 0 : 2)), 0.25); };
+  if (carry) {   // in the air: the ball rides in his right hand
+    S.legW += (0 - S.legW) * Math.min(1, 10 * dt); D.legW = S.legW; S.snapT = 0.2;
+    want.set(-0.52, 0.82, 0.32); S.bp.lerp(want, Math.min(1, 14 * dt));
+    tR.set(S.bp.x, S.bp.y + DB.R + 0.07, S.bp.z); guard('L', tL, 0.05); D.w.L = 0; D.leanX = 0.05;
+  } else {
+    // ---- reading the stick: runs, stops, and changes of direction
+    if (moving) {
+      if (!S.run) { S.run = true; S.runT = 0; S.startGap = S.stopT; }
+      S.runT += dt; const ang = Math.atan2(mx, mz);
+      if (S.runT <= dt * 1.5 && S.startGap < 0.55 && S.prevRun > 0.45) { /* handled below */ S.restart = Math.abs(wrapPi(ang - S.hdLast)); } else S.restart = 0;
+      if (mag > 0.45 && S.cool <= 0 && !S.sp) {
+        const dev = S.runT > 0.3 ? Math.abs(wrapPi(ang - S.hd)) : S.restart;
+        if ((S.runT > 0.3 && dev > 1.9) || (S.restart > 1.1)) {
+          const d = wrapPi(ang - (S.restart > 1.1 ? S.hdLast : S.hd)); const kind = (Math.abs(d) > 2.2 || Math.random() < 0.45) ? 'spin' : 'juke';
+          S.sp = { kind, u: 0, dur: kind === 'spin' ? 0.66 : 0.44, dir: d >= 0 ? 1 : -1 }; S.cool = 1.1; S.rt = null; S.hd = ang; S.snapT = 0.25;
+          if (kind === 'juke') { const f = S.hand; S.beat = { type: 'cx', from: f, to: dbOther(f), u: 0, dur: 0.22, s: S.bp.clone() }; S.queue = [{ type: 'cx', from: dbOther(f), to: f, dur: 0.22 }]; }
+        }
+      }
+      S.hd += wrapPi(ang - S.hd) * Math.min(1, 6 * dt); S.hdLast = S.hd; S.idleT = 0;
+    } else { if (S.run) { S.run = false; S.prevRun = S.runT; S.stopT = 0; } S.stopT += dt; S.idleT += dt; }
+    S.cool -= dt;
+    if (!moving && !S.sp && !S.rt && S.idleT > S.nextShow) { S.rt = { kind: S.showN++ % 2 ? 'roll' : 'spin', t: 0, dur: 2.7 }; S.snapT = 0.35; }
+    if (moving && S.rt) { S.rt = null; S.snapT = 0.3; S.beat = null; }
+    S.legW += ((moving || S.sp ? 0 : 1) - S.legW) * Math.min(1, 8 * dt);
+    let mode = 'beat', u = 0;
+    if (S.sp && S.sp.kind === 'spin') mode = 'spin'; else if (S.rt) mode = 'rt';
+    if (S.sp) { S.sp.u += dt / S.sp.dur; if (S.sp.u >= 1) { S.sp = null; S.snapT = 0.25; if (mode === 'spin') { S.beat = null; S.hand = 'R'; mode = 'beat'; } } }
+    if (S.rt) { S.rt.t += dt; if (S.rt.t >= S.rt.dur) { S.rt = null; S.snapT = 0.35; S.idleT = 0; S.nextShow = 5 + Math.random() * 5; S.beat = null; S.hand = 'R'; mode = 'beat'; } }
+    const ph = S.t;
+    if (mode === 'spin') {            // a pirouette on one foot with the ball tucked in
+      const sp = S.sp, e = dbSm(0, 1, sp.u);
+      D.yaw = sp.dir * Math.PI * 2 * e; want.set(-0.36, 0.98 + 0.03 * Math.sin(sp.u * 12), 0.42);
+      tR.set(want.x + 0.02, want.y + DB.R + 0.05, want.z - 0.02); tL.set(0.85, 1.25, 0.05); D.leanX = 0.15; D.bobY = -0.04;
+      D.legW = 1; D.hipL = -0.15; D.hipR = -0.95 * Math.sin(Math.PI * sp.u) - 0.1; D.knL = 0.25; D.knR = 0.9 * Math.sin(Math.PI * sp.u) + 0.3; D.spread = 0.05; D.legW = 1 * Math.min(1, 1 - 0);
+      S.legWf = 1;
+    } else if (mode === 'rt') {
+      const r = S.rt, ease = Math.min(1, r.t / 0.4) * Math.min(1, (r.dur - r.t) / 0.4);
+      D.legW = 1; const st = Math.PI * r.t * 2.0;
+      D.hipL = -0.5 + 0.3 * Math.sin(st); D.hipR = -0.5 - 0.3 * Math.sin(st); D.knL = Math.min(1.6, 0.4 - D.hipL * 0.9); D.knR = Math.min(1.6, 0.4 - D.hipR * 0.9); D.spread = 0.14;
+      D.bobY = -0.03 * Math.abs(Math.sin(st));
+      if (r.kind === 'spin') {      // ball spinning on a fingertip, held out beside the head
+        D.shX = -0.42 * ease; D.leanX = 0.04; D.headZ = 0.08 * ease;
+        want.set(-1.24 + 0.03 * Math.sin(r.t * 7), 1.86 + 0.02 * Math.sin(r.t * 9), 0.2 + 0.02 * Math.cos(r.t * 6));
+        tR.set(want.x + 0.02, want.y - DB.R - 0.04, want.z); guard('L', tL, 0.12); tL.set(0.6, 1.25 + 0.15 * Math.sin(r.t * 5), 0.3);
+        S.g.rotation.y += dt * 26;
+      } else {                      // ball rolling from one arm across the chest to the other
+        const x = -0.46 * Math.cos(r.t * 2 * Math.PI / 1.15); want.set(x, 1.47 + 0.02 * Math.abs(Math.sin(r.t * 5)), 0.5);
+        tR.set(-0.42, 1.15, 0.48); tL.set(0.42, 1.15, 0.48); D.leanX = -0.08 * ease; D.headX = 0.08;
+        S.g.rotation.z -= (x - S.bp.x) / DB.R;
+      }
+    } else {
+      // ---- dribbling beats
+      if (!S.beat) dbPick(S, moving);
+      let b = S.beat; b.u += dt / b.dur; if (b.u >= 1) { S.hand = b.to; S.idx++; dbPick(S, moving); b = S.beat; }
+      u = b.u; dbBallAt(b, u, want);
+      const wf = b.from === b.to ? 1 : 1 - dbSm(0.45, 0.8, u), wt = b.from === b.to ? 0 : dbSm(0.5, 0.85, u);
+      const top = _dbB.set(want.x, Math.max(0.5, want.y + DB.R + 0.07), want.z), amp = moving ? 0.06 : 0.14;
+      for (const h of ['R', 'L']) {
+        const T = D.T[h], w = h === b.from ? wf : h === b.to ? wt : 0; guard(h, T, amp);
+        if (!moving && h !== b.from && h !== b.to) T.y += 0.16 * Math.sin(S.t * 6.28 / (DB.R * 5));
+        T.lerp(top, w);
+      }
+      // body: lean over the ball, bob with the bounce; idle he steps and sways to it
+      const bounce = 0.5 + 0.5 * Math.cos(u * Math.PI * 2);
+      D.leanX = moving ? 0.14 : 0.2; D.bobY = -0.05 * bounce; D.leanZ = moving ? 0 : 0.06 * Math.sin((S.idx + u) * Math.PI);
+      D.headZ = moving ? 0 : 0.07 * Math.sin((S.idx + u) * Math.PI); D.headX = 0.05 * bounce;
+      D.legW = S.legW; if (S.legW > 0.01) {
+        const ps = Math.PI * (S.idx + u), a = Math.sin(ps), spl = b.type === 'bl' ? 0.1 + 0.3 * Math.sin(Math.PI * u) : 0.12;
+        D.hipL = -0.5 + 0.38 * a; D.hipR = -0.5 - 0.38 * a; D.spread = spl;
+        if (b.type === 'bl') { const lead = b.from === 'R' ? 'hipR' : 'hipL'; D[lead] = -0.2 - 0.6 * Math.sin(Math.PI * u); }
+        D.knL = Math.min(1.7, 0.4 - D.hipL * 0.9); D.knR = Math.min(1.7, 0.4 - D.hipR * 0.9);
+      }
+      if (S.sp && S.sp.kind === 'juke') { const sw = Math.sin(S.sp.u * Math.PI * 2) * S.sp.dir; D.shX = 0.34 * sw; D.leanZ = -0.34 * sw; D.legW = 0; }
+    }
+    // the ball itself (it tweens for a moment after the mode changes so nothing pops)
+    if (S.snapT > 0) { S.snapT -= dt; S.bp.lerp(want, Math.min(1, 14 * dt)); } else S.bp.copy(want);
+    if (mode === 'beat') { S.g.rotation.x -= dt * 6 * (moving ? 1 : 0.5); }
+    if (mode !== 'rt') { S.g.rotation.y *= 0.9; }
+  }
+  S.g.position.copy(S.bp); S.sh.position.set(S.bp.x, 0.025, S.bp.z); const hs = 1 - 0.45 * Math.min(1, Math.max(0, (S.bp.y - DB.R) / 1.2)); S.sh.scale.setScalar(hs); S.sh.material.opacity = 0.28 * hs * S.k;
+  return D;
+}
+
+// ---- Tuto in Polygo: he never edits anything. He laps the model dribbling, leaps up to hang and swing from
+// your points and edges (or stands on top ones), and reacts to pokes and drags. All of this reads V/F; nothing writes them.
+const TS = 0.11, HL = 1.95 * TS, Yv = new THREE.Vector3(0, 1, 0);
+// Polygo outfit from itemnaut's sketch: yellow shoulder pads and a red V across the chest (the palette makes the
+// body white and the trousers navy). The V is shaped onto the chest cone so it hugs the body instead of sticking out.
+function dressTuto(h) {
+  const P = h.parts;
+  for (const [sh, s] of [[P.shL, -1], [P.shR, 1]]) {
+    const pad = mesh(new RoundedBoxGeometry(0.24, 0.17, 0.27, 3, 0.06), 0xFFC20E); pad.position.set(0.035 * s, 0.03, 0); pad.rotation.z = 0.25 * s; sh.add(pad);
+  }
+  const N = 8, top = 0.13, bot = -0.13, W = 0.15, pos = [], idx = [];
+  for (let i = 0; i <= N; i++) { const t = i / N, y = top + (bot - top) * t, half = W * (1 - t), R = 0.235 - y * 0.406 + 0.012;
+    for (let j = 0; j <= N; j++) { const x = -half + 2 * half * j / N; pos.push(x, y, Math.sqrt(Math.max(0, R * R - x * x))); } }
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const a = i * (N + 1) + j, b = a + 1, c = a + N + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  const v = mesh(g, 0xE0182D); v.position.y = 0.01; P.torso.add(v);
+  return h;
+}
+const hero = dressTuto(buildCharacter()); hero.anim = newAnim();
+hero.root.traverse(o => { if (o.isMesh) o.castShadow = o.material !== OL; });   /* real shadows; the outline shell doesn't need one */ hero.root.scale.setScalar(TS); scene.add(hero.root); TU.hero = hero;
+const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.42 * TS * 1.6, 24).rotateX(-Math.PI / 2),
+  new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }));
+shadow.visible = false; scene.add(shadow);   // the floor now catches real shadows, so the painted blob stays hidden
+const box = new THREE.Box3(), _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+const ST = { mode: 'walk', pos: new THREE.Vector3(0, -1, 1.2), face: 0, s: 0, sT: 0, pause: 1, timer: 4, leap: null, grip: null,
+  theta: 0, omega: 0, vy: 0, airT: 0, held: null, t: 0, mag: 0, mx: 0, mz: 1, grab: 0, offPath: false, hangT: 0, floor: -1, boxT: 0,
+  ver: -1, pumpT: 0, on: true };
+const rnd = (a, b) => a + Math.random() * (b - a);
+function refreshBox() {
+  box.makeEmpty();
+  if (woodMode) { const b = woodHalf; box.min.set(-b[0], -b[1], -b[2]).multiplyScalar(1.3); box.max.set(b[0], b[1], b[2]).multiplyScalar(1.3); return; }
+  if (high) box.setFromObject(high);
+  for (const p of V) box.expandByPoint(_v.set(p[0], p[1], p[2]));
+  if (box.isEmpty()) box.set(_v.set(-0.4, -1, -0.4), _w.set(0.4, -0.3, 0.4));
+}
+const floorY = () => woodMode ? box.min.y : (grid.visible ? Math.min(grid.position.y, box.min.y) : box.min.y);
+// his path: a loop around the model, just outside its footprint
+function rect() { const m = 0.18 + TS; return [box.min.x - m, box.max.x + m, box.min.z - m, box.max.z + m]; }
+function perim() { const [x0, x1, z0, z1] = rect(); return 2 * ((x1 - x0) + (z1 - z0)); }
+function atS(s, out) {
+  const [x0, x1, z0, z1] = rect(), w = x1 - x0, d = z1 - z0, L = 2 * (w + d); s = ((s % L) + L) % L;
+  if (s < w) return out.set(x0 + s, 0, z1); s -= w;
+  if (s < d) return out.set(x1, 0, z1 - s); s -= d;
+  if (s < w) return out.set(x1 - s, 0, z0); s -= w;
+  return out.set(x0, 0, z0 + s);
+}
+function nearestS(x, z) { const L = perim(); let best = 0, bd = 1e9; for (let i = 0; i < 240; i++) { const s = L * i / 240; atS(s, _w); const d = (_w.x - x) ** 2 + (_w.z - z) ** 2; if (d < bd) { bd = d; best = s; } } return best; }
+const wrapS = (d, L) => ((d % L) + L * 1.5) % L - L / 2;
+// ---- grips: a point, or a spot along an edge, re-found if the mesh changes under him
+const tol = () => 0.06 * size;
+function gripPos(g) {
+  if (g.kind === 'v') {
+    let p = V[g.i]; const far = !p || Math.hypot(p[0] - g.P.x, p[1] - g.P.y, p[2] - g.P.z) > 0.25 * size;
+    if (far || ST.ver !== meshVer) { let bi = -1, bd = tol(); V.forEach((q, i) => { const d = Math.hypot(q[0] - g.P.x, q[1] - g.P.y, q[2] - g.P.z); if (d < bd) { bd = d; bi = i; } }); if (bi < 0) return null; g.i = bi; p = V[bi]; }
+    return g.P.set(p[0], p[1], p[2]);
+  }
+  let A = V[g.a], B = V[g.b];
+  if (!A || !B || ST.ver !== meshVer) {
+    let best = null, bd = tol();
+    for (const e of edges().values()) { const a = V[e.a], b = V[e.b], ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2 || 1;
+      const u = Math.max(0, Math.min(1, ((g.P.x - a[0]) * ab[0] + (g.P.y - a[1]) * ab[1] + (g.P.z - a[2]) * ab[2]) / L2));
+      const d = Math.hypot(a[0] + ab[0] * u - g.P.x, a[1] + ab[1] * u - g.P.y, a[2] + ab[2] * u - g.P.z); if (d < bd) { bd = d; best = { a: e.a, b: e.b, u }; } }
+    if (!best) return null; g.a = best.a; g.b = best.b; g.u = best.u; A = V[g.a]; B = V[g.b];
+  }
+  return g.P.set(A[0] + (B[0] - A[0]) * g.u, A[1] + (B[1] - A[1]) * g.u, A[2] + (B[2] - A[2]) * g.u);
+}
+function outDir(P) { const c = box.getCenter(_w); const o = new THREE.Vector3(P.x - c.x, 0, P.z - c.z); if (o.lengthSq() < 1e-6) o.set(Math.sin(ST.face), 0, Math.cos(ST.face)); return o.normalize(); }
+function restUp(g) { return Yv.clone().addScaledVector(g.oH, -0.35).normalize(); }
+function hangFeet(g, out) { const up = restUp(g); if (g.kind === 'v') up.applyAxisAngle(g.oH, ST.theta); else up.applyAxisAngle(g.ax, ST.theta); return out.copy(g.P).addScaledVector(up, -HL); }
+function tryGrip() {
+  if (!V.length) return false;
+  const es = [...edges().values()], h = box.max.y - box.min.y || 1;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const useE = es.length && Math.random() < 0.5;
+    let g;
+    if (useE) { const e = es[Math.floor(Math.random() * es.length)]; g = { kind: 'e', a: e.a, b: e.b, u: rnd(0.25, 0.75), uT: 0.5, wait: 1 }; }
+    else { const i = Math.floor(Math.random() * V.length); g = { kind: 'v', i }; }
+    g.P = new THREE.Vector3(); if (g.kind === 'v') g.P.set(...V[g.i]); ST.ver = meshVer; if (!gripPos(g)) continue;
+    g.perch = g.P.y > box.max.y - 0.08 * h;
+    g.oH = outDir(g.P);
+    if (g.kind === 'e') { const a = V[g.a], b = V[g.b]; g.ax = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize(); if (Math.abs(g.ax.y) > 0.85) g.perch = false; }
+    if (!g.perch && g.P.y - HL < ST.floor + 0.03) continue;     // too low to hang from without his feet going through the floor
+    ST.grip = g; ST.theta = 0; ST.omega = g.kind === 'v' ? rnd(1.6, 2.6) * (Math.random() < 0.5 ? -1 : 1) : 0;
+    startLeap(g.perch ? 'perch' : 'hang', false); return true;
+  }
+  return false;
+}
+function startLeap(then, flip, target) {
+  const A = ST.pos.clone(), tgt = target || leapTarget(then);
+  const d = A.distanceTo(tgt), T = Math.min(1.2, 0.5 + d * 0.28);
+  ST.leap = { A, then, flip, u: 0, T, h: 0.18 + Math.max(0, tgt.y - A.y) * 0.22 + d * 0.08, q0: hero.root.quaternion.clone(), fixed: target ? tgt.clone() : null };
+  ST.mode = 'leap'; ST.airT = 0; ST.held = null;
+}
+function leapTarget(then) {
+  if (then === 'hang') return hangFeet(ST.grip, new THREE.Vector3());
+  if (then === 'perch') return ST.grip.P.clone();
+  return atS(ST.s, new THREE.Vector3()).setY(ST.floor);
+}
+function jumpDown() {    // let go with a flip and land back on the loop
+  const g = ST.grip, P = g ? g.P : ST.pos, o = g ? g.oH : outDir(ST.pos);
+  ST.s = nearestS(P.x + o.x * 0.5, P.z + o.z * 0.5); ST.sT = ST.s; ST.pause = rnd(0.4, 1.2);
+  ST.grip = null; startLeap('walk', true); ST.timer = rnd(5, 10);
+}
+// ---- one frame
+function update(dt) {
+  if (!ST.on) return;
+  dt = Math.min(dt, 0.05); ST.t += dt;
+  if ((ST.boxT -= dt) <= 0) { refreshBox(); ST.boxT = 0.4; }
+  ST.floor += (floorY() - ST.floor) * Math.min(1, 4 * dt);
+  const P = ST.pos; let grounded = true, mag = 0, flipT = -1, held = false, grabT = 0, mx = ST.mx, mz = ST.mz;
+  if (ST.grip) {
+    if (!gripPos(ST.grip) || woodMode) { ST.grip = null; ST.mode = 'fall'; ST.vy = 0; }
+    ST.ver = meshVer;
+  }
+  if (ST.mode === 'walk') {
+    const L = perim();
+    if (ST.offPath) { atS(ST.s, _w); const dx = _w.x - P.x, dz = _w.z - P.z, d = Math.hypot(dx, dz);
+      if (d < 0.02) ST.offPath = false; else { const st = Math.min(d, 0.6 * dt); P.x += dx / d * st; P.z += dz / d * st; mx = dx / d; mz = dz / d; mag = 1; } }
+    else if (ST.pause > 0) { ST.pause -= dt; atS(ST.s, _w); P.x = _w.x; P.z = _w.z; }
+    else {
+      const ds = wrapS(ST.sT - ST.s, L);
+      if (Math.abs(ds) < 0.01) { if (Math.random() < 0.55) ST.pause = rnd(2.5, 9); ST.sT = ST.s + rnd(0.15, 0.5) * L * (Math.random() < 0.5 ? -1 : 1); }
+      else { const step = Math.sign(ds) * Math.min(Math.abs(ds), 0.6 * dt); atS(ST.s, _v); ST.s += step; atS(ST.s, _w);
+        const tx = _w.x - _v.x, tz = _w.z - _v.z, tl = Math.hypot(tx, tz); if (tl > 1e-6) { mx = tx / tl; mz = tz / tl; } mag = 1; P.x = _w.x; P.z = _w.z; }
+    }
+    P.y = ST.floor;
+    if (mag > 0) ST.face += wrapPi(Math.atan2(mx, mz) - ST.face) * Math.min(1, 14 * dt);
+    if ((ST.timer -= dt) <= 0 && !ST.offPath) { if (woodMode || !tryGrip()) ST.timer = rnd(3, 6); }
+  } else if (ST.mode === 'leap') {
+    const Lp = ST.leap; Lp.u = Math.min(1, Lp.u + dt / Lp.T); const u = Lp.u, k = u * u * (3 - 2 * u);
+    const B = Lp.fixed || leapTarget(Lp.then); if (Lp.then === 'walk') B.y = ST.floor;
+    P.lerpVectors(Lp.A, B, k); P.y += 4 * Lp.h * u * (1 - u);
+    grounded = false; ST.airT += dt; if (Lp.flip) flipT = Math.max(0, Math.min(FLIP_DUR - 0.001, u * Lp.T - 0.08));
+    const fx = B.x - Lp.A.x, fz = B.z - Lp.A.z;
+    const want = Lp.then === 'hang' || Lp.then === 'perch' ? Math.atan2(ST.grip.oH.x, ST.grip.oH.z) : (Math.hypot(fx, fz) > 0.02 ? Math.atan2(fx, fz) : ST.face);
+    ST.face += wrapPi(want - ST.face) * Math.min(1, 10 * dt);
+    if (Lp.then === 'hang') grabT = Math.max(0, (u - 0.7) / 0.3);
+    if (u >= 1) {
+      ST.leap = null; ST.airT = 0;
+      if (Lp.then === 'hang') { ST.mode = 'hang'; ST.hangT = rnd(4, 9); ST.pumpT = rnd(1.5, 3); }
+      else if (Lp.then === 'perch') { ST.mode = 'perch'; ST.hangT = rnd(3.5, 7); }
+      else { ST.mode = 'walk'; }
+    }
+  } else if (ST.mode === 'hang') {
+    const g = ST.grip; grabT = 1;
+    if (g.kind === 'v') {     // a free swing from one point, pumped now and then
+      ST.omega += (-16 * Math.sin(ST.theta) - 0.25 * ST.omega) * dt; ST.theta += ST.omega * dt;
+      if ((ST.pumpT -= dt) <= 0) { ST.omega += (ST.omega >= 0 ? 1 : -1) * rnd(0.8, 1.6); ST.pumpT = rnd(1.8, 3.2); }
+    } else {                  // hand over hand along the edge with a gentle sway
+      ST.theta = 0.12 * Math.sin(ST.t * 2.3);
+      if (g.wait > 0) g.wait -= dt; else { const d = g.uT - g.u, a = V[g.a], b = V[g.b], len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) || 1, st = 0.18 * dt / len;
+        if (Math.abs(d) < st) { g.u = g.uT; g.uT = rnd(0.12, 0.88); g.wait = rnd(0.6, 2); } else g.u += Math.sign(d) * st; }
+      gripPos(g);
+    }
+    hangFeet(g, P); ST.face = Math.atan2(g.oH.x, g.oH.z);
+    if ((ST.hangT -= dt) <= 0 && (g.kind === 'e' || Math.abs(ST.omega) > 1 || ST.hangT < -3)) jumpDown();
+  } else if (ST.mode === 'perch') {
+    P.copy(ST.grip.P); ST.face += wrapPi(Math.atan2(ST.grip.oH.x, ST.grip.oH.z) - ST.face) * Math.min(1, 6 * dt);
+    if ((ST.hangT -= dt) <= 0) jumpDown();
+  } else if (ST.mode === 'fall') {
+    grounded = false; ST.airT += dt; ST.vy -= 7 * dt; P.y += ST.vy * dt;
+    if (P.y <= ST.floor) { P.y = ST.floor; ST.vy = 0; ST.mode = 'walk'; ST.s = ST.sT = nearestS(P.x, P.z); ST.pause = rnd(0.6, 1.5); ST.timer = rnd(4, 8);
+      ST.offPath = Math.hypot(atS(ST.s, _w).x - P.x, _w.z - P.z) > 0.03; }
+  } else if (ST.mode === 'held') {
+    grounded = false; held = true; ST.airT = 1;
+  }
+  // the ball, the pose, and where he stands
+  ST.grab += (grabT - ST.grab) * Math.min(1, (grabT > ST.grab ? 18 : 8) * dt);
+  Object.assign(TU, { gr: ST.mode === 'hang' ? {} : null, held, flipT, grounded, gliding: false });
+  const D = mkDribbleStep(dt, mag, mx, mz);
+  const yaw = ST.face + (D ? D.yaw : 0);
+  hero.root.position.copy(P);
+  if (ST.mode === 'hang') {      // tilt with the swing so his hands stay on the grip
+    const g = ST.grip, up = restUp(g).applyAxisAngle(g.kind === 'v' ? g.oH : g.ax, ST.theta);
+    _q.setFromUnitVectors(Yv, up).multiply(_q2.setFromAxisAngle(Yv, yaw)); hero.root.quaternion.slerp(_q, Math.min(1, 20 * dt));
+  } else { _q.setFromAxisAngle(Yv, yaw); hero.root.quaternion.slerp(_q, Math.min(1, (ST.mode === 'leap' ? 8 : 20) * dt)); }
+  const lx = mx * Math.cos(ST.face) - mz * Math.sin(ST.face), lz = mx * Math.sin(ST.face) + mz * Math.cos(ST.face);
+  poseCharacter(hero, { mag, zr: 0, grounded: ST.mode === 'hang' ? true : grounded, sit: 0, dance: -1, flipT, airT: ST.airT, glide: 0, hold: 0, ride: 0,
+    sx: lx * mag, sz: lz * mag, held, gliding: false, grab: ST.grab, grabUp: 1, grabLow: 0, shAmt: 0, db: D, t: ST.t, tms: ST.t * 1000 }, dt);
+  const hgt = Math.max(0, P.y - ST.floor), ss = 1 / (1 + hgt * 2.5);
+  shadow.position.set(P.x, ST.floor + 0.004, P.z); shadow.scale.setScalar(ss); shadow.material.opacity = 0.22 * ss;
+}
+// ---- touch: hit test, poke, carry
+const centerOf = out => out.copy(Yv).applyQuaternion(hero.root.quaternion).multiplyScalar(1.6 * TS).add(hero.root.position);
+function hit(x, y) {
+  if (!ST.on || !hero.root.visible) return false;
+  const c = centerOf(_v).project(cam); if (c.z > 1) return false;
+  const top = _w.copy(Yv).applyQuaternion(hero.root.quaternion).multiplyScalar(3.4 * TS).add(hero.root.position).project(cam);
+  const sx = (c.x + 1) / 2 * innerWidth, sy = (1 - c.y) / 2 * innerHeight, ty = (1 - top.y) / 2 * innerHeight;
+  return Math.hypot(sx - x, sy - y) < Math.max(30, Math.abs(sy - ty) * 1.15);
+}
+function poke(x) {
+  if (ST.mode === 'hang' || ST.mode === 'perch') return jumpDown();
+  if (ST.mode !== 'walk') return;
+  const c = centerOf(_v).project(cam), side = ((c.x + 1) / 2 * innerWidth) < x ? -1 : 1;   // hop away from the finger
+  atS(ST.s, _v); atS(ST.s + 0.05, _w); const tx = _w.x - _v.x, tz = _w.z - _v.z;
+  const camR = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion); const dir = Math.sign(tx * camR.x + tz * camR.z || 1) * side;
+  ST.offPath = false; ST.s = ST.sT = ST.s + dir * perim() * rnd(0.12, 0.2); ST.pause = rnd(1, 2.5); startLeap('walk', true);
+}
+const dragPlane = new THREE.Plane(), dragOff = new THREE.Vector3(), _ray = new THREE.Raycaster();
+function grabAt(x, y) {
+  ST.grip = null; ST.leap = null; ST.mode = 'held';
+  dragPlane.setFromNormalAndCoplanarPoint(cam.getWorldDirection(_v).negate(), ST.pos);
+  _ray.setFromCamera({ x: x / innerWidth * 2 - 1, y: -y / innerHeight * 2 + 1 }, cam);
+  if (_ray.ray.intersectPlane(dragPlane, _w)) dragOff.copy(ST.pos).sub(_w); else dragOff.set(0, 0, 0);
+}
+function dragTo(x, y) {
+  if (ST.mode !== 'held') return;
+  _ray.setFromCamera({ x: x / innerWidth * 2 - 1, y: -y / innerHeight * 2 + 1 }, cam);
+  if (_ray.ray.intersectPlane(dragPlane, _w)) { ST.pos.copy(_w).add(dragOff); ST.pos.y = Math.max(ST.pos.y, ST.floor); }
+}
+function release() { if (ST.mode === 'held') { ST.mode = 'fall'; ST.vy = 0.6; } }
+function setOn(on) { ST.on = on; hero.root.visible = on; if (on) { refreshBox(); ST.floor = floorY(); ST.mode = 'walk'; ST.grip = null; ST.s = ST.sT = nearestS(ST.pos.x, ST.pos.z); ST.offPath = true; } }
+refreshBox(); ST.floor = floorY(); ST.s = ST.sT = perim() * 0.1; atS(ST.s, ST.pos).setY(ST.floor);
+// ---- lasso Tuto: a second Tuto drawn over the screen's bottom-left corner. He spins a rope loop over his head,
+// throws it when a selection is drawn, then holds the rope while the selection is in use.
+function makeLassoHud(hud) {
+  const h = dressTuto(buildCharacter()); h.anim = newAnim(); hud.add(h.root);
+  const ROPE = 0xC9A06A, spin = new THREE.Group(); h.root.add(spin);
+  const loop = mesh(new THREE.TorusGeometry(0.62, 0.045, 6, 40), ROPE); loop.position.set(0.85, 0, 0); loop.rotation.x = Math.PI / 2; spin.add(loop);
+  const tail = mesh(new THREE.CylinderGeometry(0.04, 0.04, 1, 6), ROPE); tail.position.set(0.115, 0, 0); tail.scale.y = 0.23; tail.rotation.z = Math.PI / 2; spin.add(tail);
+  const S = { mag: 0, zr: 0, grounded: true, sit: 0, dance: -1, flipT: -1, airT: 0, glide: 0, hold: 0, ride: 0, sx: 0, sz: 0, held: false, gliding: false, grab: 0, grabUp: 0, grabLow: 0, shAmt: 0, db: null };
+  const hand = new THREE.Vector3(), up = new THREE.Vector3(0, 0.12, 0);
+  let mode = 'swing', t = 0, mt = 0;
+  function update(dt) {
+    t += dt; mt += dt; S.t = t; S.tms = t * 1000;
+    poseCharacter(h, S, dt);
+    const P = h.parts;
+    if (mode === 'swing') { P.shL.rotation.set(0.25 * Math.sin(t * 10), 0, -2.8); P.elL.rotation.set(0, 0, 0.35); }
+    else if (mode === 'throw') { const k = Math.min(1, mt / 0.16); P.shL.rotation.set(-1.5 * k, 0, -2.8 + 1.4 * k); P.elL.rotation.set(0, 0, 0.1); }
+    else { P.shL.rotation.set(-1.3, 0, -1.3); P.elL.rotation.set(0, 0, 0.25 + 0.05 * Math.sin(t * 3)); h.body.rotation.x -= 0.12; }
+    h.root.updateMatrixWorld(true);
+    hand.set(0, -0.27, 0); P.elL.localToWorld(hand);
+    spin.visible = mode === 'swing';
+    if (spin.visible) { spin.position.copy(h.root.worldToLocal(hand.clone())).add(up); spin.rotation.set(0.35, t * 11, 0); }
+  }
+  return { root: h.root, update, hand, setMode(m) { if (m !== mode) { mode = m; mt = 0; } }, get mode() { return mode; } };
+}
+return { update, hit, poke, grabAt, dragTo, release, setOn, makeLassoHud, get on() { return ST.on; }, _st: ST, _hero: hero };
+
+})();
+$('bTuto').onclick=()=>{TUTO.setOn(!TUTO.on);$('bTuto').classList.toggle('off',!TUTO.on);hint(TUTO.on?'Tuto is back':'Tuto is taking a break')};
+
+// ---------- lasso: Tuto swings a lasso from the bottom-left corner; draw a loop to catch points or faces ----------
+// Pure helpers (also used by the tests)
+function pointInPoly(x, y, poly) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) c = !c; }
+  return c;
+}
+function polyArea(poly) { let a = 0; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) a += (poly[j][0] + poly[i][0]) * (poly[j][1] - poly[i][1]); return Math.abs(a / 2); }
+// toScreen(p) -> [x, y, z]; visible(p) -> false if the figure hides p from the camera; facing(fi) -> true if that face
+// looks towards the camera. Points must be visible; faces must face you and have a visible centre.
+function lassoPick(V, F, poly, kind, toScreen, visible, facing) {
+  const out = new Set();
+  if (kind === 'pts') V.forEach((p, i) => { const s = toScreen(p); if (s[2] > 1 || !pointInPoly(s[0], s[1], poly) || !visible(p)) return; out.add(i); });
+  else F.forEach((f, fi) => { const c = [0, 1, 2].map(k => f.reduce((a, v) => a + V[v][k], 0) / f.length), s = toScreen(c);
+    if (s[2] <= 1 && pointInPoly(s[0], s[1], poly) && facing(fi) && visible(c)) out.add(fi); });
+  return out;
+}
+function selVerts(F, sel, kind) { if (kind === 'pts') return [...sel]; const s = new Set(); for (const fi of sel) if (F[fi]) for (const v of F[fi]) s.add(v); return [...s]; }
+// Delete the selection (points take their faces with them; faces leave behind any point no other face uses).
+// twinOf(i) gives a vertex's mirror twin (or -1) when mirror is on, so the other side goes too.
+function deleteSel(V, F, sel, kind, twinOf) {
+  let delV = new Set(), delF = new Set();
+  if (kind === 'pts') { for (const i of sel) { delV.add(i); const m = twinOf ? twinOf(i) : -1; if (m >= 0) delV.add(m); }
+    F.forEach((f, fi) => { if (f.some(v => delV.has(v))) delF.add(fi); }); }
+  else {
+    for (const fi of sel) delF.add(fi);
+    if (twinOf) { const key = f => [...f].sort((a, b) => a - b).join(','), byKey = new Map(F.map((f, i) => [key(f), i]));
+      for (const fi of sel) { const m = F[fi].map(twinOf); if (m.every(x => x >= 0)) { const j = byKey.get(key(m)); if (j !== undefined) delF.add(j); } } }
+    const usedAfter = new Set(); F.forEach((f, fi) => { if (!delF.has(fi)) for (const v of f) usedAfter.add(v); });
+    for (const fi of delF) for (const v of F[fi]) if (!usedAfter.has(v)) delV.add(v);
+  }
+  const map = new Int32Array(V.length).fill(-1), nV = [];
+  V.forEach((p, i) => { if (!delV.has(i)) map[i] = nV.push(p) - 1; });
+  const nF = []; F.forEach((f, fi) => { if (!delF.has(fi)) nF.push(f.map(v => map[v])); });
+  return { V: nV, F: nF, points: delV.size, faces: delF.size };
+}
+
+// ---- lasso on screen
+const hudScene = new THREE.Scene();
+hudScene.add(new THREE.HemisphereLight(0xffffff, 0x888899, 2.2));
+{ const l = new THREE.DirectionalLight(0xffffff, 1.4); l.position.set(-200, 400, 600); hudScene.add(l); }
+const hudCam = new THREE.OrthographicCamera(0, 1, 1, 0, 1, 2000); hudCam.position.set(0, 0, 625);
+function hudResize() { hudCam.right = innerWidth; hudCam.top = innerHeight; hudCam.updateProjectionMatrix(); }
+const LS = { on: false, kind: 'pts', sel: new Set(), poly: null, phase: 'idle', pt: 0, hud: null, ver: -1, tutoWas: true, drag: null, pending: null, preview: null, pvT: 0, press: null, fade: 0 };
+const selPts = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ color: 0xFFC20E, size: 13, sizeAttenuation: false, depthTest: false }));
+const selFaces = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xFFC20E, transparent: true, opacity: .5, side: THREE.DoubleSide,
+  depthWrite: false, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 }));
+selPts.renderOrder = 7; selFaces.renderOrder = 4; scene.add(selPts, selFaces);
+const lsPath = $('lsPath'), lsPath2 = $('lsPath2'), lsTether = $('lsTether');
+// What the camera can actually see: a quick snapshot of the distance to the sculpt (and low-poly) at every pixel,
+// taken when a loop starts. Anything farther than that surface at its pixel is hidden behind the figure.
+const depthRT = new THREE.WebGLRenderTarget(1, 1);
+const depthMat = new THREE.ShaderMaterial({ side: THREE.DoubleSide, uniforms: { uMax: { value: 10 } },
+  vertexShader: 'varying float vz;void main(){vec4 p=modelViewMatrix*vec4(position,1.);vz=-p.z;gl_Position=projectionMatrix*p;}',
+  fragmentShader: 'uniform float uMax;varying float vz;void main(){float d=clamp(vz/uMax,0.,1.)*255.;gl_FragColor=vec4(floor(d)/255.,fract(d),0.,1.);}' });
+let depth = null;
+function captureDepth() {
+  const w = Math.max(1, Math.round(innerWidth / 2)), h = Math.max(1, Math.round(innerHeight / 2)), uMax = cam.position.length() + 6 * size;
+  depthRT.setSize(w, h); depthMat.uniforms.uMax.value = uMax;
+  const keep = scene.children.map(o => [o, o.visible]);
+  scene.children.forEach(o => { o.visible = (o === lowMesh && F.length > 0) || (o === high && o.visible); });
+  const bg = scene.background, cc = renderer.getClearColor(new THREE.Color()), ca = renderer.getClearAlpha();
+  scene.background = null; scene.overrideMaterial = depthMat;
+  renderer.setRenderTarget(depthRT); renderer.setClearColor(0xffffff, 1); renderer.clear(); renderer.render(scene, cam);
+  renderer.setRenderTarget(null); renderer.setClearColor(cc, ca); scene.overrideMaterial = null; scene.background = bg; keep.forEach(([o, v]) => o.visible = v);
+  const buf = new Uint8Array(w * h * 4); renderer.readRenderTargetPixels(depthRT, 0, 0, w, h, buf); depth = { buf, w, h, uMax };
+}
+const _vp = new THREE.Vector3();
+function visibleNow(p) {
+  if (!depth) return true;
+  _vp.set(p[0], p[1], p[2]).project(cam); if (_vp.z > 1 || Math.abs(_vp.x) > 1 || Math.abs(_vp.y) > 1) return false;
+  const px = Math.floor((_vp.x * 0.5 + 0.5) * depth.w), py = Math.floor((_vp.y * 0.5 + 0.5) * depth.h);
+  let far = 0;                                         // farthest surface in a 3x3 patch, so points right on an edge still count
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = Math.min(depth.w - 1, Math.max(0, px + dx)), y = Math.min(depth.h - 1, Math.max(0, py + dy)), i = (y * depth.w + x) * 4;
+    const d = (depth.buf[i] + depth.buf[i + 1] / 255) / 255 * depth.uMax; if (d > far) far = d; }
+  _vp.set(p[0], p[1], p[2]).applyMatrix4(cam.matrixWorldInverse);
+  return -_vp.z <= far + 0.025 * size;
+}
+const facesToward = fi => { const f = F[fi]; if (!f) return false; const n = fnorm(f), c = [0, 1, 2].map(k => f.reduce((a, v) => a + V[v][k], 0) / f.length);
+  return n[0] * (cam.position.x - c[0]) + n[1] * (cam.position.y - c[1]) + n[2] * (cam.position.z - c[2]) > 0; };
+const handXY = () => [LS.hud.hand.x, innerHeight - LS.hud.hand.y];
+const centroidOf = ids => { const c = [0, 0, 0]; for (const i of ids) for (let k = 0; k < 3; k++) c[k] += V[i][k] / ids.length; return c; };
+function ropeTo(x, y) { const [hx, hy] = handXY(), mx = (hx + x) / 2, my = Math.max(hy, y) + 40;   // a little sag
+  lsTether.setAttribute('d', `M${hx.toFixed(1)} ${hy.toFixed(1)} Q${mx.toFixed(1)} ${my.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)}`); }
+function drawPath(close) {
+  const d = LS.poly && LS.poly.length > 1 ? 'M' + LS.poly.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L') + (close ? 'Z' : '') : '';
+  lsPath.setAttribute('d', d); lsPath2.setAttribute('d', d);
+}
+function lassoRefresh() {
+  if (!LS.on) { selPts.visible = selFaces.visible = false; return; }
+  if (LS.sel.size && LS.ver !== meshVer && !LS.drag) LS.sel.clear();       // the mesh changed under us (undo, import): let go
+  const shown = LS.preview || LS.pending || LS.sel, ids = selVerts(F, shown, LS.kind).filter(i => V[i]);
+  selPts.geometry.dispose(); selPts.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(ids.flatMap(i => V[i]), 3));
+  const tp = []; if (LS.kind === 'faces') for (const fi of shown) { const f = F[fi]; if (f) for (let i = 1; i < f.length - 1; i++) tp.push(...V[f[0]], ...V[f[i]], ...V[f[i + 1]]); }
+  selFaces.geometry.dispose(); selFaces.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(tp, 3));
+  selPts.visible = ids.length > 0; selFaces.visible = tp.length > 0;
+  $('lsScale').disabled = $('lsDel').disabled = !LS.sel.size;
+  const n = shown.size; $('lsCount').textContent = n ? n + (LS.kind === 'pts' ? (n === 1 ? ' point' : ' points') : (n === 1 ? ' face' : ' faces')) : '';
+}
+rebuildHooks.push(lassoRefresh);
+function clearSel() { LS.sel.clear(); LS.pending = null; LS.preview = null; LS.phase = 'idle'; LS.poly = null; drawPath(); lsTether.setAttribute('d', ''); if (LS.hud) LS.hud.setMode('swing'); lassoRefresh(); }
+function lassoOn() {
+  LS.on = true; $('bLasso').classList.add('on'); document.body.classList.add('lassoOn'); $('lassoBar').hidden = false; $('lassoSvg').hidden = false; hideRing(); $('bX').style.display = 'none';
+  if (!LS.hud) LS.hud = TUTO.makeLassoHud(hudScene);
+  LS.hud.root.visible = true; LS.tutoWas = TUTO.on; if (TUTO.on) TUTO.setOn(false);
+  clearSel(); hint('Draw a loop around the ' + (LS.kind === 'pts' ? 'points' : 'faces') + ' you want, or tap them one by one. Tap again to let one go', 5500);
+}
+function lassoOff() {
+  LS.on = false; LS.drag = null; $('bLasso').classList.remove('on'); document.body.classList.remove('lassoOn'); $('lassoBar').hidden = true; $('lassoSvg').hidden = true;
+  clearSel(); if (LS.hud) LS.hud.root.visible = false; if (LS.tutoWas) TUTO.setOn(true); controls.enabled = true; rebuild();
+}
+$('bLasso').onclick = () => LS.on ? lassoOff() : lassoOn();
+$('lsDone').onclick = lassoOff;
+document.querySelectorAll('#lsMode button').forEach(b => b.onclick = () => { LS.kind = b.dataset.k;
+  document.querySelectorAll('#lsMode button').forEach(x => x.classList.toggle('on', x === b)); clearSel(); });
+// touches: a tap toggles one point (or face); a drag that starts on the catch moves it; any other drag draws a loop
+function lsDown(e) {
+  LS.press = { x: e.clientX, y: e.clientY, onSel: LS.sel.size > 0 && LS.phase === 'held' && onSel(e.clientX, e.clientY), moved: false };
+  controls.enabled = false;
+}
+function lsMove(e) {
+  if (LS.drag) return dragSel(e.clientX, e.clientY);
+  const P = LS.press; if (!P) return;
+  if (!P.moved) { if (Math.hypot(e.clientX - P.x, e.clientY - P.y) < 8) return; P.moved = true;
+    if (P.onSel) { beginEdit('move', P.x, P.y); return dragSel(e.clientX, e.clientY); }
+    startDraw(P.x, P.y); }
+  if (LS.phase !== 'draw') return;
+  const last = LS.poly[LS.poly.length - 1]; if (Math.hypot(e.clientX - last[0], e.clientY - last[1]) < 4) return;
+  LS.poly.push([e.clientX, e.clientY]); drawPath(); ropeTo(e.clientX, e.clientY);
+  const now = performance.now(); if (now - LS.pvT > 90 && LS.poly.length > 3) { LS.pvT = now; LS.preview = lassoPick(V, F, LS.poly, LS.kind, scr, visibleNow, facesToward); lassoRefresh(); }
+}
+function lsUp() {
+  const P = LS.press; LS.press = null; setTimeout(() => controls.enabled = true, 0);
+  if (LS.drag) return endDrag();
+  if (!P) return;
+  if (!P.moved) return tapToggle(P.x, P.y);
+  if (LS.phase !== 'draw') return;
+  if (LS.poly.length < 6 || polyArea(LS.poly) < 400) { LS.preview = null; LS.phase = LS.sel.size ? 'held' : 'idle'; drawPath(); lassoRefresh(); return; }
+  LS.pending = lassoPick(V, F, LS.poly, LS.kind, scr, visibleNow, facesToward); LS.preview = null;
+  LS.phase = 'throw'; LS.pt = 0; LS.hud.setMode('throw'); drawPath(true); $('lassoSvg').classList.remove('drawing');
+  const len = lsPath.getTotalLength ? lsPath.getTotalLength() : 1000; lsPath.style.strokeDasharray = len; lsPath.style.strokeDashoffset = len; lsPath2.style.opacity = 0;
+}
+function startDraw(x, y) {
+  LS.phase = 'draw'; LS.poly = [[x, y]]; LS.pending = null; LS.sel.clear(); LS.preview = new Set(); LS.pvT = 0; LS.hud.setMode('swing');
+  captureDepth();
+  $('lassoSvg').classList.add('drawing'); lsPath.style.opacity = 1; lsPath2.style.opacity = 1; lsPath.removeAttribute('transform'); lsPath2.removeAttribute('transform');
+  lsPath.style.strokeDasharray = ''; lsPath.style.strokeDashoffset = ''; drawPath(); lassoRefresh();
+}
+function tapToggle(x, y) {
+  let hit = -1;
+  if (LS.kind === 'pts') hit = pickV(x, y, 26);
+  else { rc.setFromCamera(new THREE.Vector2(x / innerWidth * 2 - 1, -y / innerHeight * 2 + 1), cam); const h = rc.intersectObject(lowMesh, false)[0];
+    if (h && (!high || !high.visible || (() => { const s = rc.intersectObject(high, true)[0]; return !s || s.distance > h.distance - 0.02 * size; })())) hit = triFace[h.faceIndex]; }
+  if (hit < 0 || hit === undefined) { if (LS.sel.size) { clearSel(); hint('Let go of everything', 1800); } return; }
+  if (LS.sel.has(hit)) LS.sel.delete(hit); else LS.sel.add(hit);
+  LS.ver = meshVer; LS.pending = LS.preview = null; LS.poly = null; drawPath(); lsPath.style.opacity = 0; lsPath2.style.opacity = 0;
+  LS.phase = LS.sel.size ? 'held' : 'idle'; LS.hud.setMode(LS.sel.size ? 'hold' : 'swing'); lassoRefresh();
+}
+function lassoFrame(dt) {
+  if (!LS.hud) return;
+  const k = Math.max(26, Math.min(40, innerHeight * 0.035));
+  LS.hud.root.scale.setScalar(k); LS.hud.root.position.set(padRight() + 1.3 * k + 8, 14, 0); LS.hud.root.rotation.y = 0.55;   // stands just right of the controller
+  LS.hud.update(dt);
+  if (LS.phase === 'draw' && LS.poly) { const l = LS.poly[LS.poly.length - 1]; ropeTo(l[0], l[1]); }
+  else if (LS.phase === 'throw') {            // the rope flies out round the loop
+    LS.pt += dt; const u = Math.min(1, LS.pt / 0.28), len = parseFloat(lsPath.style.strokeDasharray) || 0;
+    lsPath.style.strokeDashoffset = len * (1 - u); const p0 = LS.poly[0]; ropeTo(p0[0], p0[1]);
+    if (u >= 1) { LS.phase = 'tight'; LS.pt = 0; lsPath.style.strokeDasharray = ''; lsPath.style.strokeDashoffset = ''; lsPath2.style.opacity = 1; }
+  } else if (LS.phase === 'tight') {          // ...and pulls tight around what it caught
+    LS.pt += dt; const u = Math.min(1, LS.pt / 0.2), cx = LS.poly.reduce((a, p) => a + p[0], 0) / LS.poly.length, cy = LS.poly.reduce((a, p) => a + p[1], 0) / LS.poly.length, sc = 1 - 0.06 * u;
+    const tf = `translate(${cx} ${cy}) scale(${sc}) translate(${-cx} ${-cy})`; lsPath.setAttribute('transform', tf); lsPath2.setAttribute('transform', tf);
+    ropeTo(cx, cy);
+    if (u >= 1) { LS.sel = LS.pending || new Set(); LS.pending = null; LS.ver = meshVer; LS.phase = 'held'; LS.fade = 0.6; lassoRefresh();
+      if (LS.sel.size) { LS.hud.setMode('hold'); hint('Caught ' + $('lsCount').textContent + '. Drag them to move, use Scale, or Delete', 4500); }
+      else { LS.hud.setMode('swing'); hint('Nothing inside that loop. Try again', 3000); } }
+  } else if (LS.phase === 'held') {
+    if (LS.fade > 0) { LS.fade = Math.max(0, LS.fade - dt); const o = LS.fade / 0.6; lsPath.style.opacity = o; lsPath2.style.opacity = o; }
+    const ids = selVerts(F, LS.sel, LS.kind).filter(i => V[i]);
+    if (ids.length) { const s = scr(centroidOf(ids)); ropeTo(s[0], s[1]); } else { lsTether.setAttribute('d', ''); if (LS.hud.mode !== 'swing') LS.hud.setMode('swing'); }
+  }
+}
+// moving and scaling the catch (mirror keeps the other side matched; snapping presses it back onto the sculpt on release)
+function onSel(x, y) {
+  const ids = selVerts(F, LS.sel, LS.kind);
+  for (const i of ids) { const s = scr(V[i]); if (Math.hypot(s[0] - x, s[1] - y) < 30) return true; }
+  if (LS.kind === 'faces') for (const fi of LS.sel) { const f = F[fi]; if (f && pointInPoly(x, y, f.map(v => scr(V[v])))) return true; }
+  return false;
+}
+function beginEdit(kind, x, y, only, useMirror = true) {
+  const ids = only || selVerts(F, LS.sel, LS.kind), twins = [], center = new Set();
+  if (mirOn && useMirror) { const set = new Set(ids); for (const i of ids) { const m = mir(i); if (m === i) center.add(i); else if (m >= 0 && !set.has(m)) twins.push([i, m]); } }
+  save(); LS.ver = meshVer;
+  const c = centroidOf(ids), plane = new THREE.Plane().setFromNormalAndCoplanarPoint(cam.getWorldDirection(new THREE.Vector3()), new THREE.Vector3(...c));
+  LS.drag = { kind, ids, twins, center, base: ids.map(i => V[i].slice()), c, x0: x, y0: y, plane, start: rayPlane(x, y, plane) };
+  controls.enabled = false;
+}
+function rayPlane(x, y, plane) { rc.setFromCamera(new THREE.Vector2(x / innerWidth * 2 - 1, -y / innerHeight * 2 + 1), cam); return rc.ray.intersectPlane(plane, new THREE.Vector3()); }
+function dragSel(x, y) {
+  const D = LS.drag; if (!D) return;
+  if (D.kind === 'move') { const p = rayPlane(x, y, D.plane); if (!p || !D.start) return; const d = p.sub(D.start);
+    D.ids.forEach((i, k) => { V[i] = [D.base[k][0] + d.x, D.base[k][1] + d.y, D.base[k][2] + d.z]; }); }
+  else if (D.kind === 'scale') { const f = Math.exp((x - D.x0) / 120);
+    D.ids.forEach((i, k) => { V[i] = D.base[k].map((v, q) => D.c[q] + (v - D.c[q]) * f); }); }
+  else padApply(D, x - D.x0, y - D.y0);
+  for (const i of D.center) V[i][0] = 0;
+  for (const [i, m] of D.twins) V[m] = mp(V[i]);
+  rebuild();
+}
+function endDrag() {
+  const D = LS.drag; LS.drag = null; setTimeout(() => controls.enabled = true, 0); if (!D) return;
+  if (!free()) {
+    const g = getHighGeo(), tris = g.index ? g.index.count / 3 : g.attributes.position.count / 3;
+    if (D.ids.length * tris > 4e7) hint('Too many points to press back onto this sculpt at once. Move smaller catches to keep them on the surface', 4500);
+    else { for (const i of D.ids) { V[i] = snap(V[i], vnorm(i)); if (D.center.has(i)) V[i][0] = 0; } for (const [i, m] of D.twins) V[m] = mp(V[i]); }
+  }
+  LS.ver = meshVer; rebuild();
+}
+$('lsScale').addEventListener('pointerdown', e => { if (!LS.sel.size) return; e.preventDefault(); $('lsScale').setPointerCapture(e.pointerId); beginEdit('scale', e.clientX, e.clientY); hint('Drag right to grow, left to shrink', 2500); });
+$('lsScale').addEventListener('pointermove', e => { if (LS.drag && LS.drag.kind === 'scale') dragSel(e.clientX, e.clientY); });
+const endScale = () => { if (LS.drag && LS.drag.kind === 'scale') endDrag(); };
+$('lsScale').addEventListener('pointerup', endScale); $('lsScale').addEventListener('pointercancel', endScale);
+$('lsDel').onclick = () => {
+  if (!LS.sel.size) return; save();
+  const r = deleteSel(V, F, LS.sel, LS.kind, mirOn ? mir : null);
+  V = r.V; F = r.F; pend = []; LS.sel.clear(); LS.ver = meshVer; LS.phase = 'idle'; lsTether.setAttribute('d', ''); LS.hud.setMode('swing'); rebuild();
+  hint('Deleted ' + (LS.kind === 'pts' ? r.points + (r.points === 1 ? ' point' : ' points') : r.faces + (r.faces === 1 ? ' face' : ' faces')), 3000);
+};
+
+// ---- the T / S / R controller (bottom left): drag on the pad to move, scale or rotate the lasso catch,
+// or the whole low-poly mesh when nothing is caught
+const PAD = { mode: 't', id: null };
+const padRight = () => { const r = $('padRing').getBoundingClientRect(); return r.right || 140; };
+document.querySelectorAll('#padModes button').forEach(b => b.onclick = () => { PAD.mode = b.dataset.m;
+  document.querySelectorAll('#padModes button').forEach(x => x.classList.toggle('on', x === b));
+  hint({ t: 'Move: drag on the pad', s: 'Scale: drag right or up to grow, left or down to shrink', r: 'Rotate: drag to turn it like a trackball' }[PAD.mode], 2500); });
+function padApply(D, dx, dy) {
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion), upv = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
+  if (D.kind === 'pad-t') {        // finger travel on the pad = the same travel on screen
+    const dist = cam.position.distanceTo(new THREE.Vector3(...D.c)), wpp = 2 * dist * Math.tan(cam.fov * Math.PI / 360) / innerHeight;
+    const d = right.multiplyScalar(dx * wpp).add(upv.multiplyScalar(-dy * wpp));
+    D.ids.forEach((i, k) => { V[i] = [D.base[k][0] + d.x, D.base[k][1] + d.y, D.base[k][2] + d.z]; });
+  } else if (D.kind === 'pad-s') { const f = Math.exp((dx - dy) / 140);
+    D.ids.forEach((i, k) => { V[i] = D.base[k].map((v, q) => D.c[q] + (v - D.c[q]) * f); });
+  } else {
+    const q = new THREE.Quaternion().setFromAxisAngle(upv, dx * 0.012).multiply(new THREE.Quaternion().setFromAxisAngle(right, dy * 0.012)), c = new THREE.Vector3(...D.c);
+    D.ids.forEach((i, k) => { V[i] = new THREE.Vector3(...D.base[k]).sub(c).applyQuaternion(q).add(c).toArray(); });
+  }
+}
+$('padRing').addEventListener('pointerdown', e => {
+  if (LS.drag) return;
+  const caught = LS.on && LS.sel.size > 0, ids = caught ? selVerts(F, LS.sel, LS.kind) : V.map((_, i) => i);
+  if (!ids.length) return hint('Nothing to ' + ({ t: 'move', s: 'scale', r: 'rotate' }[PAD.mode]) + ' yet', 2000);
+  e.preventDefault(); $('padRing').setPointerCapture(e.pointerId); PAD.id = e.pointerId;
+  beginEdit('pad-' + PAD.mode, e.clientX, e.clientY, ids, caught);       // the whole mesh moves as one, so no mirror pinning
+  hint((caught ? 'The catch' : 'The whole mesh') + ': ' + ({ t: 'moving', s: 'scaling', r: 'rotating' }[PAD.mode]), 1500);
+});
+$('padRing').addEventListener('pointermove', e => {
+  if (e.pointerId !== PAD.id || !LS.drag) return;
+  const dx = e.clientX - LS.drag.x0, dy = e.clientY - LS.drag.y0, l = Math.hypot(dx, dy), m = Math.min(l, 38) / (l || 1);
+  $('padKnob').style.transition = 'none'; $('padKnob').style.transform = `translate(${dx * m}px, ${dy * m}px)`;
+  dragSel(e.clientX, e.clientY);
+});
+const padEnd = e => { if (e.pointerId !== PAD.id) return; PAD.id = null; $('padKnob').style.transition = ''; $('padKnob').style.transform = ''; if (LS.drag) endDrag(); };
+$('padRing').addEventListener('pointerup', padEnd); $('padRing').addEventListener('pointercancel', padEnd);
+
+// ---------- floor: a soft reflection and real shadows under the model ----------
+// Three stacked discs: a mirror, a floor-coloured cover that lets ~10% of the reflection through in the middle and
+// none at the rim (so it melts into the background), and a shadow catcher. Only solid things (sculpt, low-poly faces,
+// Tuto) are reflected: overlays live on layer 1, which the main camera sees and the mirror's camera doesn't.
+cam.layers.enable(1);
+const noReflect = o => o.traverse(c => c.layers.set(1));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false;
+dl.castShadow = true; dl.shadow.mapSize.set(1536, 1536); dl.shadow.bias = -0.0004; dl.shadow.normalBias = 0.02; scene.add(dl.target);
+const LIGHT_DIR = new THREE.Vector3(2, 3, 4).normalize();
+const floorG = new THREE.Group(); scene.add(floorG);
+const mirrorRes = () => [Math.max(256, Math.round(innerWidth * renderer.getPixelRatio() * 0.5)), Math.max(256, Math.round(innerHeight * renderer.getPixelRatio() * 0.5))];
+const mirror = new Reflector(new THREE.CircleGeometry(1, 72), { clipBias: 0.003, textureWidth: mirrorRes()[0], textureHeight: mirrorRes()[1], color: 0x9a9fab });
+mirror.rotation.x = -Math.PI / 2; floorG.add(mirror);
+const fade = document.createElement('canvas'); fade.width = fade.height = 256;
+{ const g = fade.getContext('2d'), r = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  r.addColorStop(0, 'rgb(230,230,230)'); r.addColorStop(0.35, 'rgb(234,234,234)');   // ~10% reflection in the middle (halved) r.addColorStop(0.85, 'rgb(255,255,255)'); r.addColorStop(1, 'rgb(255,255,255)');
+  g.fillStyle = r; g.fillRect(0, 0, 256, 256); }
+const floorTint = new THREE.Mesh(new THREE.CircleGeometry(1, 72), new THREE.MeshBasicMaterial({ transparent: true, alphaMap: new THREE.CanvasTexture(fade), depthWrite: false }));
+floorTint.rotation.x = -Math.PI / 2; floorTint.position.y = 0.0015; floorTint.renderOrder = 1; floorG.add(floorTint);
+const catcher = new THREE.Mesh(new THREE.CircleGeometry(1, 72), new THREE.ShadowMaterial({ opacity: 0.22, depthWrite: false }));
+catcher.rotation.x = -Math.PI / 2; catcher.position.y = 0.003; catcher.receiveShadow = true; catcher.renderOrder = 2; floorG.add(catcher);
+noReflect(floorTint); noReflect(catcher);
+function floorColor() { const c = getComputedStyle(document.documentElement).getPropertyValue('--scene').trim(); floorTint.material.color.set(c || '#eceef2'); }
+floorColor(); try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', floorColor); } catch (e) {}
+new MutationObserver(floorColor).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+// sit the floor under whatever is lowest (sculpt, mesh or grid) - the same rule Tuto walks by - and aim the shadows
+const _fb = new THREE.Box3(), _fc = new THREE.Vector3(), _fv = new THREE.Vector3();
+function placeFloor() {
+  _fb.makeEmpty(); if (high) _fb.setFromObject(high); for (const p of V) _fb.expandByPoint(_fv.set(p[0], p[1], p[2]));
+  if (_fb.isEmpty()) _fb.set(_fv.set(-0.4, -1, -0.4), new THREE.Vector3(0.4, -0.3, 0.4));
+  let y = _fb.min.y; if (grid.visible) y = Math.min(y, grid.position.y);
+  _fb.getCenter(_fc); const R = size * 3;
+  floorG.position.set(_fc.x, y - 0.002, _fc.z); floorG.scale.set(R, 1, R); floorG.updateMatrixWorld(true);
+  const ext = Math.max(_fb.max.x - _fb.min.x, _fb.max.y - _fb.min.y, _fb.max.z - _fb.min.z, size) * 0.9 + 0.5;
+  dl.target.position.copy(_fc); dl.position.copy(_fc).addScaledVector(LIGHT_DIR, ext * 3);
+  const sc = dl.shadow.camera; sc.left = sc.bottom = -ext; sc.right = sc.top = ext; sc.near = 0.05; sc.far = ext * 6; sc.updateProjectionMatrix();
+}
+function placeFloorSoon() { if (placeFloor.t) return; placeFloor.t = setTimeout(() => { placeFloor.t = 0; placeFloor(); }, 200); }
+rebuildHooks.push(placeFloorSoon);
+grid.position.y += 0.004;   // keep the free-modelling grid just above the floor
+for (const o of [lines, pts, pendL, mirPlane, grid, badMesh, selPts, selFaces]) noReflect(o);
+lowMesh.castShadow = true;
+placeFloor();
+
+function resize(){hudResize();mirror.getRenderTarget().setSize(...mirrorRes());renderer.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+addEventListener('resize',resize);resize();demo();TUTO.setOn(true);hint(HELP);
+const clock=new THREE.Clock();
+renderer.setAnimationLoop(()=>{const dt=clock.getDelta();controls.update();TUTO.update(dt);renderer.shadowMap.needsUpdate=true;renderer.render(scene,cam);
+  if(LS.on){lassoFrame(dt);renderer.autoClear=false;renderer.clearDepth();renderer.render(hudScene,hudCam);renderer.autoClear=true}});
+</script>
+</body>
+</html>

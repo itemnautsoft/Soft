@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Cowaltz</title>
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#15123A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cowaltz">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#15123A; touch-action:none;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; font-family:'Patrick Hand', 'Comic Sans MS', cursive; color:#161216; }
+  canvas { display:block; }
+  button { font:inherit; color:inherit; -webkit-tap-highlight-color:transparent; }
+  .ui { transition:opacity .4s; }
+  body:not(.play) .ui { opacity:0; pointer-events:none; }
+
+  /* joystick */
+  #stickZone { position:fixed; left:0; bottom:0; width:210px; height:220px; z-index:3; }
+  #joy { position:fixed; left:20px; bottom:calc(22px + env(safe-area-inset-bottom)); width:150px; height:150px; pointer-events:none; z-index:3; }
+
+  /* action button */
+  #act { position:fixed; right:22px; bottom:calc(28px + env(safe-area-inset-bottom)); width:104px; height:104px; z-index:4; border-radius:50%;
+    border:5px solid #161216; background:#FFE94A; box-shadow:3px 4px 0 #161216; padding:0; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1; }
+  #act.on { transform:translate(2px,3px); box-shadow:1px 1px 0 #161216; background:#FFB52E; }
+  #act small { font-family:'Bangers', cursive; font-size:19px; letter-spacing:1px; margin-top:2px; }
+  #act .i-bow, #act .i-gun, body[data-hero=fairy] #act .i-shield, body[data-hero=soldier] #act .i-shield { display:none; }
+  body[data-hero=fairy] #act .i-bow, body[data-hero=soldier] #act .i-gun { display:block; }
+  body[data-hero=fairy] #act { background:#C9A4FF; } body[data-hero=fairy] #act.on { background:#9A6CF0; }
+  body[data-hero=soldier] #act { background:#FF9A5C; } body[data-hero=soldier] #act.on { background:#E8702E; }
+
+  /* party portraits */
+  #party { position:fixed; left:10px; top:calc(10px + env(safe-area-inset-top)); z-index:4; display:flex; gap:8px; }
+  .pt { width:54px; height:54px; border-radius:16px; border:4px solid #161216; background:#2A2560; padding:0; position:relative; opacity:.62; box-shadow:2px 3px 0 #161216; }
+  .pt svg { width:100%; height:100%; display:block; }
+  .pt.on { opacity:1; background:#FFE94A; transform:scale(1.08); }
+  .pt b { position:absolute; left:50%; bottom:-11px; transform:translateX(-50%); font-family:'Bangers', cursive; font-weight:normal; font-size:12px; letter-spacing:.5px;
+    background:#161216; color:#fff; border-radius:6px; padding:0 4px; white-space:nowrap; }
+  .pt.hurt { animation: hurt .5s; }
+  @keyframes hurt { 0%,100% { background:#2A2560; } 30% { background:#FF2E88; } }
+
+  #pens { position:fixed; left:12px; top:calc(84px + env(safe-area-inset-top)); z-index:4; display:flex; align-items:center; gap:3px; color:#fff;
+    font-family:'Bangers', cursive; font-size:24px; letter-spacing:1px; text-shadow:2px 2px 0 #161216; }
+  #pens svg { width:15px; height:40px; filter:drop-shadow(1px 2px 0 #161216); }
+  #pens.low svg { animation: blink .5s infinite; }
+  @keyframes blink { 50% { opacity:.3; } }
+
+  #score { position:fixed; right:68px; top:calc(10px + env(safe-area-inset-top)); z-index:4; text-align:right; color:#fff;
+    font-family:'Bangers', cursive; letter-spacing:2px; text-shadow:3px 3px 0 #161216; pointer-events:none; }
+  #score .n { font-size:36px; line-height:1; } #score .w { font-size:17px; opacity:.9; }
+  #combo { position:fixed; left:50%; top:calc(118px + env(safe-area-inset-top)); transform:translateX(-50%) scale(1); z-index:4; pointer-events:none;
+    font-family:'Bangers', cursive; font-size:26px; letter-spacing:2px; color:#FFE94A; text-shadow:3px 3px 0 #161216, -1px -1px 0 #161216; opacity:0; transition:opacity .3s; white-space:nowrap; }
+  #combo.on { opacity:1; }
+
+  #music { position:fixed; top:calc(12px + env(safe-area-inset-top)); right:12px; z-index:4; width:46px; height:46px; border-radius:50%;
+    border:4px solid #161216; background:#fff; font-size:24px; line-height:1; padding:0; box-shadow:2px 3px 0 #161216; }
+  #music.off { opacity:.5; text-decoration:line-through; }
+
+  #banner { position:fixed; left:50%; top:34%; transform:translate(-50%,-50%) rotate(-4deg); z-index:6; pointer-events:none;
+    font-family:'Bangers', cursive; font-size:min(16vw, 92px); letter-spacing:4px; color:#FFE94A; white-space:nowrap;
+    text-shadow:5px 5px 0 #161216, -2px -2px 0 #161216, 2px -2px 0 #161216, -2px 2px 0 #161216; opacity:0; transition:opacity .35s, transform .35s; }
+  #banner.on { opacity:1; transform:translate(-50%,-50%) rotate(-4deg) scale(1.05); }
+  #banner small { display:block; font-size:.32em; color:#fff; letter-spacing:2px; text-align:center; }
+
+  /* overlays */
+  .ov { position:fixed; inset:0; z-index:10; display:flex; align-items:center; justify-content:center; background:rgba(21,18,58,.55); }
+  .ov[hidden] { display:none; }
+  .card { width:min(360px, 88vw); background:#FFF4E6; border:5px solid #161216; border-radius:24px; box-shadow:9px 9px 0 #161216; padding:18px 20px 16px; text-align:center; }
+  .card h1 { font-family:'Bangers', cursive; font-weight:normal; font-size:64px; letter-spacing:4px; margin:0; line-height:1; color:#FFE94A;
+    text-shadow:4px 4px 0 #161216, -2px -2px 0 #161216, 2px -2px 0 #161216, -2px 2px 0 #161216; transform:rotate(-3deg); }
+  .card h2 { font-family:'Bangers', cursive; font-weight:normal; font-size:46px; letter-spacing:3px; margin:0; color:#FF2E88; text-shadow:3px 3px 0 #161216; }
+  .card p { font-size:18px; line-height:1.25; margin:8px 0; }
+  .card .sub { font-size:20px; margin-top:4px; }
+  .help { text-align:left; font-size:16px; line-height:1.3; background:#fff; border:3px solid #161216; border-radius:14px; padding:8px 12px; margin:10px 0; }
+  .help div { margin:3px 0; }
+  .big { width:100%; font-family:'Bangers', cursive; font-size:30px; letter-spacing:2px; padding:8px; border:4px solid #161216; border-radius:16px;
+    background:#FFE94A; box-shadow:4px 4px 0 #161216; margin-top:6px; }
+  .big:active { transform:translate(2px,2px); box-shadow:1px 1px 0 #161216; }
+  .stats { display:flex; justify-content:space-around; margin:10px 0 4px; }
+  .stats div { font-size:15px; } .stats b { display:block; font-family:'Bangers', cursive; font-weight:normal; font-size:34px; letter-spacing:1px; }
+  #err { position:fixed; inset:0; display:none; align-items:center; justify-content:center; color:#fff; font-size:22px; padding:20px; text-align:center; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="stickZone" class="ui"></div>
+<svg id="joy" class="ui" viewBox="0 0 200 200" aria-hidden="true">
+  <circle cx="100" cy="100" r="88" fill="rgba(142,195,245,.18)" stroke="rgba(255,255,255,.55)" stroke-width="7"/>
+  <circle cx="100" cy="100" r="58" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="4" stroke-dasharray="8 10"/>
+  <g id="knob" transform="translate(100 100)">
+    <circle r="36" fill="#FFE94A" stroke="#161216" stroke-width="7"/>
+    <circle r="13" fill="#F08A00" stroke="#161216" stroke-width="4"/>
+  </g>
+</svg>
+<button id="act" class="ui" aria-label="Action">
+  <svg class="i-shield" viewBox="0 0 48 52" width="46" height="48"><ellipse cx="24" cy="27" rx="17" ry="22" fill="#F08800" stroke="#161216" stroke-width="4"/><ellipse cx="17" cy="17" rx="5" ry="7" fill="#F5C890"/></svg>
+  <svg class="i-bow" viewBox="0 0 52 52" width="48" height="48"><path d="M14 6 Q44 26 14 46" fill="none" stroke="#8A4A42" stroke-width="6" stroke-linecap="round"/><line x1="14" y1="6" x2="14" y2="46" stroke="#161216" stroke-width="2.5"/><line x1="8" y1="26" x2="46" y2="26" stroke="#161216" stroke-width="4" stroke-linecap="round"/><path d="M40 20 L48 26 L40 32 Z" fill="#9aa0aa" stroke="#161216" stroke-width="3" stroke-linejoin="round"/></svg>
+  <svg class="i-gun" viewBox="0 0 56 40" width="52" height="38"><rect x="4" y="10" width="38" height="14" rx="3" fill="#2B2832" stroke="#161216" stroke-width="3"/><rect x="10" y="3" width="20" height="8" rx="2" fill="#1B1820" stroke="#161216" stroke-width="2.5"/><rect x="14" y="22" width="8" height="12" rx="2" fill="#1B1820" stroke="#161216" stroke-width="2.5"/><circle cx="48" cy="17" r="6" fill="#FF7A2F" stroke="#161216" stroke-width="3"/></svg>
+  <small id="actL">BASH</small>
+</button>
+<div id="party" class="ui">
+  <button class="pt" id="ptK" aria-label="Play as the Knight">
+    <svg viewBox="0 0 60 60"><path d="M8 34 Q8 8 30 8 Q52 8 52 34 L52 46 L8 46 Z" fill="#DDF000" stroke="#161216" stroke-width="3"/><path d="M12 22 Q14 6 30 6 Q46 6 48 22 Z" fill="#F08A00" stroke="#161216" stroke-width="3"/><path d="M26 7 L30 -2 L36 7 Z" fill="#F08A00" stroke="#161216" stroke-width="3"/><rect x="15" y="25" width="30" height="24" rx="10" fill="#D8BE84" stroke="#161216" stroke-width="3"/><path d="M15 40 Q30 31 45 40 L45 52 Q30 60 15 52 Z" fill="#161216"/><circle cx="23" cy="33" r="5" fill="#fff" stroke="#161216" stroke-width="2"/><circle cx="37" cy="33" r="5" fill="#fff" stroke="#161216" stroke-width="2"/><circle cx="24" cy="34" r="2.2"/><circle cx="36" cy="34" r="2.2"/></svg><b>KNIGHT</b></button>
+  <button class="pt" id="ptF" aria-label="Play as the Fairy Princess">
+    <svg viewBox="0 0 60 60"><path d="M6 58 Q4 18 30 10 Q56 18 54 58 Z" fill="#B86E2C" stroke="#161216" stroke-width="3"/><ellipse cx="30" cy="35" rx="18" ry="16" fill="#F5E0B0" stroke="#161216" stroke-width="3"/><path d="M12 28 Q14 12 30 12 Q46 12 48 28 Q30 20 12 28 Z" fill="#B86E2C" stroke="#161216" stroke-width="2.5"/><path d="M12 22 Q30 14 48 22" fill="none" stroke="#eee" stroke-width="4"/><circle cx="23" cy="16" r="3" fill="#9C86D6" stroke="#161216" stroke-width="1.5"/><circle cx="30" cy="14" r="3" fill="#9C86D6" stroke="#161216" stroke-width="1.5"/><circle cx="37" cy="16" r="3" fill="#9C86D6" stroke="#161216" stroke-width="1.5"/><circle cx="23" cy="35" r="5.5" fill="#fff" stroke="#7A4A3A" stroke-width="2.5"/><circle cx="37" cy="35" r="5.5" fill="#fff" stroke="#7A4A3A" stroke-width="2.5"/><circle cx="23" cy="36" r="2.4" fill="#22AA44"/><circle cx="37" cy="36" r="2.4" fill="#22AA44"/><path d="M17 27 L27 29 M43 27 L33 29" stroke="#161216" stroke-width="3" stroke-linecap="round"/></svg><b>FAIRY</b></button>
+  <button class="pt" id="ptS" aria-label="Play as the Trooper">
+    <svg viewBox="0 0 60 60"><ellipse cx="30" cy="26" rx="20" ry="22" fill="#F2F2EE" stroke="#161216" stroke-width="3"/><rect x="11" y="34" width="38" height="18" rx="7" fill="#F2F2EE" stroke="#161216" stroke-width="3"/><rect x="28" y="3" width="4" height="12" rx="2" fill="#C9C9D1"/><rect x="12" y="21" width="16" height="11" rx="4" fill="#1B1820" stroke="#C9C9D1" stroke-width="2.5" transform="rotate(10 20 27)"/><rect x="32" y="21" width="16" height="11" rx="4" fill="#1B1820" stroke="#C9C9D1" stroke-width="2.5" transform="rotate(-10 40 27)"/><path d="M22 39 L30 43 L38 39 M24 45 L30 48 L36 45" fill="none" stroke="#C9C9D1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><b>TROOPER</b></button>
+</div>
+<div id="pens" class="ui"></div>
+<div id="score" class="ui"><div class="n" id="scoreN">0</div><div class="w" id="waveN">WAVE 1</div></div>
+<div id="combo"></div>
+<button id="music" aria-label="Music on/off">♪</button>
+<div id="banner"></div>
+
+<div id="title" class="ov">
+  <div class="card">
+    <h1>COWALTZ</h1>
+    <p class="sub">The Knight, the Fairy Princess &amp; the Trooper vs. the bees of the Blue Moon</p>
+    <div class="help">
+      <div>🕹️ <b>Stick</b> to move. Push a little to tiptoe, all the way to run.</div>
+      <div>👆 <b>Tap a hero</b> (or their portrait) to play as them. The others fight on their own.</div>
+      <div>🛡️ <b>Knight</b>: his shield bounces bees back. <b>BASH</b> to slam them.</div>
+      <div>🏹 <b>Fairy</b>: hold <b>SHOOT</b>. 🔫 <b>Trooper</b>: hold <b>FIRE</b>.</div>
+      <div>🐝 A pink line means a bee is about to dive. Knock bees into each other.</div>
+      <div>💉 A sting swells you up. A teammate runs over with an <b>EpiPen</b>. Out of EpiPens? Game over.</div>
+    </div>
+    <button class="big" id="startB">PLAY</button>
+    <p id="bestT" style="font-size:16px;margin:8px 0 0"></p>
+  </div>
+</div>
+<div id="over" class="ov" hidden>
+  <div class="card">
+    <h2>OUT OF EPIPENS!</h2>
+    <div class="stats"><div>Score<b id="oScore">0</b></div><div>Wave<b id="oWave">1</b></div><div>Best<b id="oBest">0</b></div></div>
+    <p id="oNew" style="color:#FF2E88;font-family:Bangers,cursive;font-size:24px;letter-spacing:1px;margin:2px 0"></p>
+    <button class="big" id="againB">PLAY AGAIN</button>
+  </div>
+</div>
+<div id="err">This needs WebGL to run.</div>
+<div id="sr" aria-live="polite" style="position:fixed;left:-9999px;width:1px;height:1px;overflow:hidden"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+const QS = new URLSearchParams(location.search);
+const AUTOTEST = QS.has('autotest'), GOD = QS.has('god');
+const CALM = matchMedia('(prefers-reduced-motion: reduce)').matches;     // no shake or twinkle
+const say = t => { const el = document.getElementById('sr'); if (el) el.textContent = t; };
+
+// ======================= renderer / scene =======================
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: AUTOTEST }); }
+catch (e) { document.getElementById('err').style.display = 'flex'; throw e; }
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.prepend(renderer.domElement);
+const cvs = renderer.domElement;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x15123A);
+const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.1, 260);
+const effect = new OutlineEffect(renderer, { defaultThickness: 0.0065, defaultColor: [0.07, 0.05, 0.07] });
+scene.add(new THREE.AmbientLight(0xffffff, 1.15));
+const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+scene.add(sun, sun.target);
+
+const ramp = new THREE.DataTexture(new Uint8Array([120, 195, 255]), 3, 1, THREE.RedFormat);
+ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
+const matCache = {};
+function toon(color, outline = true, extra = null) {
+  const k = color + (outline ? 'o' : 'n') + (extra ? JSON.stringify(extra) : '');
+  if (!matCache[k]) {
+    matCache[k] = new THREE.MeshToonMaterial(Object.assign({ color, gradientMap: ramp }, extra || {}));
+    matCache[k].flatShading = true;   // set after construction: the constructor drops unknown keys
+    if (!outline) matCache[k].userData.outlineParameters = { visible: false };
+  }
+  return matCache[k];
+}
+const noLine = m => { m.userData.outlineParameters = { visible: false }; return m; };
+function part(geo, color, parent, pos = [0, 0, 0], scl = null, rot = null, outline = true) {
+  const m = new THREE.Mesh(geo, typeof color === 'number' ? toon(color, outline) : color);
+  m.position.set(...pos); if (scl) m.scale.set(...scl); if (rot) m.rotation.set(...rot);
+  parent.add(m); return m;
+}
+function pivot(parent, pos = [0, 0, 0], rot = null) { const g = new THREE.Group(); g.position.set(...pos); if (rot) g.rotation.set(...rot); parent.add(g); return g; }
+const SPH = (r, w = 12, h = 9) => new THREE.SphereGeometry(r, w, h);   // low-poly on purpose
+
+// ======================= sphere math =======================
+const R = 11;
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const tA = new THREE.Vector3(), tB = new THREE.Vector3(), tC = new THREE.Vector3(), tD = new THREE.Vector3();
+const tQ = new THREE.Quaternion(), basis = new THREE.Matrix4();
+const tangent = (v, u) => v.addScaledVector(u, -v.dot(u));
+function dirTo(a, b, out) { out.copy(b).addScaledVector(a, -a.dot(b)); const l = out.length(); return l < 1e-6 ? out.set(0, 0, 0) : out.divideScalar(l); }
+const chord = (a, b) => a.distanceTo(b) * R;                 // ~ distance along the surface for nearby points
+function moveOnSphere(u, vel, dt, carry) {                   // slide unit-vector u along tangent velocity; parallel-transport vel (+ carry vectors)
+  const s = vel.length(); if (s < 1e-6) return;
+  tA.crossVectors(u, vel).normalize();
+  tQ.setFromAxisAngle(tA, s * dt / R);
+  u.applyQuaternion(tQ).normalize(); vel.applyQuaternion(tQ); tangent(vel, u);
+  if (carry) for (const c of carry) { c.applyQuaternion(tQ); tangent(c, u).normalize(); }
+}
+function offsetU(u, dir, dist, out) { tB.crossVectors(u, dir).normalize(); return out.copy(u).applyAxisAngle(tB, dist / R).normalize(); }
+const signedAng = (u, a, b) => Math.atan2(u.dot(tC.crossVectors(a, b)), a.dot(b));
+function turnToward(face, u, want, maxA) { if (want.lengthSq() < 1e-6) return; const a = signedAng(u, face, want); face.applyAxisAngle(u, clamp(a, -maxA, maxA)); tangent(face, u).normalize(); }
+function place(obj, u, f, h) {
+  obj.position.copy(u).multiplyScalar(R + h);
+  tD.crossVectors(u, f).normalize(); tC.crossVectors(tD, u);
+  basis.makeBasis(tD, u, tC); obj.quaternion.setFromRotationMatrix(basis);
+}
+let seed = 11;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const randDir = (r = Math.random) => { const z = r() * 2 - 1, t = r() * 6.2832, s = Math.sqrt(1 - z * z); return new THREE.Vector3(s * Math.cos(t), z, s * Math.sin(t)); };
+const anyTangent = (u, out) => { out.set(0, 1, 0); if (Math.abs(u.y) > 0.9) out.set(1, 0, 0); return tangent(out, u).normalize(); };
+
+// ======================= the blue moon =======================
+const MOON = 0x6FC2F7, MOON_DARK = 0x19B3A6, MOON_RIM = 0xC4F25A;
+const moon = new THREE.Mesh(SPH(R, 34, 24), toon(MOON));
+scene.add(moon);
+{
+  const discs = [], rims = [], used = [];
+  for (let i = 0; i < 46; i++) {
+    const d = randDir(rnd), r = 0.35 + Math.pow(rnd(), 2.2) * 1.7;
+    if (used.some(o => o.d.distanceTo(d) * R < (o.r + r) * 0.9)) continue;
+    used.push({ d, r });
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), d);
+    const disc = new THREE.CircleGeometry(r, 9); disc.applyQuaternion(q); disc.translate(...d.clone().multiplyScalar(R + 0.015).toArray()); discs.push(disc);
+    const rim = new THREE.TorusGeometry(r, 0.07 + r * 0.05, 4, 9); rim.applyQuaternion(q); rim.translate(...d.clone().multiplyScalar(R + 0.02).toArray()); rims.push(rim);
+  }
+  scene.add(new THREE.Mesh(mergeGeometries(discs), toon(MOON_DARK, false)));
+  scene.add(new THREE.Mesh(mergeGeometries(rims), toon(MOON_RIM)));
+  // a few moon pebbles
+  const peb = [];
+  for (let i = 0; i < 70; i++) {
+    const d = randDir(rnd), g = new THREE.IcosahedronGeometry(0.08 + rnd() * 0.12, 0);
+    g.translate(...d.multiplyScalar(R + 0.03).toArray()); peb.push(g);
+  }
+  scene.add(new THREE.Mesh(mergeGeometries(peb), toon(0xFFF27A)));
+}
+
+// ======================= sky: stars + a far ringed planet =======================
+const skyMat = c => noLine(new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
+function starShape(points, inner) {
+  const sh = new THREE.Shape();
+  for (let i = 0; i < points * 2; i++) { const a = Math.PI / 2 + i * Math.PI / points, r = i % 2 ? inner : 1; i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+  return new THREE.ShapeGeometry(sh);
+}
+const STAR_GEO = { 4: starShape(4, 0.32), 5: starShape(5, 0.45) };
+const STAR_INK = skyMat(0x0b0920), STAR_COLS = [0xfff4cf, 0xffe066, 0xffffff, 0xcff6ff].map(skyMat);
+const SKY_R = 120, twinklers = [];
+for (let i = 0; i < 150; i++) {
+  const g = new THREE.Group(), p = rnd() < 0.6 ? 4 : 5, size = i < 30 ? 1.4 + rnd() * 1.4 : 0.45 + rnd() * 0.6;
+  const ink = new THREE.Mesh(STAR_GEO[p], STAR_INK); ink.scale.setScalar(1.38); ink.position.z = -0.05;
+  g.add(ink, new THREE.Mesh(STAR_GEO[p], STAR_COLS[(rnd() * 4) | 0]));
+  g.position.copy(randDir(rnd)).multiplyScalar(SKY_R); g.lookAt(0, 0, 0); g.rotateZ(rnd() * 3);
+  g.scale.setScalar(size); g.userData = { base: size, ph: rnd() * 6.28, sp: 0.6 + rnd() * 1.4 };
+  scene.add(g); twinklers.push(g);
+}
+{ // a big ringed planet hanging in the sky
+  const pl = new THREE.Group();
+  part(SPH(9, 16, 12), 0x1E7FE0, pl);                                     // an ocean world on the horizon
+  part(new THREE.SphereGeometry(9.05, 16, 12, 0, 6.28, 1.15, 0.55), 0x3EE07A, pl, [0, 0, 0], null, null, false);
+  const ring = part(new THREE.TorusGeometry(14, 1.1, 4, 24), 0xFFE94A, pl, [0, 0, 0], [1, 1, 0.25], [1.25, 0.3, 0]);
+  pl.position.set(-60, 38, -70); scene.add(pl);
+}
+
+// ======================= particles & comic FX =======================
+const sparkTex = (() => {
+  const mk = draw => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.lineJoin = x.lineCap = 'round'; draw(x); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+  const star = x => { x.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 - Math.PI / 2, r = i % 2 ? 7 : 28; x.lineTo(32 + Math.cos(a) * r, 32 + Math.sin(a) * r); } x.closePath(); x.lineWidth = 6; x.strokeStyle = '#141018'; x.stroke(); x.fillStyle = '#fff'; x.fill(); };
+  const dot = x => { x.beginPath(); x.arc(32, 32, 20, 0, 6.3); x.lineWidth = 7; x.strokeStyle = '#141018'; x.stroke(); x.fillStyle = '#fff'; x.fill(); };
+  return [mk(star), mk(dot)];
+})();
+const sparks = [];
+function emitSpark(pos, upV, col, big) {
+  const m = new THREE.SpriteMaterial({ map: sparkTex[(Math.random() * 2) | 0], color: col, transparent: true, depthWrite: false });
+  const s = new THREE.Sprite(m); s.position.copy(pos);
+  const size = (big ? 0.5 : 0.3) * (0.7 + Math.random() * 0.6); s.scale.setScalar(size);
+  const vel = new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(5).addScaledVector(upV, 1.5 + Math.random() * 2);
+  scene.add(s); sparks.push({ s, vel, life: 0, max: 0.35 + Math.random() * 0.35, size, spin: (Math.random() - .5) * 14 });
+}
+function updateSparks(dt) {
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    const p = sparks[i]; p.life += dt; const k = p.life / p.max;
+    if (k >= 1) { scene.remove(p.s); p.s.material.dispose(); sparks.splice(i, 1); continue; }
+    p.s.position.addScaledVector(p.vel, dt); p.vel.multiplyScalar(1 - 3 * dt);
+    p.s.material.rotation += p.spin * dt; p.s.scale.setScalar(p.size * (1 - k * 0.6)); p.s.material.opacity = 1 - k * k;
+  }
+}
+// comic word bursts + floating numbers (canvas sprites)
+const wordCache = {};
+function wordTex(text, fill, burst) {
+  const k = text + fill + burst; if (wordCache[k]) return wordCache[k];
+  const c = document.createElement('canvas'); c.width = 256; c.height = 160; const x = c.getContext('2d');
+  x.lineJoin = 'round';
+  if (burst) {
+    x.beginPath(); const n = 14; for (let i = 0; i < n * 2; i++) { const a = i * Math.PI / n, r = i % 2 ? 46 : 74 + (i % 4) * 4; x.lineTo(128 + Math.cos(a) * r * 1.5, 80 + Math.sin(a) * r * 0.95); } x.closePath();
+    x.fillStyle = burst; x.fill(); x.lineWidth = 7; x.strokeStyle = '#161216'; x.stroke();
+  }
+  let fs = burst ? 64 : 58; x.font = `${fs}px Bangers, 'Patrick Hand', cursive`;
+  while (x.measureText(text).width > 220 && fs > 20) { fs -= 4; x.font = `${fs}px Bangers, 'Patrick Hand', cursive`; }
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.lineWidth = 10; x.strokeStyle = '#161216'; x.strokeText(text, 128, 84);
+  x.fillStyle = fill; x.fillText(text, 128, 84);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return (wordCache[k] = t);
+}
+const words = [];
+function popWord(text, u, h, opt = {}) {
+  const m = new THREE.SpriteMaterial({ map: wordTex(text, opt.fill || '#FFE94A', opt.burst || null), transparent: true, depthWrite: false, depthTest: false });
+  const s = new THREE.Sprite(m); s.renderOrder = 10;
+  s.position.copy(u).multiplyScalar(R + h);
+  const sc = opt.size || 1.6; s.scale.set(sc * 1.6, sc, 1);
+  scene.add(s); words.push({ s, u: u.clone(), h, life: 0, max: opt.life || 0.75, sc, rise: opt.rise ?? 1.4, rot: (Math.random() - 0.5) * 0.5 });
+  m.rotation = words[words.length - 1].rot;
+}
+function updateWords(dt) {
+  for (let i = words.length - 1; i >= 0; i--) {
+    const w = words[i]; w.life += dt; const k = w.life / w.max;
+    if (k >= 1) { scene.remove(w.s); w.s.material.dispose(); words.splice(i, 1); continue; }
+    w.h += w.rise * dt; w.s.position.copy(w.u).multiplyScalar(R + w.h);
+    const pop = k < 0.15 ? 0.6 + k / 0.15 * 0.55 : 1.15 - Math.min(0.15, (k - 0.15) * 0.5);
+    w.s.scale.set(w.sc * 1.6 * pop, w.sc * pop, 1); w.s.material.opacity = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
+  }
+}
+
+// ======================= sound (tiny synth) =======================
+let AC = null, sfxBus = null;
+function audioInit() {
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); sfxBus = AC.createGain(); sfxBus.gain.value = 0.32; sfxBus.connect(AC.destination); } catch (e) { AC = null; }
+}
+const lastSfx = {};
+function sfx(name) {
+  if (!AC) return; const now = AC.currentTime;
+  if (lastSfx[name] && now - lastSfx[name] < 0.045) return; lastSfx[name] = now;
+  const tone = (type, f0, f1, dur, vol = 0.5, delay = 0) => {
+    const o = AC.createOscillator(), g = AC.createGain(); o.type = type;
+    o.frequency.setValueAtTime(f0, now + delay); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), now + delay + dur);
+    g.gain.setValueAtTime(vol, now + delay); g.gain.exponentialRampToValueAtTime(0.001, now + delay + dur);
+    o.connect(g); g.connect(sfxBus); o.start(now + delay); o.stop(now + delay + dur + 0.02);
+  };
+  const noise = (dur, vol, freq) => {
+    const b = AC.createBuffer(1, AC.sampleRate * dur, AC.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = b; f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 1.5;
+    g.gain.setValueAtTime(vol, now); g.gain.exponentialRampToValueAtTime(0.001, now + dur); s.connect(f); f.connect(g); g.connect(sfxBus); s.start(now);
+  };
+  switch (name) {
+    case 'twang': tone('triangle', 720, 260, 0.09, 0.35); break;
+    case 'clang': tone('square', 1250, 900, 0.09, 0.18); noise(0.08, 0.5, 3200); break;
+    case 'bash': tone('sawtooth', 160, 60, 0.18, 0.4); noise(0.12, 0.6, 900); break;
+    case 'bonk': tone('sine', 620, 180, 0.12, 0.6); break;
+    case 'pop': tone('sine', 320, 70, 0.16, 0.6); noise(0.1, 0.35, 1800); break;
+    case 'zap': tone('square', 900, 1400, 0.05, 0.12); break;
+    case 'pick': tone('triangle', 880, 880, 0.08, 0.4); tone('triangle', 1320, 1320, 0.14, 0.4, 0.08); break;
+    case 'sting': tone('sawtooth', 300, 90, 0.35, 0.45); noise(0.2, 0.4, 600); break;
+    case 'swap': tone('triangle', 500, 1000, 0.12, 0.35); break;
+    case 'boom': tone('sine', 150, 45, 0.2, 0.7); noise(0.14, 0.55, 500); break;
+    case 'whoosh': noise(0.28, 0.3, 1500); tone('sawtooth', 260, 640, 0.2, 0.08); break;
+    case 'buzz': tone('sawtooth', 170, 230, 0.3, 0.1); break;
+    case 'skid': noise(0.2, 0.25, 2400); break;
+    case 'wave': [523, 659, 784, 1046].forEach((f, i) => tone('square', f, f, 0.11, 0.14, i * 0.09)); break;
+    case 'over': [392, 330, 262, 196].forEach((f, i) => tone('triangle', f, f * 0.98, 0.25, 0.4, i * 0.2)); break;
+  }
+}
+const bgm = new Audio('music.mp3'); bgm.loop = true; bgm.volume = 0.45; bgm.preload = 'auto';
+let musicOn = true;
+try { musicOn = localStorage.getItem('cowaltz-music') !== 'off'; } catch (e) { }
+const musicBtn = document.getElementById('music');
+const syncMusic = () => musicBtn.classList.toggle('off', !musicOn); syncMusic();
+const playMusic = () => { if (musicOn && !AUTOTEST) bgm.play().catch(() => { }); };
+musicBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); musicOn = !musicOn; syncMusic(); try { localStorage.setItem('cowaltz-music', musicOn ? 'on' : 'off'); } catch (_) { } musicOn ? playMusic() : bgm.pause(); });
+
+// ======================= heroes =======================
+// --- the Knight: yellow-green armour, orange crest, black beard, orange mittens, boots and egg shield
+function buildKnight() {
+  const root = new THREE.Group(), body = pivot(root), P = {};
+  const PANTS = 0xEFB84A, ORANGE = 0xF08A00, ARMOR = 0xDDF000, SKIN = 0xD8BE84, INK = 0x161216;
+  for (const s of [-1, 1]) {
+    const hip = pivot(body, [s * 0.15, 0.3, 0]); P[s < 0 ? 'legR' : 'legL'] = hip;
+    part(new THREE.CylinderGeometry(0.15, 0.14, 0.26, 12), PANTS, hip, [0, -0.11, 0]);
+    part(SPH(0.15, 14, 10), ORANGE, hip, [0, -0.24, 0.05], [1, 0.62, 1.4]);
+  }
+  part(new THREE.CylinderGeometry(0.31, 0.37, 0.5, 18), ARMOR, body, [0, 0.55, 0]);
+  part(new THREE.CylinderGeometry(0.39, 0.42, 0.14, 18), ARMOR, body, [0, 0.33, 0]);
+  part(new THREE.BoxGeometry(0.03, 0.34, 0.02), INK, body, [0, 0.5, 0.35], null, [-0.12, 0, 0], false);
+  part(SPH(0.07, 8, 6), 0xF7FF9A, body, [-0.2, 0.62, 0.24], [0.6, 1.4, 0.4], null, false);   // shine
+  // arms
+  const shR = pivot(body, [-0.38, 0.7, 0]); P.armR = shR;
+  part(new THREE.CylinderGeometry(0.08, 0.08, 0.26, 10), SKIN, shR, [0, -0.13, 0]);
+  part(SPH(0.13, 14, 10), ORANGE, shR, [0, -0.3, 0.02]);
+  const shL = pivot(body, [0.38, 0.7, 0]); P.armL = shL;
+  part(new THREE.CylinderGeometry(0.08, 0.08, 0.22, 10), SKIN, shL, [0, -0.11, 0]);
+  part(SPH(0.13, 14, 10), ORANGE, shL, [0, -0.26, 0.05]);
+  // the shield (orange egg) carried on his left
+  const shield = pivot(body, [0.46, 0.58, 0.28]); P.shield = shield;
+  part(SPH(0.44, 22, 16), ORANGE, shield, [0, 0, 0], [0.78, 1, 0.3]);
+  part(SPH(0.1, 10, 8), 0xF5C890, shield, [-0.12, 0.18, 0.12], [0.75, 1.1, 0.4], null, false);
+  part(SPH(0.05, 8, 6), 0xF5C890, shield, [0.05, 0.3, 0.1], null, null, false);
+  // head
+  const head = pivot(body, [0, 1.12, 0.02]); P.head = head;
+  part(SPH(0.42, 24, 18), SKIN, head, [0, 0, 0], [1, 0.95, 0.95]);
+  for (const s of [-1, 1]) {
+    part(SPH(0.12, 14, 10), 0xffffff, head, [s * 0.16, 0.04, 0.33], [1, 1.1, 0.55]);
+    part(SPH(0.055, 10, 8), INK, head, [s * 0.15, 0.03, 0.4], null, null, false);
+    part(new THREE.ConeGeometry(0.08, 0.2, 6), INK, head, [s * 0.44, -0.12, 0.04], null, [0, 0, s * 1.7]);   // sideburn spikes
+  }
+  part(SPH(0.36, 20, 14), INK, head, [0, -0.2, 0.2], [1.05, 0.72, 0.68]);           // beard
+  part(SPH(0.05, 8, 6), SKIN, head, [0, -0.13, 0.44], [1.5, 0.6, 0.6], null, false);   // mouth
+  // helmet: yellow-green shell around the back and sides, orange top cap, crest, three visor slots
+  part(new THREE.SphereGeometry(0.48, 26, 18, Math.PI - 0.55, Math.PI + 1.1, 0, 2.15), toon(ARMOR, true, { side: THREE.DoubleSide }), head, [0, 0.03, -0.02]);
+  part(new THREE.SphereGeometry(0.5, 26, 12, 0, Math.PI * 2, 0, 0.82), toon(ORANGE, true, { side: THREE.DoubleSide }), head, [0, 0.03, -0.02]);
+  part(new THREE.SphereGeometry(0.49, 26, 6, 0, Math.PI, 0.78, 0.4), toon(ARMOR, true, { side: THREE.DoubleSide }), head, [0, 0.03, -0.02]);   // brow band
+  part(SPH(0.08, 8, 6), 0xF7FF9A, head, [-0.33, 0.12, 0.2], [0.5, 1.2, 0.5], null, false);
+  part(new THREE.ConeGeometry(0.15, 0.38, 14), ORANGE, head, [0, 0.62, -0.05], [0.5, 1, 1], [-0.25, 0, 0]);
+  [[-0.17, 0.3], [0, 0.33], [0.17, 0.3]].forEach(([x, y]) => {
+    const z = Math.sqrt(Math.max(0, 0.5 * 0.5 - x * x - (y - 0.03) * (y - 0.03))) - 0.02;
+    const m = part(new THREE.CapsuleGeometry(0.035, 0.08, 4, 8), 0x2E2E36, head, [x, y, z - 0.01]);
+    m.lookAt(x * 3, y * 3, z * 3); m.scale.set(1, 1, 0.5);
+  });
+  return { root, body, P };
+}
+// --- the Fairy Princess: long brown hair, gem circlet, round glasses, purple dress with draped sleeves, belt + quiver, bow, butterfly wings
+function buildFairy() {
+  const root = new THREE.Group(), body = pivot(root), P = {};
+  const DRESS = 0x7340B5, HAIR = 0xB86E2C, SKIN = 0xF5E0B0, INK = 0x161216;
+  for (const s of [-1, 1]) { const f = pivot(body, [s * 0.13, 0.1, 0]); P[s < 0 ? 'legR' : 'legL'] = f; part(SPH(0.13, 12, 8), INK, f, [0, -0.04, 0.06], [1, 0.6, 1.5]); }
+  part(new THREE.CylinderGeometry(0.19, 0.46, 0.76, 22), DRESS, body, [0, 0.47, 0]);
+  part(new THREE.TorusGeometry(0.25, 0.045, 6, 22), INK, body, [0, 0.66, 0], null, [Math.PI / 2, 0, 0]);
+  part(new THREE.ConeGeometry(0.07, 0.16, 6), 0xE8202E, body, [0.03, 0.66, 0.27], null, [0, 0, 1.3]);
+  part(new THREE.ConeGeometry(0.07, 0.16, 6), 0xE8202E, body, [0.15, 0.66, 0.24], null, [0, 0, -1.3]);
+  // quiver at the belt, slanting across her left hip, with arrow tips
+  const qv = pivot(body, [0.24, 0.5, 0.18], [0.2, 0, -1.05]);
+  part(new THREE.CylinderGeometry(0.075, 0.065, 0.42, 10), INK, qv);
+  for (let i = 0; i < 3; i++) part(new THREE.ConeGeometry(0.035, 0.09, 5), 0xB8BEC8, qv, [-0.03 + i * 0.03, 0.27, 0.01 * i]);
+  // arms with draped sleeves
+  const shR = pivot(body, [-0.24, 0.78, 0]); P.armR = shR;
+  part(new THREE.CylinderGeometry(0.07, 0.17, 0.34, 12, 1, true), toon(DRESS, true, { side: THREE.DoubleSide }), shR, [0, -0.17, 0]);
+  part(SPH(0.075, 10, 8), SKIN, shR, [0, -0.33, 0.02]);
+  const bow = pivot(shR, [0, -0.33, 0.05]); P.bow = bow;
+  part(new THREE.TorusGeometry(0.42, 0.028, 6, 22, 2.3).rotateZ(-1.15).rotateY(-Math.PI / 2).translate(0, 0, -0.42), 0x8A4A42, bow);
+  P.string = part(new THREE.CylinderGeometry(0.008, 0.008, 0.77, 4), 0x1a1a1a, bow, [0, 0, -0.25], null, null, false);
+  const shL = pivot(body, [0.24, 0.78, 0]); P.armL = shL;
+  part(new THREE.CylinderGeometry(0.07, 0.17, 0.34, 12, 1, true), toon(DRESS, true, { side: THREE.DoubleSide }), shL, [0, -0.17, 0]);
+  part(SPH(0.075, 10, 8), SKIN, shL, [0, -0.33, 0.02]);
+  // butterfly wings (small, on her back)
+  P.wings = [];
+  for (const s of [-1, 1]) {
+    const wp = pivot(body, [s * 0.06, 0.82, -0.2], [-0.55, 0, 0]), w = pivot(wp); P.wings.push(w);
+    part(new THREE.CircleGeometry(0.3, 18), toon(0xC9A4FF, true, { side: THREE.DoubleSide }), w, [s * 0.22, 0.14, 0], [1, 0.75, 1], [0, 0, s * 0.5]);
+    part(new THREE.CircleGeometry(0.2, 16), toon(0xFF9FD0, true, { side: THREE.DoubleSide }), w, [s * 0.16, -0.12, 0], [1, 0.8, 1], [0, 0, -s * 0.5]);
+  }
+  // head
+  const head = pivot(body, [0, 1.13, 0]); P.head = head;
+  part(SPH(0.42, 24, 18), SKIN, head, [0, 0, 0], [1.06, 0.95, 0.95]);
+  part(new THREE.SphereGeometry(0.47, 26, 16, 0, Math.PI * 2, 0, 1.2), HAIR, head, [0, 0.0, -0.03], [1.04, 1, 1]);
+  part(new THREE.SphereGeometry(0.47, 26, 18, Math.PI - 0.35, Math.PI + 0.7, 0, 2.4), toon(HAIR, true, { side: THREE.DoubleSide }), head, [0, 0, -0.03], [1.04, 1, 1]);
+  part(SPH(0.42, 18, 14), HAIR, head, [0, -0.5, -0.22], [1.25, 1.35, 0.55]);            // long hair down her back
+  for (const s of [-1, 1]) part(SPH(0.24, 14, 10), HAIR, head, [s * 0.44, -0.36, -0.04], [0.55, 1.5, 0.7]);
+  part(new THREE.TorusGeometry(0.47, 0.035, 6, 30), 0xEDEDED, head, [0, 0.17, -0.02], [1.05, 1, 1], [Math.PI / 2 - 0.3, 0, 0]);
+  [-0.15, 0, 0.15].forEach((x, i) => part(SPH(0.06, 10, 8), 0x9C86D6, head, [x, 0.34 + (i === 1 ? 0.02 : 0), 0.33 - Math.abs(x) * 0.25]));
+  for (const s of [-1, 1]) {
+    part(SPH(0.1, 12, 8), 0xffffff, head, [s * 0.15, -0.01, 0.36], [1, 1, 0.45], null, false);
+    part(new THREE.TorusGeometry(0.115, 0.022, 6, 18), 0x7A4A3A, head, [s * 0.15, -0.01, 0.41]);
+    part(SPH(0.05, 10, 8), 0x22AA44, head, [s * 0.14, -0.02, 0.41], [1, 1, 0.5], null, false);
+    part(SPH(0.024, 8, 6), INK, head, [s * 0.14, -0.02, 0.425], null, null, false);
+    part(new THREE.BoxGeometry(0.15, 0.045, 0.03), INK, head, [s * 0.16, 0.15, 0.4], null, [0, 0, s * 0.22], false);
+  }
+  part(new THREE.BoxGeometry(0.03, 0.006, 0.02), 0x7A4A3A, head, [0, -0.08, 0.4], null, null, false);
+  part(SPH(0.035, 8, 6), 0xE8A0A0, head, [0, -0.21, 0.39], [1.4, 0.6, 0.5], null, false);
+  return { root, body, P };
+}
+
+// --- the Trooper (from the Tuto planet): white helmet with black goggles and grey chevrons, black vest, a huge black gun firing orange knock-back balls
+const TRC = { white: 0xF2F2EE, grey: 0xC9C9D1, black: 0x1B1820, dark: 0x2B2832, steel: 0x4F4A5C };
+function buildSoldier() {
+  const root = new THREE.Group(), body = pivot(root), P = {};
+  const rb = (w, h, d, r = 0.04) => new RoundedBoxGeometry(w, h, d, 3, r);
+  for (const s of [-1, 1]) {
+    const hip = pivot(body, [s * 0.14, 0.36, 0]); P[s < 0 ? 'legR' : 'legL'] = hip;
+    part(rb(0.19, 0.3, 0.2), TRC.white, hip, [0, -0.15, 0]);
+    part(rb(0.21, 0.09, 0.28, 0.03), TRC.black, hip, [0, -0.31, 0.03]);
+  }
+  part(rb(0.6, 0.18, 0.42, 0.06), TRC.dark, body, [0, 0.4, 0]);
+  part(rb(0.62, 0.46, 0.46, 0.05), TRC.white, body, [0, 0.68, 0]);
+  part(rb(0.56, 0.4, 0.08, 0.03), TRC.black, body, [0, 0.68, 0.22]);
+  part(rb(0.56, 0.4, 0.08, 0.03), TRC.black, body, [0, 0.68, -0.22]);
+  for (const s of [-1, 1]) part(rb(0.14, 0.08, 0.48, 0.02), TRC.black, body, [0.2 * s, 0.9, 0]);
+  part(rb(0.66, 0.08, 0.48, 0.02), TRC.black, body, [0, 0.47, 0]);
+  part(rb(0.1, 0.08, 0.05, 0.015), TRC.steel, body, [0, 0.47, 0.25]);
+  for (const s of [-1, 1]) part(rb(0.15, 0.12, 0.07, 0.02), TRC.steel, body, [0.14 * s, 0.58, 0.27]);
+  const shR = pivot(body, [-0.36, 0.84, 0]); P.armR = shR;
+  part(new THREE.CylinderGeometry(0.085, 0.08, 0.3, 10), TRC.white, shR, [0, -0.15, 0]);
+  part(SPH(0.11, 12, 8), TRC.black, shR, [0, -0.32, 0]);
+  const shL = pivot(body, [0.36, 0.84, 0]); P.armL = shL;
+  part(new THREE.CylinderGeometry(0.085, 0.08, 0.3, 10), TRC.white, shL, [0, -0.15, 0]);
+  part(SPH(0.11, 12, 8), TRC.black, shL, [0, -0.32, 0]);
+  // helmet head
+  const head = pivot(body, [0, 1.2, 0]); P.head = head; head.scale.setScalar(1.12);
+  part(SPH(1, 28, 20), TRC.white, head, [0, 0.04, 0], [0.37, 0.43, 0.4]);
+  part(rb(0.62, 0.24, 0.52, 0.07), TRC.white, head, [0, -0.27, 0]);
+  part(rb(0.08, 0.05, 0.5, 0.02), TRC.grey, head, [0, 0.46, 0]);
+  for (const s of [-1, 1]) {
+    part(rb(0.3, 0.19, 0.06, 0.04), TRC.grey, head, [0.16 * s, 0.07, 0.345], null, [0, 0.4 * s, 0.18 * s]);
+    part(rb(0.25, 0.14, 0.08, 0.04), TRC.black, head, [0.16 * s, 0.07, 0.365], null, [0, 0.4 * s, 0.18 * s]);
+    part(SPH(0.04, 10, 8), TRC.grey, head, [0.215 * s, -0.3, 0.3]);
+    part(rb(0.17, 0.05, 0.06, 0.015), TRC.grey, head, [0.08 * s, -0.19, 0.345], null, [0, 0, 0.5 * s]);
+    part(rb(0.12, 0.04, 0.05, 0.015), TRC.grey, head, [0.06 * s, -0.27, 0.32], null, [0, 0, 0.5 * s]);
+  }
+  part(rb(0.1, 0.07, 0.05, 0.02), TRC.grey, head, [0, -0.36, 0.3]);
+  // the gun: a huge black block with a scope, grip, magazine and a rimmed muzzle
+  const gun = pivot(body, [-0.12, 0.5, 0.36]); gun.scale.setScalar(0.5); P.gun = gun;
+  part(rb(0.5, 0.7, 2.2, 0.05), TRC.dark, gun, [0, 0.55, 0.95]);
+  part(rb(0.52, 0.12, 1.0, 0.03), TRC.black, gun, [0, 0.3, 1.1]);
+  part(rb(0.26, 0.4, 0.3, 0.04), TRC.black, gun, [0, 0, 0]);
+  part(rb(0.22, 0.66, 0.36, 0.04), TRC.black, gun, [0, -0.1, 1.5], null, [-0.3, 0, 0]);
+  part(rb(0.36, 0.2, 1.1, 0.04), TRC.black, gun, [0, 1.03, 1.0]);
+  for (const z of [0.6, 1.4]) part(rb(0.12, 0.12, 0.12, 0.02), TRC.steel, gun, [0, 0.92, z]);
+  part(new THREE.CylinderGeometry(0.2, 0.2, 0.38, 14).rotateX(Math.PI / 2), TRC.black, gun, [0, 0.55, 2.2]);
+  part(new THREE.TorusGeometry(0.2, 0.04, 6, 16), TRC.steel, gun, [0, 0.55, 2.4]);
+  part(rb(0.08, 0.34, 1.2, 0.02), TRC.steel, gun, [0.26, 0.55, 0.9]); part(rb(0.08, 0.34, 1.2, 0.02), TRC.steel, gun, [-0.26, 0.55, 0.9]);
+  return { root, body, P };
+}
+
+const HERO_COL = { knight: 0xFFE94A, fairy: 0xD9A8FF, soldier: 0xFF9A5C };
+function makeHero(kind) {
+  const m = kind === 'knight' ? buildKnight() : kind === 'fairy' ? buildFairy() : buildSoldier();
+  m.root.scale.setScalar(0.95);
+  scene.add(m.root);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.06, 6, 36).rotateX(Math.PI / 2), noLine(new THREE.MeshBasicMaterial({ color: HERO_COL[kind] })));
+  scene.add(ring);
+  return Object.assign(m, {
+    kind, ring, u: new THREE.Vector3(0, 1, 0), face: new THREE.Vector3(0, 0, 1), vel: new THREE.Vector3(),
+    h: 0, inv: 0, phase: 0, walk: 0, bashT: 0, bashCd: 0, fireCd: 0, draw: 0, block: 0, recoil: 0, hitSet: new Set(),
+    puffy: 0, helpT: 0, cheer: 0, breath: 0, skid: 0, run: 0, idleT: -2 - Math.random() * 3, fidget: 0, lean: 0, bank: 0, lastFace: new THREE.Vector3(0, 0, 1)
+  });
+}
+const knight = makeHero('knight'), fairy = makeHero('fairy'), soldier = makeHero('soldier');
+const heroes = [knight, fairy, soldier];
+let active = knight;
+
+// ======================= bees =======================
+function stripeTex(col) {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 256; const x = c.getContext('2d');
+  x.fillStyle = col; x.fillRect(0, 0, 64, 256); x.fillStyle = '#161216';
+  [[0.2, 0.33], [0.47, 0.6], [0.74, 1.0]].forEach(([a, b]) => x.fillRect(0, a * 256, 64, (b - a) * 256));
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function faceTex(col) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256; const x = c.getContext('2d');
+  x.fillStyle = col; x.fillRect(0, 0, 512, 256);
+  x.fillStyle = '#161216'; x.fillRect(0, 196, 512, 60);
+  const fx = 128; x.lineJoin = x.lineCap = 'round';
+  for (const s of [-1, 1]) {
+    x.beginPath(); x.ellipse(fx + s * 40, 112, 30, 36, 0, 0, 6.3); x.fillStyle = '#fff'; x.fill(); x.lineWidth = 7; x.strokeStyle = '#161216'; x.stroke();
+    x.beginPath(); x.ellipse(fx + s * 30, 122, 9, 15, 0, 0, 6.3); x.fillStyle = '#161216'; x.fill();
+    x.beginPath(); x.moveTo(fx + s * 78, 70); x.lineTo(fx + s * 14, 98); x.lineWidth = 13; x.stroke();
+  }
+  x.beginPath(); x.ellipse(fx, 160, 15, 11, 0, 0, 6.3); x.fillStyle = '#FF8A1F'; x.fill(); x.lineWidth = 6; x.stroke();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const BEE_KIND = {          // every bee but the queen is a living missile: it aims, then launches itself stinger-first
+  dart: { col: '#FFE800', hp: 3, rad: 0.55, pts: 100, scale: 0.85, spd: 1.0 },    // straight dive
+  homer: { col: '#FFA21F', hp: 4, rad: 0.6, pts: 150, scale: 0.95, spd: 0.82 },   // curves after you
+  zig: { col: '#FF6FB4', hp: 4, rad: 0.6, pts: 175, scale: 0.95, spd: 0.95 },     // zig-zags in
+  queen: { col: '#FFD23C', hp: 40, rad: 1.4, pts: 2500, scale: 2.2, spd: 1 },     // the only one that shoots stingers
+};
+const BEE_GEO = {
+  abd: new THREE.SphereGeometry(0.4, 12, 9).rotateX(Math.PI / 2),
+  head: new THREE.SphereGeometry(0.36, 14, 10),
+  sting: new THREE.ConeGeometry(0.09, 0.32, 8).rotateX(-Math.PI / 2),
+  horn: new THREE.ConeGeometry(0.055, 0.17, 6),
+  wing: new THREE.CircleGeometry(0.3, 16),
+  crown: new THREE.ConeGeometry(0.05, 0.16, 4),
+};
+const BEE_MAT = {};
+for (const k in BEE_KIND) {
+  const c = BEE_KIND[k].col;
+  BEE_MAT[k] = { abd: new THREE.MeshToonMaterial({ map: stripeTex(c), gradientMap: ramp }), head: new THREE.MeshToonMaterial({ map: faceTex(c), gradientMap: ramp }) };
+  BEE_MAT[k].abd.flatShading = BEE_MAT[k].head.flatShading = true;
+}
+const WING_MAT = toon(0xF4FBFF, true, { side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
+function buildBee(kind) {
+  const root = new THREE.Group(), body = pivot(root), M = BEE_MAT[kind];
+  part(BEE_GEO.abd, M.abd, body, [0, 0, -0.34], [0.92, 0.92, 1.15]);
+  part(BEE_GEO.sting, 0x161216, body, [0, -0.02, -0.86]);
+  const head = part(BEE_GEO.head, M.head, body, [0, 0.12, 0.25]);
+  head.rotation.y = 0;
+  for (const s of [-1, 1]) part(BEE_GEO.horn, 0x161216, body, [s * 0.15, 0.48, 0.2], null, [0.2, 0, -s * 0.35]);
+  const wings = [];
+  for (const s of [-1, 1]) { const w = pivot(body, [s * 0.12, 0.3, -0.2]); part(BEE_GEO.wing, WING_MAT, w, [s * 0.26, 0.05, 0], [1, 0.55, 1], [Math.PI / 2, 0, 0]); wings.push(w); }
+  if (kind === 'queen') for (let i = 0; i < 5; i++) { const a = (i - 2) * 0.32; part(BEE_GEO.crown, 0xFFE94A, body, [Math.sin(a) * 0.2, 0.5, 0.25 + Math.cos(a) * 0.05 - 0.05]); }
+  root.scale.setScalar(BEE_KIND[kind].scale);
+  return { root, body, wings };
+}
+
+const bees = [];
+function spawnBee(kind, u) {
+  const m = buildBee(kind), K = BEE_KIND[kind];
+  scene.add(m.root);
+  const hpMul = kind === 'queen' ? 1 + Math.floor(wave / 5) * 0.4 : 1;
+  const b = Object.assign(m, {
+    kind, u: u.clone(), vel: new THREE.Vector3(), face: anyTangent(u, new THREE.Vector3()), h: 1.1,
+    hp: Math.round(K.hp * hpMul), maxHp: Math.round(K.hp * hpMul), rad: K.rad, t: Math.random() * 10, knock: 0, chain: 0, ricoCd: 0,
+    fireT: 1.5 + Math.random() * 1.5, dying: 0, squash: 0, pat: 0, patT: 0, spin: 0, orbit: Math.random() < 0.5 ? 1 : -1,
+    mode: 'approach', st: 0, cd: 0.8 + Math.random() * 1.6, ldir: new THREE.Vector3(), tgt: null, line: null, em: 0
+  });
+  bees.push(b); return b;
+}
+function removeBee(b) { scene.remove(b.root); if (b.line) scene.remove(b.line); const i = bees.indexOf(b); if (i >= 0) bees.splice(i, 1); }
+
+// ======================= projectiles: stingers (instanced) + arrows =======================
+const MAXB = 520;
+const stingGeo = new THREE.ConeGeometry(0.1, 0.36, 7).rotateX(Math.PI / 2);
+const bFill = new THREE.InstancedMesh(stingGeo, noLine(new THREE.MeshBasicMaterial({ color: 0xffffff })), MAXB);
+const bInk = new THREE.InstancedMesh(stingGeo, noLine(new THREE.MeshBasicMaterial({ color: 0x161216, side: THREE.BackSide })), MAXB);
+bFill.frustumCulled = bInk.frustumCulled = false;
+bFill.instanceMatrix.setUsage(THREE.DynamicDrawUsage); bInk.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+bFill.setColorAt(0, new THREE.Color()); scene.add(bInk, bFill);
+const bullets = []; for (let i = 0; i < MAXB; i++) bullets.push({ on: false, u: new THREE.Vector3(), v: new THREE.Vector3(), life: 0, friend: false });
+const COL_ENEMY = new THREE.Color(0xFF2E88), COL_FRIEND = new THREE.Color(0xFFE94A);
+let bulletCount = 0;
+function fireBullet(u, dir, speed, friend = false) {
+  const b = bullets.find(x => !x.on); if (!b) return null;
+  b.on = true; b.u.copy(u); b.v.copy(dir).multiplyScalar(speed); tangent(b.v, b.u); b.life = friend ? 2 : 5.5; b.friend = friend;
+  return b;
+}
+const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s1 = new THREE.Vector3(1, 1, 1), _s2 = new THREE.Vector3(1.55, 1.55, 1.3), _f = new THREE.Vector3();
+function drawBullets() {
+  let n = 0;
+  for (const b of bullets) {
+    if (!b.on) continue;
+    _f.copy(b.v).normalize(); _p.copy(b.u).multiplyScalar(R + 0.95);
+    tD.crossVectors(b.u, _f).normalize(); basis.makeBasis(tD, b.u, _f); _q.setFromRotationMatrix(basis);
+    _m4.compose(_p, _q, _s1); bFill.setMatrixAt(n, _m4); bFill.setColorAt(n, b.friend ? COL_FRIEND : COL_ENEMY);
+    _m4.compose(_p, _q, _s2); bInk.setMatrixAt(n, _m4); n++;
+  }
+  bFill.count = bInk.count = n; bulletCount = n;
+  bFill.instanceMatrix.needsUpdate = bInk.instanceMatrix.needsUpdate = true; if (bFill.instanceColor) bFill.instanceColor.needsUpdate = true;
+}
+const arrows = [];
+const arrowGeo = (() => {
+  const shaft = new THREE.CylinderGeometry(0.025, 0.025, 0.7, 5).rotateX(Math.PI / 2);
+  return shaft;
+})();
+function makeArrow() {
+  const g = new THREE.Group();
+  part(arrowGeo, 0x8A5A3A, g);
+  part(new THREE.ConeGeometry(0.07, 0.18, 6).rotateX(Math.PI / 2), 0xC8CED8, g, [0, 0, 0.42]);
+  part(new THREE.BoxGeometry(0.02, 0.12, 0.16), 0xE8202E, g, [0, 0.03, -0.3], null, null, false);
+  part(new THREE.BoxGeometry(0.12, 0.02, 0.16), 0xE8202E, g, [0, 0.03, -0.3], null, null, false);
+  scene.add(g); return { g, on: false, u: new THREE.Vector3(), v: new THREE.Vector3(), life: 0 };
+}
+function fireArrow(u, dir) {
+  let a = arrows.find(x => !x.on); if (!a) { if (arrows.length > 40) return; a = makeArrow(); arrows.push(a); }
+  a.on = true; a.g.visible = true; a.u.copy(u); a.v.copy(dir).multiplyScalar(21); a.life = 0.85;
+  sfx('twang');
+}
+
+const balls = [];
+const BALL_GEO = new THREE.SphereGeometry(0.21, 14, 10), BALL_RING = new THREE.TorusGeometry(0.212, 0.02, 5, 18);
+const BALL_SEAM = noLine(new THREE.MeshBasicMaterial({ color: 0x161216 }));
+function makeBall() {
+  const m = new THREE.Mesh(BALL_GEO, toon(0xFF7A2F)); m.add(new THREE.Mesh(BALL_RING, BALL_SEAM)); const r2 = new THREE.Mesh(BALL_RING, BALL_SEAM); r2.rotation.y = Math.PI / 2; m.add(r2);
+  scene.add(m); return { m, on: false, u: new THREE.Vector3(), v: new THREE.Vector3(), life: 0, em: 0 };
+}
+
+// ======================= EpiPen pickups =======================
+const pickups = [];
+function buildPen() {
+  const g = new THREE.Group(), s = pivot(g);
+  part(new THREE.CylinderGeometry(0.11, 0.11, 0.56, 12), 0xFFD400, s);
+  part(new THREE.CylinderGeometry(0.115, 0.115, 0.2, 12), 0xffffff, s, [0, 0.02, 0], null, null, false);
+  part(new THREE.CylinderGeometry(0.1, 0.12, 0.14, 12), 0xFF7A1F, s, [0, -0.35, 0]);
+  part(new THREE.CylinderGeometry(0.12, 0.11, 0.16, 12), 0x2F7BE8, s, [0, 0.36, 0]);
+  s.rotation.z = 0.5;
+  const ring = part(new THREE.TorusGeometry(0.55, 0.05, 6, 30).rotateX(Math.PI / 2), noLine(new THREE.MeshBasicMaterial({ color: 0x8BFF3C, transparent: true, opacity: 0.85 })), g, [0, -0.85, 0]);
+  return { g, s, ring };
+}
+function spawnPen(u) {
+  const p = buildPen(); scene.add(p.g);
+  pickups.push(Object.assign(p, { u: u.clone(), t: 0, life: 18 }));
+}
+
+// ======================= game state =======================
+let state = 'title';           // title | play | over
+let wave = 0, score = 0, pens = 3, best = 0, combo = 0, comboT = 0, waveQueue = [], spawnT = 0, nextWaveT = 0, stageT = 0;
+let slowmo = 1, overT = 0, simT = 0, shake = 0;
+try { best = +localStorage.getItem('cowaltz-best') || 0; } catch (e) { }
+const $ = id => document.getElementById(id);
+const stats = { rescues: 0, skids: 0, kills: 0, stings: 0, ricochets: 0, blocks: 0, pens: 0, arrows: 0, balls: 0, bashes: 0, launches: 0, maxWave: 0 };
+
+function resetHeroes() {
+  const u0 = new THREE.Vector3(0, 0.35, 1).normalize();
+  knight.u.copy(u0); knight.face.set(0, 1, 0); tangent(knight.face, knight.u).normalize();
+  const side = new THREE.Vector3().crossVectors(knight.u, knight.face).normalize();
+  offsetU(u0, side, -1.4, fairy.u); offsetU(u0, side, 1.4, soldier.u);
+  for (const h of heroes) { if (h !== knight) { h.face.copy(knight.face); tangent(h.face, h.u).normalize(); } h.vel.set(0, 0, 0); h.inv = 0; h.bashT = 0; h.bashCd = 0; h.fireCd = 0; h.puffy = 0; h.cheer = 0; h.skid = 0; h.run = 0; }
+  camU.copy(u0); camFwd.copy(knight.face); tangent(camFwd, camU).normalize();
+}
+function clearField() {
+  for (const b of [...bees]) removeBee(b);
+  for (const b of bullets) b.on = false;
+  for (const a of arrows) { a.on = false; a.g.visible = false; }
+  for (const b of balls) { b.on = false; b.m.visible = false; }
+  for (const p of pickups) scene.remove(p.g); pickups.length = 0;
+}
+function startGame() {
+  audioInit(); playMusic();
+  clearField(); resetHeroes();
+  wave = Math.max(0, (+QS.get('wave') || 1) - 1); score = 0; pens = 3; combo = 0; slowmo = 1; stageT = 0;
+  for (const k in stats) stats[k] = 0;
+  setActive(knight, true);
+  state = 'play'; document.body.classList.add('play');
+  $('title').hidden = true; $('over').hidden = true;
+  nextWaveT = 1.0; updateHud(true);
+}
+function gameOver() {
+  state = 'over'; sfx('over'); document.body.classList.remove('play');
+  const isBest = score > best; if (isBest) { best = score; try { localStorage.setItem('cowaltz-best', best); } catch (e) { } }
+  $('oScore').textContent = score; $('oWave').textContent = wave; $('oBest').textContent = best; $('oNew').textContent = isBest && score > 0 ? 'NEW BEST!' : '';
+  setTimeout(() => { $('over').hidden = false; }, 700);
+}
+function banner(text, sub = '', ms = 1700) {
+  const el = $('banner'); el.innerHTML = text + (sub ? `<small>${sub}</small>` : ''); el.classList.add('on');
+  clearTimeout(banner.t); banner.t = setTimeout(() => el.classList.remove('on'), ms);
+}
+function planWave(n) {
+  const q = [], mix = (k, c) => { for (let i = 0; i < c; i++) q.splice(Math.floor(Math.random() * (q.length + 1)), 0, k); };
+  for (let i = 0; i < 5 + n * 2; i++) q.push('dart');
+  mix('homer', n >= 2 ? 1 + Math.floor(n * 0.75) : 0);
+  mix('zig', n >= 4 ? Math.floor((n - 2) / 1.5) : 0);
+  if (n % 5 === 0) q.unshift('queen');
+  return q;
+}
+function startWave() {
+  wave++; stats.maxWave = wave; waveQueue = planWave(wave); spawnT = 0.4;
+  banner(`WAVE ${wave}`, wave % 5 === 0 ? 'THE QUEEN IS HERE!' : (wave === 1 ? 'here come the bees…' : ''));
+  say(`Wave ${wave}` + (wave % 5 === 0 ? '. The queen is here.' : ''));
+  sfx('wave'); updateHud(true);
+}
+function spawnPoint(minA, maxA) {
+  const c = tA.copy(knight.u).add(fairy.u).add(soldier.u).normalize();
+  const d = anyTangent(c, new THREE.Vector3()).applyAxisAngle(c, Math.random() * 6.283);
+  return offsetU(c.clone(), d, R * (minA + Math.random() * (maxA - minA)), new THREE.Vector3());
+}
+
+// ======================= HUD =======================
+const PEN_SVG = '<svg viewBox="0 0 14 40"><rect x="2" y="1" width="10" height="8" rx="2" fill="#2F7BE8" stroke="#161216" stroke-width="2"/><rect x="2" y="8" width="10" height="24" rx="2" fill="#FFD400" stroke="#161216" stroke-width="2"/><rect x="2" y="15" width="10" height="7" fill="#fff"/><rect x="3" y="31" width="8" height="7" rx="2" fill="#FF7A1F" stroke="#161216" stroke-width="2"/></svg>';
+let hudCache = '';
+function updateHud(force) {
+  const key = score + '|' + wave + '|' + pens;
+  if (!force && key === hudCache) return; hudCache = key;
+  $('scoreN').textContent = score.toLocaleString(); $('waveN').textContent = 'WAVE ' + Math.max(1, wave);
+  const pe = $('pens'); pe.innerHTML = (pens <= 6 ? PEN_SVG.repeat(pens) : PEN_SVG + ' ×' + pens) + (pens === 0 ? '<span style="font-size:18px;color:#FF6FB4">NO EPIPENS!</span>' : '');
+  pe.classList.toggle('low', pens <= 1);
+}
+function showCombo() {
+  const el = $('combo');
+  if (combo >= 2) { el.textContent = `${combo} HIT RICOCHET!`; el.classList.add('on'); el.style.transform = `translateX(-50%) scale(${1 + Math.min(0.6, combo * 0.05)})`; }
+  else el.classList.remove('on');
+}
+const HERO_UI = { knight: { pt: 'ptK', name: 'KNIGHT', act: 'BASH', col: '#F08A00' }, fairy: { pt: 'ptF', name: 'FAIRY', act: 'SHOOT', col: '#9A5CF0' }, soldier: { pt: 'ptS', name: 'TROOPER', act: 'FIRE', col: '#2B2832' } };
+function setActive(h, quiet) {
+  if (active !== h && !quiet) { sfx('swap'); popWord(HERO_UI[h.kind].name + '!', h.u, 2.4, { fill: '#fff', burst: HERO_UI[h.kind].col, size: 1.1, life: 0.7 }); }
+  active = h;
+  for (const x of heroes) { const el = $(HERO_UI[x.kind].pt); el.classList.toggle('on', x === h); el.querySelector('b').textContent = x === h ? 'YOU' : HERO_UI[x.kind].name; }
+  document.body.dataset.hero = h.kind; $('actL').textContent = HERO_UI[h.kind].act;
+}
+for (const x of heroes) $(HERO_UI[x.kind].pt).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (state === 'play') setActive(x); });
+$('startB').addEventListener('click', startGame);
+$('againB').addEventListener('click', startGame);
+$('bestT').textContent = best ? 'Best: ' + best.toLocaleString() : '';
+
+// ======================= input =======================
+const keys = new Set();
+let actHeld = false, actPressed = false;
+addEventListener('keydown', e => {
+  keys.add(e.code);
+  if ((e.code === 'Space' || e.code === 'KeyJ') && !e.repeat) { actPressed = true; actHeld = true; e.preventDefault(); }
+  if ((e.code === 'KeyQ' || e.code === 'KeyE' || e.code === 'Tab') && !e.repeat && state === 'play') { setActive(heroes[(heroes.indexOf(active) + 1) % heroes.length]); e.preventDefault(); }
+  if (e.code === 'Enter' && state !== 'play') startGame();
+});
+addEventListener('keyup', e => { keys.delete(e.code); if (e.code === 'Space' || e.code === 'KeyJ') actHeld = false; });
+const actBtn = $('act');
+actBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audioInit(); actPressed = true; actHeld = true; actBtn.classList.add('on'); try { actBtn.setPointerCapture(e.pointerId); } catch (_) { } });
+const actUp = () => { actHeld = false; actBtn.classList.remove('on'); };
+actBtn.addEventListener('pointerup', actUp); actBtn.addEventListener('pointercancel', actUp);
+
+const knob = $('knob'), joySvg = $('joy'), zone = $('stickZone');
+let stickId = null; const stick = { x: 0, y: 0 };
+function setStick(e) {
+  const r = joySvg.getBoundingClientRect(), s = r.width / 200;
+  let dx = (e.clientX - (r.left + r.width / 2)) / s, dy = (e.clientY - (r.top + r.height / 2)) / s;
+  const l = Math.hypot(dx, dy), M = 52; if (l > M) { dx *= M / l; dy *= M / l; }
+  stick.x = dx / M; stick.y = -dy / M; knob.setAttribute('transform', `translate(${100 + dx} ${100 + dy})`);
+}
+zone.addEventListener('pointerdown', e => { audioInit(); stickId = e.pointerId; zone.setPointerCapture(e.pointerId); setStick(e); e.preventDefault(); });
+zone.addEventListener('pointermove', e => { if (e.pointerId === stickId) setStick(e); });
+const endStick = e => { if (e.pointerId === stickId) { stickId = null; stick.x = stick.y = 0; knob.setAttribute('transform', 'translate(100 100)'); } };
+zone.addEventListener('pointerup', endStick); zone.addEventListener('pointercancel', endStick);
+
+// camera drag / pinch, and tap-a-hero to take control
+let orbitDelta = 0, pitchDelta = 0, camDist = 16, camPitch = 1.2;
+const camPtrs = new Map(); let pinchD = 0, tapDown = null;
+const pinchDist = () => { const [a, b] = [...camPtrs.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+cvs.addEventListener('pointerdown', e => {
+  audioInit(); try { cvs.setPointerCapture(e.pointerId); } catch (_) { }
+  camPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  tapDown = camPtrs.size === 1 ? { x: e.clientX, y: e.clientY, t: performance.now() } : null;
+  if (camPtrs.size === 2) pinchD = pinchDist();
+});
+cvs.addEventListener('pointermove', e => {
+  const p = camPtrs.get(e.pointerId); if (!p) return;
+  if (camPtrs.size === 1) { orbitDelta += e.clientX - p.x; pitchDelta += e.clientY - p.y; }
+  p.x = e.clientX; p.y = e.clientY;
+  if (camPtrs.size >= 2) { const d = pinchDist(); if (pinchD > 0 && d > 0) camDist = clamp(camDist * pinchD / d, 8, 24); pinchD = d; }
+});
+const _sp = new THREE.Vector3();
+function heroAtScreen(x, y) {
+  let bestH = null, bd = 1e9;
+  for (const h of heroes) {
+    _sp.copy(h.u).multiplyScalar(R + h.h + 0.75).project(camera);
+    if (_sp.z > 1) continue;
+    const sx = (_sp.x * 0.5 + 0.5) * innerWidth, sy = (-_sp.y * 0.5 + 0.5) * innerHeight;
+    const d = Math.hypot(sx - x, sy - y), lim = Math.max(55, 900 / Math.max(4, camera.position.distanceTo(h.root.position)));
+    if (d < lim && d < bd) { bd = d; bestH = h; }
+  }
+  return bestH;
+}
+const endCam = e => {
+  const td = tapDown; camPtrs.delete(e.pointerId); pinchD = camPtrs.size === 2 ? pinchDist() : 0;
+  if (td && e.type === 'pointerup' && performance.now() - td.t < 350 && Math.hypot(e.clientX - td.x, e.clientY - td.y) < 14 && state === 'play') {
+    const h = heroAtScreen(e.clientX, e.clientY); if (h) setActive(h);
+  }
+  tapDown = null;
+};
+cvs.addEventListener('pointerup', endCam); cvs.addEventListener('pointercancel', endCam);
+cvs.addEventListener('wheel', e => { e.preventDefault(); camDist = clamp(camDist * Math.exp(e.deltaY * 0.0012), 8, 24); }, { passive: false });
+
+// ======================= camera frame =======================
+const camU = new THREE.Vector3(0, 0.35, 1).normalize(), camFwd = new THREE.Vector3(0, 1, 0);
+tangent(camFwd, camU).normalize();
+const _prevCamU = new THREE.Vector3(), _qq = new THREE.Quaternion(), camCur = { p: QS.has('icon') ? 0.22 : 0.32, d: QS.has('icon') ? 5.4 : 7 };
+function updateCamera(dt, follow, dist, pitch) {
+  _prevCamU.copy(camU);
+  camU.lerp(follow, 1 - Math.exp(-5 * dt)).normalize();
+  _qq.setFromUnitVectors(_prevCamU, camU); camFwd.applyQuaternion(_qq); tangent(camFwd, camU).normalize();
+  camFwd.applyAxisAngle(camU, -orbitDelta * 0.006); tangent(camFwd, camU).normalize(); orbitDelta = 0;
+  camPitch = clamp(camPitch + pitchDelta * 0.004, 0.5, 1.4); pitchDelta = 0;
+  const k = 1 - Math.exp(-3 * dt);
+  camCur.p += ((pitch ?? camPitch) - camCur.p) * k; camCur.d += ((dist ?? camDist) - camCur.d) * k;
+  const p = camCur.p, d = camCur.d;
+  const focus = tA.copy(camU).multiplyScalar(R + 0.6);
+  camera.position.copy(focus).addScaledVector(camU, Math.sin(p) * d).addScaledVector(camFwd, -Math.cos(p) * d);
+  if (CALM) shake = 0;
+  if (shake > 0) { camera.position.x += (Math.random() - .5) * shake; camera.position.y += (Math.random() - .5) * shake; shake = Math.max(0, shake - dt * 2.5); }
+  camera.up.copy(camU);
+  camera.lookAt(tB.copy(focus).addScaledVector(camFwd, 0.9));
+  const right = tC.crossVectors(camFwd, camU);
+  sun.position.copy(focus).addScaledVector(camU, 10).addScaledVector(right, 5).addScaledVector(camFwd, -4); sun.target.position.copy(focus);
+}
+
+// ======================= helpers for gameplay =======================
+function nearestBee(u, maxD, coneFace = null, coneCos = -2) {
+  let best = null, bd = maxD;
+  for (const b of bees) {
+    if (b.dying) continue; const d = chord(u, b.u); if (d > bd) continue;
+    if (coneFace) { dirTo(u, b.u, tD); if (tD.dot(coneFace) < coneCos) continue; }
+    bd = d; best = b;
+  }
+  return best;
+}
+function nearestHero(u) { let best = null, bd = 1e9; for (const h of heroes) { const d = chord(u, h.u) + (h.puffy > 0 ? 50 : 0); if (d < bd) { bd = d; best = h; } } return best; }
+function addScore(n) { score += n; }
+function knockBee(b, dir, speed, chain = 0) {
+  const mul = b.kind === 'queen' ? 0.15 : 1;
+  b.vel.copy(dir).multiplyScalar(speed * mul); tangent(b.vel, b.u);
+  b.knock = b.kind === 'queen' ? 0.15 : 0.75; b.chain = chain; b.squash = 1;
+  if (b.kind !== 'queen' && (b.mode === 'aim' || b.mode === 'launch')) { b.mode = 'recover'; b.st = 1.1; b.tgt = null; }
+  if (b.kind !== 'queen') b.dizzy = 1.7;
+}
+function damageBee(b, n, src) {
+  if (b.dying) return;
+  b.hp -= n; b.squash = 1;
+  const hp = tA.copy(b.u);
+  popWord(String(n), hp, b.h + 0.9 + Math.random() * 0.3, { fill: src === 'rico' ? '#FFE94A' : '#fff', size: 0.55, life: 0.55, rise: 2.2 });
+  if (b.hp <= 0) killBee(b, src);
+}
+const KILL_WORDS = ['POW!', 'BAM!', 'SPLAT!', 'ZONK!', 'WHAM!'];
+function killBee(b, src) {
+  b.dying = 0.001; stats.kills++;
+  const K = BEE_KIND[b.kind], mult = 1 + b.chain * 0.5;
+  addScore(Math.round(K.pts * mult));
+  popWord(src === 'rico' ? 'BONK!' : KILL_WORDS[(Math.random() * KILL_WORDS.length) | 0], b.u, b.h + 0.5, { fill: '#FFE94A', burst: '#FF2E88', size: b.kind === 'queen' ? 2.6 : 1.4 });
+  tA.copy(b.u).multiplyScalar(R + b.h);
+  for (let i = 0; i < (b.kind === 'queen' ? 30 : 8); i++) emitSpark(tA, b.u, [0xFFE94A, 0xffffff, 0xFF6FB4][i % 3], true);
+  sfx('pop'); if (b.kind === 'queen') { shake = 0.8; banner('QUEEN DOWN!', '+' + Math.round(K.pts * mult)); }
+  if (b.kind === 'queen' || Math.random() < 0.075) spawnPen(b.u);
+  if (b.kind === 'queen') { const extra = offsetU(b.u, anyTangent(b.u, tB), 1.5, new THREE.Vector3()); spawnPen(extra); }
+}
+function stingHero(h, fromU) {
+  if (h.inv > 0 || state !== 'play' || overT > 0) return;
+  if (GOD) pens = Math.max(pens, 1);
+  stats.stings++;
+  dirTo(fromU, h.u, tA); h.vel.addScaledVector(tA, 7);
+  shake = 0.45; sfx('sting');
+  const el = $(HERO_UI[h.kind].pt); el.classList.remove('hurt'); void el.offsetWidth; el.classList.add('hurt');
+  if (pens <= 0) { popWord('OUCH!!', h.u, 2.2, { fill: '#fff', burst: '#FF2E88', size: 1.8, life: 1.2 }); slowmo = 0.25; overT = 1.1; h.inv = 99; updateHud(true); return; }
+  pens--; h.puffy = 4.5; h.inv = h.puffy + 1.2; h.helpT = 0;      // swells up and waits for a teammate's EpiPen
+  popWord('STUNG!', h.u, 2.4, { fill: '#fff', burst: '#FF2E88', size: 1.3, life: 0.9 });
+  say(`The ${HERO_UI[h.kind].name.toLowerCase()} got stung. ${pens} EpiPens left.`);
+  updateHud(true);
+}
+function giveEpiPen(h, from) {                                    // from = the teammate who ran over (or null)
+  h.puffy = 0; h.inv = 1.4; sfx('pick');
+  _p.copy(h.u).multiplyScalar(R + 1); for (let i = 0; i < 10; i++) emitSpark(_p, h.u, [0x8BFF3C, 0xFFE94A, 0xffffff][i % 3], i < 4);
+  if (from) {
+    stats.rescues++; addScore(250); from.cheer = 0.6; h.cheer = 0.6;
+    popWord('THANKS!', h.u, 2.5, { fill: '#161216', burst: '#8BFF3C', size: 1.2, life: 1 });
+    popWord('+250 TEAMWORK', from.u, 2.0, { fill: '#fff', size: 0.75, life: 1, rise: 1.6 });
+    say(`The ${HERO_UI[from.kind].name.toLowerCase()} brought the EpiPen.`);
+  } else popWord('PHEW…', h.u, 2.4, { fill: '#fff', size: 0.9, life: 0.9 });
+}
+function shieldPoint(out) { return offsetU(knight.u, knight.face, 0.55, out); }
+const _shield = new THREE.Vector3();
+function inShieldArc(fromU, cosLim = 0.3) { dirTo(knight.u, fromU, tD); return tD.dot(knight.face) > cosLim; }
+
+// ======================= hero update (player + AI) =======================
+const _want = new THREE.Vector3(), _aim = new THREE.Vector3(), _tmp = new THREE.Vector3(), _tmp2 = new THREE.Vector3(), _dv = new THREE.Vector3();
+const isDanger = b => b.mode === 'aim' || b.mode === 'launch' || b.kind === 'queen';
+function threatDir(u, range, out) {      // weighted direction toward nearby danger
+  out.set(0, 0, 0);
+  for (const b of bees) { if (b.dying) continue; const d = chord(u, b.u); if (d < range) out.addScaledVector(dirTo(u, b.u, tD), (b.kind === 'queen' ? 3 : isDanger(b) ? 2 : 1) / Math.max(1, d)); }
+  for (const b of bullets) { if (!b.on || b.friend) continue; const d = chord(u, b.u); if (d < range * 0.6) out.addScaledVector(dirTo(u, b.u, tD), 0.35 / Math.max(1, d)); }
+  return out;
+}
+function dodgeOne(h, pu, v, out, range, strength, hitR) {     // sidestep something flying at us
+  const d = chord(h.u, pu); if (d > range) return;
+  dirTo(pu, h.u, tD); const vdir = _tmp2.copy(v).normalize(), c = vdir.dot(tD); if (c < 0.2) return;
+  const lat = Math.sqrt(Math.max(0, 1 - c * c)) * d; if (lat > hitR) return;
+  const side = tC.crossVectors(h.u, vdir).normalize(); if (side.dot(tD) < 0) side.negate();
+  out.addScaledVector(side, strength * (hitR + 0.2 - lat) * (range - d + 1));
+}
+function dodgeThreats(h, out, range = 3.4, strength = 1) {
+  for (const b of bullets) if (b.on && !b.friend) dodgeOne(h, b.u, b.v, out, range, strength, 1.0);
+  for (const b of bees) {
+    if (b.dying || b.knock > 0) continue;
+    if (!b.seen) continue;                         // the AI doesn't read every attack
+    if (b.mode === 'launch') dodgeOne(h, b.u, b.vel, out, range * 2.2, strength * 1.3, 1.5);
+    else if (b.mode === 'aim' && b.tgt === h) { dirTo(b.u, h.u, tD); out.addScaledVector(tC.crossVectors(h.u, tD).normalize(), strength * 2.2 * b.orbit); }
+  }
+}
+function dangerBee(u, maxD) {           // the bee to deal with first: launched > aiming > closest
+  let best = null, bd = maxD;
+  for (const b of bees) { if (b.dying) continue; let d = chord(u, b.u); if (b.mode === 'launch') d *= 0.5; else if (b.mode === 'aim') d *= 0.7; if (d < bd) { bd = d; best = b; } }
+  return best;
+}
+function nearestPen(u, maxD) { let best = null, bd = maxD; for (const p of pickups) { const d = chord(u, p.u); if (d < bd) { bd = d; best = p; } } return best; }
+function leadDir(h, b, speed, out) {    // aim where a bee will be when the shot gets there
+  const t = chord(h.u, b.u) / speed;
+  const sp = b.vel.length();
+  if (sp > 0.5) offsetU(b.u, _f.copy(b.vel).divideScalar(sp), Math.min(6, sp * t), _p); else _p.copy(b.u);
+  return dirTo(h.u, _p, out);
+}
+
+function aiKnight(h, want, dt) {
+  // guard whichever teammate is in the most trouble (the fairy, unless the trooper is swamped)
+  let ward = fairy, worst = -1;
+  for (const x of [fairy, soldier]) { const t = threatDir(x.u, 9, _tmp2).length() + (x === fairy ? 0.15 : 0); if (t > worst) { worst = t; ward = x; } }
+  threatDir(ward.u, 9, _aim);
+  const pen = nearestPen(h.u, 5);
+  if (pen && _aim.length() < 0.25) dirTo(h.u, pen.u, want).multiplyScalar(4.6);
+  else {
+    let target;
+    if (_aim.lengthSq() > 1e-4) { _aim.normalize(); target = offsetU(ward.u, _aim, 1.8, _tmp); }
+    else target = offsetU(ward.u, ward.face, 1.2, _tmp);
+    dirTo(h.u, target, want).multiplyScalar(Math.min(4.8, chord(h.u, target) * 2.2));
+  }
+  const nb = dangerBee(h.u, 8);
+  if (nb) turnToward(h.face, h.u, dirTo(h.u, nb.u, _tmp2), 8 * dt);
+  else if (want.lengthSq() > 0.5) turnToward(h.face, h.u, _tmp2.copy(want).normalize(), 6 * dt);
+  if (nb && h.bashCd <= 0 && chord(h.u, nb.u) < 2.6 && inShieldArc(nb.u, 0.6)) startBash(h);
+}
+function aiFairy(h, want, dt) {
+  // keep away from bees, stay behind the knight, dodge, grab pens, shoot
+  const k = knight;
+  for (const b of bees) { if (b.dying) continue; const d = chord(h.u, b.u); if (d < 4.5) want.addScaledVector(dirTo(b.u, h.u, tD), (4.5 - d) * 1.6 * (b.kind === 'queen' ? 1.6 : 1)); }
+  threatDir(k.u, 10, _aim);
+  const target = _aim.lengthSq() > 1e-4 ? offsetU(k.u, _aim.normalize().negate(), 2.2, _tmp) : offsetU(k.u, tA.copy(k.face).negate(), 2.0, _tmp);
+  want.addScaledVector(dirTo(h.u, target, tD), Math.min(4, chord(h.u, target) * 1.5));
+  dodgeThreats(h, want, 3.4, 1.3);
+  const pen = nearestPen(h.u, 7); if (pen) want.addScaledVector(dirTo(h.u, pen.u, tD), 3);
+  if (want.length() > 5.2) want.setLength(5.2);
+  const tgt = nearestBee(h.u, 12);
+  if (tgt) { leadDir(h, tgt, 21, _aim); turnToward(h.face, h.u, _aim, 8 * dt); if (h.fireCd <= 0 && _aim.dot(h.face) > 0.9) shoot(h, _aim, 0.34); }
+  else if (want.lengthSq() > 0.3) turnToward(h.face, h.u, _tmp2.copy(want).normalize(), 6 * dt);
+}
+function aiSoldier(h, want, dt) {
+  // hold the flank beside the knight (the side away from the fairy) and blast whatever is coming
+  const k = knight;
+  for (const b of bees) { if (b.dying) continue; const d = chord(h.u, b.u); if (d < 4) want.addScaledVector(dirTo(b.u, h.u, tD), (4 - d) * 1.5 * (b.kind === 'queen' ? 1.6 : 1)); }
+  threatDir(k.u, 10, _aim);
+  let target;
+  const side = _tmp2.crossVectors(k.u, _aim.lengthSq() > 1e-4 ? _aim.normalize() : k.face).normalize();
+  if (side.dot(dirTo(k.u, fairy.u, tD)) > 0) side.negate();
+  if (_aim.lengthSq() > 1e-4) side.multiplyScalar(0.9).addScaledVector(_aim, 0.3).normalize();
+  target = offsetU(k.u, side, 2.4, _tmp);
+  want.addScaledVector(dirTo(h.u, target, tD), Math.min(4, chord(h.u, target) * 1.5));
+  dodgeThreats(h, want, 3.4, 1.2);
+  const pen = nearestPen(h.u, 6); if (pen) want.addScaledVector(dirTo(h.u, pen.u, tD), 3);
+  if (want.length() > 4.8) want.setLength(4.8);
+  const tgt = nearestBee(h.u, 11);
+  if (tgt) { leadDir(h, tgt, 16, _aim); turnToward(h.face, h.u, _aim, 7 * dt); if (h.fireCd <= 0 && _aim.dot(h.face) > 0.93) fireBall(h, _aim, 0.75); }
+  else if (want.lengthSq() > 0.3) turnToward(h.face, h.u, _tmp2.copy(want).normalize(), 6 * dt);
+}
+function startBash(h) { h.bashT = 0.24; h.bashCd = 0.65; h.hitSet.clear(); sfx('bash'); stats.bashes++; }
+function shoot(h, dir, cd) {
+  h.fireCd = cd; h.draw = 1; stats.arrows++;
+  fireArrow(offsetU(h.u, dir, 0.4, _tmp), dir);
+}
+function fireBall(h, dir, cd) {
+  h.fireCd = cd; h.recoil = 1; stats.balls++;
+  let b = balls.find(x => !x.on); if (!b) { if (balls.length > 24) return; b = makeBall(); balls.push(b); }
+  offsetU(h.u, dir, 0.9, b.u); b.on = true; b.m.visible = true; b.v.copy(dir).multiplyScalar(16); tangent(b.v, b.u); b.life = 0.95; b.em = 0;
+  _p.copy(b.u).multiplyScalar(R + 0.8); for (let i = 0; i < 5; i++) emitSpark(_p, b.u, 0xFFB52E, i < 2);
+  sfx('boom');
+}
+const SPEED = { knight: 4.9, fairy: 5.4, soldier: 4.7 };
+function playerHero(h, want, dt) {
+  let ix = stick.x, iy = stick.y;
+  if (keys.has('KeyA') || keys.has('ArrowLeft')) ix -= 1; if (keys.has('KeyD') || keys.has('ArrowRight')) ix += 1;
+  if (keys.has('KeyW') || keys.has('ArrowUp')) iy += 1; if (keys.has('KeyS') || keys.has('ArrowDown')) iy -= 1;
+  const mag = Math.min(1, Math.hypot(ix, iy));
+  const right = tC.crossVectors(camFwd, camU);
+  want.copy(right).multiplyScalar(ix).addScaledVector(camFwd, iy); tangent(want, h.u);
+  // analog range: a light push tiptoes, a full push runs, and holding it full builds a little extra speed
+  h.run = mag > 0.92 ? Math.min(1, h.run + dt * 1.4) : Math.max(0, h.run - dt * 3);
+  const curve = mag < 0.35 ? mag / 0.35 * 0.38 : 0.38 + (mag - 0.35) / 0.65 * 0.62;
+  if (want.lengthSq() > 1e-6) want.setLength(curve * SPEED[h.kind] * (1 + 0.22 * h.run));
+  if (h.puffy > 0) return;
+  if (h === knight) {
+    if (mag > 0.15) turnToward(h.face, h.u, _tmp2.copy(want).normalize(), 12 * dt);
+    else { const nb = dangerBee(h.u, 7); if (nb) turnToward(h.face, h.u, dirTo(h.u, nb.u, _tmp2), 7 * dt); }
+    if (actPressed && h.bashCd <= 0) startBash(h);
+  } else if (actHeld) {
+    const tgt = nearestBee(h.u, 14, h.face, h === soldier ? 0.5 : 0.35) || (mag < 0.15 ? dangerBee(h.u, 14) : null);
+    if (tgt) leadDir(h, tgt, h === soldier ? 16 : 21, _aim); else _aim.copy(h.face);
+    turnToward(h.face, h.u, _aim, 14 * dt);
+    if (h.fireCd <= 0) { if (h === soldier) fireBall(h, _aim, 0.32); else shoot(h, _aim, 0.15); }
+  } else if (mag > 0.15) turnToward(h.face, h.u, _tmp2.copy(want).normalize(), 12 * dt);
+}
+const AI = { knight: aiKnight, fairy: aiFairy, soldier: aiSoldier };
+function updateHero(h, dt) {
+  h.inv = Math.max(0, h.inv - dt); h.bashCd -= dt; h.fireCd -= dt; h.draw = Math.max(0, h.draw - dt * 4); h.recoil = Math.max(0, h.recoil - dt * 5);
+  _want.set(0, 0, 0);
+  if (state === 'play') {
+    if (h === active && !AUTOTEST) playerHero(h, _want, dt);
+    else if (h.puffy > 0) { let t = null, bd = 1e9; for (const o of heroes) if (o !== h && o.puffy <= 0 && chord(h.u, o.u) < bd) { bd = chord(h.u, o.u); t = o; } if (t) dirTo(h.u, t.u, _want).multiplyScalar(SPEED[h.kind]); }
+    else AI[h.kind](h, _want, dt);
+    // mutual aid: the closest free AI teammate drops everything and runs over with the EpiPen
+    const needy = h.puffy <= 0 && (h !== active || AUTOTEST) ? heroes.find(x => x !== h && x.puffy > 0) : null;
+    if (needy) {
+      let helper = null, bd = 1e9; for (const x of heroes) if (x.puffy <= 0 && (x !== active || AUTOTEST) && chord(x.u, needy.u) < bd) { bd = chord(x.u, needy.u); helper = x; }
+      if (helper === h) dirTo(h.u, needy.u, _want).multiplyScalar(SPEED[h.kind] * 1.15);
+    }
+    if (h.puffy <= 0) for (const o of heroes) if (o !== h && o.puffy > 0 && o.puffy < 3.8 && chord(h.u, o.u) < 1.15) giveEpiPen(o, h);   // a beat to see the swelling first
+    if (h.puffy > 0) {
+      h.puffy -= dt; _want.multiplyScalar(0.45);
+      h.helpT -= dt; if (h.helpT <= 0 && h.puffy > 0.6) { h.helpT = 1.4; popWord('HELP!', h.u, 2.3, { fill: '#fff', burst: '#FF2E88', size: 0.8, life: 0.8, rise: 0.6 }); }
+      if (h.puffy <= 0) giveEpiPen(h, null);
+    }
+  }
+  else if (state === 'title') turnToward(h.face, h.u, _tmp2.copy(camFwd).negate(), 8 * dt);
+  if (h.bashT > 0) { h.bashT -= dt; _want.copy(h.face).multiplyScalar(13); }
+  const sp0 = h.vel.length();
+  if (h.bashT <= 0 && h.skid <= 0 && sp0 > 3.4 && _want.lengthSq() > 4 && _tmp.copy(_want).normalize().dot(_tmp2.copy(h.vel).divideScalar(sp0)) < -0.4) { h.skid = 0.26; stats.skids++; sfx('skid'); }
+  if (h.skid > 0) { h.skid -= dt; if (Math.random() < 0.6) { _p.copy(h.u).multiplyScalar(R + 0.12); emitSpark(_p, h.u, 0xffffff, false); } }
+  const acc = h.bashT > 0 ? 60 : h.skid > 0 ? 9 : (_want.lengthSq() > sp0 * sp0 ? 24 : 11);
+  _dv.subVectors(_want, h.vel); const dl = _dv.length(), mx = acc * dt; if (dl > mx && dl > 1e-9) _dv.multiplyScalar(mx / dl);
+  const fwdAcc = _dv.dot(h.face) / Math.max(dt, 1e-4);
+  h.vel.add(_dv); tangent(h.vel, h.u);
+  for (const o of heroes) { if (o === h) continue; const dd = chord(h.u, o.u); if (dd < 0.95) h.vel.addScaledVector(dirTo(o.u, h.u, tD), (0.95 - dd) * 8); }
+  const turnRate = signedAng(h.u, h.lastFace, h.face) / Math.max(dt, 1e-4); h.lastFace.copy(h.face);
+  moveOnSphere(h.u, h.vel, dt, [h.face, h.lastFace]);
+  h.lean += (clamp(fwdAcc * 0.012, -0.22, 0.28) - (h.skid > 0 ? 0.35 : 0) - h.lean) * Math.min(1, 10 * dt);
+  h.bank += (clamp(-turnRate * 0.05, -0.28, 0.28) * Math.min(1, sp0 / 3) - h.bank) * Math.min(1, 8 * dt);
+  // animation
+  const sp = h.vel.length(); h.walk += (Math.min(1, sp / 4) - h.walk) * Math.min(1, 10 * dt); h.phase += sp * dt * 3.2;
+  const s = Math.sin(h.phase), w = h.walk, P = h.P;
+  h.h = h.kind === 'fairy' ? 0.1 + Math.sin(simT * 3) * 0.05 : 0;
+  h.cheer = Math.max(0, h.cheer - dt); h.breath = Math.max(0, h.breath - dt);
+  const hop = h.cheer > 0 ? Math.sin(Math.PI * h.cheer / 1.1) * 0.28 : 0, swing = 1 + h.run * 0.6, tip = sp0 < 1.8 ? 0.55 : 1;
+  place(h.root, h.u, h.face, h.h + hop + Math.abs(s) * 0.07 * w * tip);
+  h.body.rotation.z = s * 0.09 * w + h.bank; h.body.rotation.x = 0.12 * w + h.lean + 0.12 * h.run;
+  P.legL.rotation.x = s * 0.7 * w * tip * swing; P.legR.rotation.x = -s * 0.7 * w * tip * swing;
+  P.armR.rotation.x = s * 0.6 * w * swing; P.armL.rotation.x = -s * 0.6 * w * swing;
+  const breathe = 1 + 0.015 * Math.sin(simT * 2.2 + h.phase * 0) + (h.breath > 0 ? 0.07 * Math.sin(Math.PI * (1 - h.breath / 1.6)) : 0);
+  h.body.scale.set(1, breathe, 1);
+  P.head.rotation.z = -s * 0.05 * w;
+  if (h.kind === 'knight') {
+    const bash = h.bashT > 0 ? 1 : 0;
+    h.block += ((bash ? 1 : 0.35) - h.block) * Math.min(1, 14 * dt);
+    P.shield.position.set(0.46 - 0.32 * h.block, 0.58 + 0.04 * h.block, 0.28 + 0.26 * h.block);
+    P.shield.rotation.y = -0.35 * h.block; P.armL.rotation.x = -0.9 * h.block - s * 0.3 * w; P.armL.rotation.z = 0.4 * h.block;
+    h.body.rotation.x += 0.35 * bash;
+  } else if (h.kind === 'fairy') {
+    const dr = h.draw;
+    P.armR.rotation.x -= 1.3 * dr; P.armR.rotation.z = -0.25 * dr;
+    P.armL.rotation.x -= 1.1 * dr; P.armL.rotation.z = 0.55 * dr;
+    P.string.position.z = -0.25 - 0.12 * dr;
+    const flap = Math.sin(simT * (w > 0.2 ? 22 : 9)) * 0.55;
+    P.wings[0].rotation.y = 0.4 + flap; P.wings[1].rotation.y = -0.4 - flap;
+  } else {
+    const rc = h.recoil;
+    P.armR.rotation.set(-1.2 + rc * 0.3, 0, 0.2); P.armL.rotation.set(-1.45 + rc * 0.3, 0, -0.55);
+    P.gun.position.z = 0.36 - rc * 0.16; P.gun.rotation.x = -rc * 0.14; h.body.rotation.x -= rc * 0.08;
+  }
+  // small moments: when standing still a while, each hero fidgets in their own way
+  if (sp0 < 0.3 && h.puffy <= 0 && h.bashT <= 0 && h.fireCd < -0.5) { h.idleT += dt; if (h.idleT > 0 && h.fidget <= 0) { h.fidget = 1.3; h.idleT = -(3 + Math.random() * 4); } }
+  else if (h.idleT > -1.5) h.idleT = -1.5;
+  if (h.fidget > 0) {
+    h.fidget -= dt; const k = Math.sin(Math.PI * Math.max(0, h.fidget) / 1.3);
+    if (h.kind === 'knight') { P.armR.rotation.x = -2.5 * k; P.armR.rotation.z = -0.5 * k; P.head.rotation.z += 0.08 * k; }      // straightens his helmet
+    else if (h.kind === 'fairy') { P.armL.rotation.x = -2.3 * k; P.armL.rotation.z = 0.85 * k; }                                 // pushes her glasses up
+    else { P.gun.rotation.x -= 0.6 * k; P.head.rotation.x = 0.3 * k; }                                                             // checks his gun
+  } else if (h.kind === 'soldier') P.head.rotation.x = 0;
+  if (h.cheer > 0) { const k = Math.sin(Math.PI * h.cheer / 1.1); if (h.kind === 'soldier') P.gun.rotation.x -= 0.8 * k; else { P.armR.rotation.x = -2.7 * k; if (h.kind === 'fairy') P.armL.rotation.x = -2.7 * k; } }
+  // swollen from a sting until the EpiPen arrives
+  const base = P.head.userData.base || (P.head.userData.base = P.head.scale.x);
+  h.swell = (h.swell || 0) + ((h.puffy > 0 ? 1 : 0) - (h.swell || 0)) * Math.min(1, 6 * dt);
+  P.head.scale.setScalar(base * (1 + 0.32 * h.swell + (h.puffy > 0 ? 0.03 * Math.sin(simT * 9) : 0)));
+  h.root.visible = h.puffy <= 0 && h.inv > 0 && h.inv < 50 ? Math.floor(h.inv * 12) % 2 === 0 : true;
+  h.ring.visible = state === 'play' && h === active;
+  if (h.ring.visible) { place(h.ring, h.u, h.face, 0.04); h.ring.scale.setScalar(1 + Math.sin(simT * 6) * 0.06); }
+}
+
+// ======================= bee update =======================
+// Bees hover at a distance, pick a hero, aim (a pink dashed line + "!"), spin round so the stinger points at you,
+// then launch themselves like missiles. Hit one (arrow, ball, bash, or the knight's shield) and it flies off and
+// ricochets into its friends. Only the queen shoots stingers.
+const _bw = new THREE.Vector3(), _lq = new THREE.Quaternion(), _lu = new THREE.Vector3(), _ld = new THREE.Vector3(), _ax = new THREE.Vector3();
+const DASHES = 9, DASH_GEO = new THREE.BoxGeometry(0.16, 0.03, 0.5);
+const DASH_MAT = noLine(new THREE.MeshBasicMaterial({ color: 0xFF2E88, transparent: true, opacity: 0.7, depthWrite: false }));
+function aimLine(b, dir, len) {
+  if (!b.line) { b.line = new THREE.Group(); for (let i = 0; i < DASHES; i++) b.line.add(new THREE.Mesh(DASH_GEO, DASH_MAT)); scene.add(b.line); }
+  b.line.visible = true;
+  _ax.crossVectors(b.u, dir).normalize();
+  b.line.children.forEach((m, i) => {
+    _lq.setFromAxisAngle(_ax, (i + 0.5) / DASHES * len / R); _lu.copy(b.u).applyQuaternion(_lq); _ld.copy(dir).applyQuaternion(_lq);
+    place(m, _lu, _ld, 0.06);
+  });
+}
+function ricochets(b) {       // a knocked bee flying fast bonks into others
+  const sp = b.vel.length(); if (sp < 3.5) return;
+  for (const o of bees) {
+    if (o === b || o.dying || o.ricoCd > 0) continue;
+    const d = chord(b.u, o.u); if (d > (b.rad + o.rad) * 0.85) continue;
+    const n = dirTo(b.u, o.u, _bw);
+    o.ricoCd = 0.25; b.ricoCd = 0.12;
+    const ch = b.chain + 1; combo = Math.max(combo, ch + 1); comboT = 1.6; stats.ricochets++;
+    knockBee(o, n, sp * 0.85, ch);
+    damageBee(o, 1 + Math.floor(ch / 2), 'rico'); damageBee(b, 1, 'rico');
+    addScore(50 * ch);
+    b.vel.addScaledVector(n, -2 * b.vel.dot(n)).multiplyScalar(0.55);
+    sfx('bonk'); popWord('BONK!', o.u, o.h + 0.6, { fill: '#fff', burst: '#FF8A1F', size: 0.9, life: 0.5 });
+    tA.copy(o.u).add(b.u).normalize().multiplyScalar(R + b.h); for (let j = 0; j < 4; j++) emitSpark(tA, o.u, 0xFFE94A, false);
+    if (b.dying) return;
+  }
+}
+function beeContacts(b) {
+  const k = knight, launched = b.mode === 'launch' || b.kind === 'queen';
+  shieldPoint(_shield);
+  const dk = chord(b.u, k.u), ds = chord(b.u, _shield);
+  if (k.bashT > 0 && dk < 1.6 + b.rad * 0.5 && inShieldArc(b.u, 0.0) && !k.hitSet.has(b)) {     // BASH
+    k.hitSet.add(b); knockBee(b, dirTo(k.u, b.u, _bw).add(k.face).normalize(), 15, 0); damageBee(b, 2, 'bash');
+    sfx('clang'); popWord('THWACK!', b.u, b.h + 0.6, { fill: '#FFE94A', burst: '#F08A00', size: 1.1, life: 0.5 }); shake = Math.max(shake, 0.25); return;
+  }
+  if (launched && ds < b.rad + 0.45 && inShieldArc(b.u, 0.1)) {                                   // shield bounce
+    if (b.kind === 'queen') { knockBee(b, dirTo(k.u, b.u, _bw), 8, 0); sfx('clang'); return; }
+    const n = dirTo(k.u, _shield, _bw), v = _tmp2.copy(b.vel), vn = v.dot(n); if (vn < 0) v.addScaledVector(n, -2 * vn);
+    if (v.lengthSq() < 1e-4) v.copy(n); v.normalize();
+    knockBee(b, v, Math.max(12, b.vel.length() * 1.05), 0); damageBee(b, 1, 'block'); stats.blocks++;
+    sfx('clang'); popWord('BOING!', b.u, b.h + 0.6, { fill: '#fff', burst: '#F08A00', size: 0.9, life: 0.45 });
+    _p.copy(b.u).multiplyScalar(R + b.h); for (let j = 0; j < 4; j++) emitSpark(_p, b.u, 0xFFE94A, false);
+    return;
+  }
+  for (const h of heroes) {
+    if (chord(b.u, h.u) > b.rad + 0.35) continue;
+    if (launched) { stingHero(h, b.u); if (b.kind !== 'queen') knockBee(b, dirTo(h.u, b.u, _bw), 6, 0); return; }
+    b.vel.addScaledVector(dirTo(h.u, b.u, _bw), 3);     // a hovering bee just gets bumped
+  }
+}
+function queenThink(b, dt, toT, dT, tgt, shotSpd) {
+  const side = tC.crossVectors(b.u, toT);
+  _want.copy(toT).multiplyScalar(clamp((dT - 6.5) * 1.2, -3, 3)).addScaledVector(side, b.orbit * 1.4);
+  b.fireT -= dt; b.patT += dt;
+  if (b.fireT <= 0 && dT < 15) {
+    const cyc = b.patT % 9;
+    if (cyc < 3.2) {          // spiral of stingers
+      b.pat += 0.42;
+      for (let a = 0; a < 4; a++) fireBullet(b.u, _bw.copy(toT).applyAxisAngle(b.u, b.pat + a * 1.5708), shotSpd * 0.8);
+      b.fireT = 0.11;
+    } else if (cyc < 5.6) {   // aimed fans of stingers
+      for (let j = 0; j < 7; j++) fireBullet(b.u, _bw.copy(toT).applyAxisAngle(b.u, (j / 6 - 0.5) * 0.9), shotSpd);
+      b.fireT = 0.6;
+    } else {                  // flings two of her guards at you, plus a ring
+      for (let j = 0; j < 2; j++) { const g = spawnBee('dart', offsetU(b.u, _bw.copy(toT).applyAxisAngle(b.u, (j - 0.5) * 1.6), 1.7, new THREE.Vector3())); g.mode = 'aim'; g.st = 0.5; g.tgt = tgt; }
+      const n = 16, off = Math.random() * 6.28;
+      for (let j = 0; j < n; j++) fireBullet(b.u, _bw.copy(toT).applyAxisAngle(b.u, off + j * 6.2832 / n), shotSpd * 0.7);
+      b.fireT = 1.6;
+    }
+    sfx('zap');
+  }
+  b.vel.lerp(_want, 1 - Math.exp(-3 * dt));
+  turnToward(b.face, b.u, toT, 4 * dt);
+}
+function updateBees(dt) {
+  const lSpd = Math.min(15, 10 + wave * 0.35), aimT = Math.max(0.5, 0.95 - wave * 0.03), shotSpd = Math.min(7.5, 4.4 + wave * 0.12);
+  let busy = 0; for (const b of bees) if (!b.dying && (b.mode === 'aim' || b.mode === 'launch')) busy++;
+  const maxBusy = 2 + Math.floor(wave / 2);
+  DASH_MAT.opacity = 0.45 + 0.3 * Math.sin(simT * 18);
+  for (let i = bees.length - 1; i >= 0; i--) {
+    const b = bees[i], K = BEE_KIND[b.kind]; b.t += dt; b.ricoCd -= dt;
+    b.squash = Math.max(0, b.squash - dt * 5);
+    if (b.dying) {
+      if (b.line) b.line.visible = false;
+      b.dying += dt; const k = b.dying / 0.45;
+      if (k >= 1) { removeBee(b); continue; }
+      b.root.scale.setScalar(K.scale * (1 - k)); b.body.rotation.z += dt * 20; b.h += dt * 2;
+      place(b.root, b.u, b.face, b.h); continue;
+    }
+    if (b.knock > 0) {
+      b.knock -= dt; b.vel.multiplyScalar(Math.exp(-2.0 * dt)); b.spin += dt * 18;
+      ricochets(b); if (b.dying) continue;
+    } else {
+      b.spin *= Math.exp(-6 * dt);
+      const tgt = b.tgt && (b.mode === 'aim' || b.mode === 'launch') ? b.tgt : nearestHero(b.u);
+      const toT = dirTo(b.u, tgt.u, _tmp), dT = chord(b.u, tgt.u);
+      _want.set(0, 0, 0);
+      if (b.kind === 'queen') queenThink(b, dt, toT, dT, tgt, shotSpd);
+      else if (b.mode === 'approach') {
+        const side = tC.crossVectors(b.u, toT);
+        _want.addScaledVector(toT, clamp((dT - 6.5) * 1.3, -3, 3.4) * K.spd).addScaledVector(side, b.orbit * 1.8);
+        b.vel.lerp(_want, 1 - Math.exp(-3 * dt));
+        turnToward(b.face, b.u, toT, 5 * dt);
+        b.cd -= dt;
+        if (b.cd <= 0 && dT < 11 && busy < maxBusy && state === 'play') {
+          b.mode = 'aim'; b.st = aimT; b.tgt = tgt; b.seen = Math.random() < 0.6; busy++; sfx('buzz');
+          popWord('!', b.u, b.h + 1.1, { fill: '#FF2E88', size: 0.8, life: aimT, rise: 0 });
+        }
+      } else if (b.mode === 'aim') {
+        b.vel.multiplyScalar(Math.exp(-6 * dt));
+        turnToward(b.face, b.u, _bw.copy(toT).negate(), 9 * dt);      // spin round: stinger toward the target
+        aimLine(b, toT, Math.min(dT + 2.5, 14));
+        b.st -= dt;
+        if (b.st <= 0) { b.mode = 'launch'; b.ldir.copy(toT); b.st = 1.5; stats.launches++; sfx('whoosh'); }
+      } else if (b.mode === 'launch') {
+        if (b.kind === 'homer' && b.st > 0.55) turnToward(b.ldir, b.u, toT, 1.8 * dt);
+        b.vel.copy(b.ldir).multiplyScalar(lSpd * K.spd);
+        if (b.kind === 'zig') b.vel.addScaledVector(tC.crossVectors(b.u, b.ldir), Math.sin(b.t * 11) * 6.5);
+        tangent(b.vel, b.u);
+        b.face.copy(b.vel).normalize().negate();                         // stinger first
+        b.em += dt; if (b.em > 0.04) { b.em = 0; _p.copy(b.u).multiplyScalar(R + b.h); emitSpark(_p, b.u, 0xFFFFFF, false); }
+        b.st -= dt; if (b.st <= 0) { b.mode = 'recover'; b.st = 0.8; b.tgt = null; }
+      } else {                                                           // recover, then back to hovering
+        b.vel.multiplyScalar(Math.exp(-3 * dt)); turnToward(b.face, b.u, toT, 5 * dt);
+        b.st -= dt; if (b.st <= 0) { b.mode = 'approach'; b.cd = Math.max(0.5, 1 + Math.random() * 1.8 - wave * 0.05); }
+      }
+      if (b.mode !== 'launch') for (const o of bees) { if (o === b || o.dying) continue; const d = chord(b.u, o.u), lim = (b.rad + o.rad) * 0.9; if (d < lim && d > 1e-4) b.vel.addScaledVector(dirTo(o.u, b.u, _bw), (lim - d) * 5); }
+      beeContacts(b);
+    }
+    if (b.line && b.mode !== 'aim') b.line.visible = false;
+    if (b.dying) continue;
+    moveOnSphere(b.u, b.vel, dt, [b.face, b.ldir]);
+    b.h = 1.1 + Math.sin(b.t * 4 + i) * (b.mode === 'launch' ? 0.02 : 0.12);
+    place(b.root, b.u, b.face, b.h);
+    const sq = b.squash, sc = K.scale;
+    b.root.scale.set(sc * (1 + sq * 0.35), sc * (1 - sq * 0.25), sc * (1 + sq * 0.2));
+    b.body.rotation.z = b.spin; b.body.rotation.x = b.knock > 0 ? -0.5 : b.mode === 'launch' ? 0 : 0.15;
+    b.body.position.x = b.mode === 'aim' ? (Math.random() - 0.5) * 0.12 : 0;
+    const fl = Math.sin(b.t * (b.mode === 'launch' ? 90 : 60)) * 0.6; b.wings[0].rotation.z = 0.3 + fl; b.wings[1].rotation.z = -0.3 - fl;
+    if (b.dizzy > 0 || b.stars) {                                  // little stars circle a dazed bee
+      b.dizzy = Math.max(0, (b.dizzy || 0) - dt);
+      if (!b.stars) { b.stars = new THREE.Group(); for (let j = 0; j < 3; j++) { const sp = new THREE.Sprite(DIZZY_MAT); sp.scale.setScalar(0.26); sp.position.set(Math.cos(j * 2.094) * 0.38, 0, Math.sin(j * 2.094) * 0.38); b.stars.add(sp); } b.stars.position.y = 0.72; b.root.add(b.stars); }
+      b.stars.visible = b.dizzy > 0; b.stars.rotation.y += dt * 7;
+    }
+  }
+}
+const DIZZY_MAT = new THREE.SpriteMaterial({ map: sparkTex[0], color: 0xFFE94A, depthWrite: false });
+
+// ======================= projectile update =======================
+function updateProjectiles(dt) {
+  shieldPoint(_shield);
+  for (const b of bullets) {
+    if (!b.on) continue;
+    b.life -= dt; if (b.life <= 0) { b.on = false; continue; }
+    moveOnSphere(b.u, b.v, dt);
+    if (b.friend) {
+      for (const e of bees) { if (e.dying) continue; if (chord(b.u, e.u) < e.rad + 0.15) { damageBee(e, 1, 'reflect'); knockBee(e, _f.copy(b.v).normalize(), 7, 0); b.on = false; break; } }
+      continue;
+    }
+    // knight's shield reflects stingers back as friendly ones
+    if (chord(b.u, _shield) < 0.62 && inShieldArc(b.u, -0.1)) {
+      const n = dirTo(knight.u, _shield, tA);
+      const vn = b.v.dot(n); if (vn < 0) b.v.addScaledVector(n, -2 * vn);
+      b.v.multiplyScalar(1.6); b.friend = true; b.life = 2; stats.blocks++;
+      sfx('clang'); _p.copy(b.u).multiplyScalar(R + 0.95); for (let j = 0; j < 3; j++) emitSpark(_p, b.u, 0xFFE94A, false);
+      continue;
+    }
+    for (const h of heroes) if (chord(b.u, h.u) < 0.42) { stingHero(h, b.u); b.on = false; break; }
+  }
+  for (const a of arrows) {
+    if (!a.on) continue;
+    a.life -= dt; if (a.life <= 0) { a.on = false; a.g.visible = false; continue; }
+    moveOnSphere(a.u, a.v, dt);
+    _f.copy(a.v).normalize(); place(a.g, a.u, _f, 0.95);
+    for (const e of bees) {
+      if (e.dying) continue;
+      if (chord(a.u, e.u) < e.rad + 0.12) { if (e.mode !== 'aim') knockBee(e, _f, 9.5, 0); else e.squash = 1; damageBee(e, 1, 'arrow'); sfx('bonk'); a.on = false; a.g.visible = false; break; }
+    }
+  }
+  for (const b of balls) {
+    if (!b.on) continue;
+    b.life -= dt; if (b.life <= 0) { b.on = false; b.m.visible = false; continue; }
+    moveOnSphere(b.u, b.v, dt);
+    b.m.position.copy(b.u).multiplyScalar(R + 0.8); b.m.rotation.x += dt * 14;
+    b.em += dt; if (b.em > 0.05) { b.em = 0; emitSpark(b.m.position, b.u, 0xFFE94A, false); }
+    for (const e of bees) {
+      if (e.dying) continue;
+      if (chord(b.u, e.u) < e.rad + 0.24) {
+        _f.copy(b.v).normalize(); knockBee(e, _f, 16, 0); damageBee(e, 2, 'ball');
+        sfx('bonk'); for (let j = 0; j < 10; j++) emitSpark(b.m.position, b.u, [0xFF7A2F, 0xFFE94A][j % 2], true);
+        b.on = false; b.m.visible = false; break;
+      }
+    }
+  }
+  drawBullets();
+}
+function updatePickups(dt) {
+  for (let i = pickups.length - 1; i >= 0; i--) {
+    const p = pickups[i]; p.t += dt; p.life -= dt;
+    place(p.g, p.u, anyTangent(p.u, tA), 0.95 + Math.sin(p.t * 3) * 0.15);
+    p.s.rotation.y = p.t * 2.5; p.ring.scale.setScalar(1 + Math.sin(p.t * 5) * 0.15);
+    p.g.visible = p.life > 3 || Math.floor(p.life * 8) % 2 === 0;
+    let got = false;
+    for (const h of heroes) if (chord(p.u, h.u) < 0.9) got = true;
+    if (got) {
+      pens = Math.min(9, pens + 1); stats.pens++; sfx('pick'); updateHud(true);
+      popWord('+1 EPIPEN', p.u, 1.8, { fill: '#161216', burst: '#7FF6FF', size: 1.0, life: 0.9 });
+    }
+    if (got || p.life <= 0) { scene.remove(p.g); pickups.splice(i, 1); }
+  }
+}
+
+// ======================= main loop =======================
+function updateGame(dt) {
+  if (state === 'play' || state === 'over') {
+    if (nextWaveT > 0) { nextWaveT -= dt; if (nextWaveT <= 0) startWave(); }
+    else if (waveQueue.length) {
+      spawnT -= dt;
+      if (spawnT <= 0) {
+        const k = waveQueue.shift();
+        spawnBee(k, spawnPoint(k === 'queen' ? 0.85 : 0.95, k === 'queen' ? 0.95 : 1.5));
+        if (k === 'dart' && waveQueue[0] === 'dart' && Math.random() < 0.5) spawnBee(waveQueue.shift(), spawnPoint(0.95, 1.5));
+        spawnT = Math.max(0.35, 1.0 - wave * 0.05);
+      }
+    } else if (bees.every(b => b.dying) && state === 'play') {
+      nextWaveT = 2.6; addScore(250 * wave); popWord('WAVE CLEAR!', active.u, 2.6, { fill: '#FFE94A', burst: '#1E7FE0', size: 1.6, life: 1.4 });
+      for (const h of heroes) { h.cheer = 1.1; h.breath = 1.6; }
+      for (let a = 0; a < heroes.length; a++) for (let b = a + 1; b < heroes.length; b++) if (chord(heroes[a].u, heroes[b].u) < 2.6) {
+        const mid = tA.copy(heroes[a].u).add(heroes[b].u).normalize(); popWord('HIGH FIVE!', mid, 1.8, { fill: '#fff', burst: '#FF8A1F', size: 0.8, life: 0.9 }); break; }
+      say(`Wave ${wave} clear.`);
+    }
+    stageT += dt;
+    if (stageT > 21 && pickups.length < 2) { stageT = 0; const d = anyTangent(camU, new THREE.Vector3()).applyAxisAngle(camU, Math.random() * 6.28); spawnPen(offsetU(camU, d, 3 + Math.random() * 4, new THREE.Vector3())); }
+    for (const h of heroes) updateHero(h, dt);
+    updateBees(dt); updateProjectiles(dt); updatePickups(dt);
+    comboT -= dt; if (comboT <= 0) combo = 0; showCombo();
+    if (overT > 0) { overT -= dt / Math.max(0.2, slowmo); if (overT <= 0) gameOver(); }
+  } else {
+    for (const h of heroes) updateHero(h, dt);
+  }
+  updateSparks(dt); updateWords(dt);
+  actPressed = false;
+  updateHud(false);
+}
+let last = performance.now(), titleYaw = 0;
+function frame(now) {
+  let dt = clamp((now - last) / 1000, 0, 0.05); last = now;
+  if (state === 'over' && overT <= 0) slowmo += (1 - slowmo) * Math.min(1, dt * 2);
+  const gdt = dt * slowmo; simT += gdt;
+  updateGame(gdt);
+  if (state === 'title') { if (!QS.has('icon')) orbitDelta += dt * 18; updateCamera(dt, tA.copy(knight.u).add(fairy.u).add(soldier.u).normalize(), QS.has('icon') ? 5.4 : 7, QS.has('icon') ? 0.22 : 0.32); }
+  else updateCamera(dt, active.u);
+  if (!CALM) for (const s of twinklers) { const u = s.userData; s.scale.setScalar(u.base * (0.8 + 0.25 * Math.sin(simT * u.sp + u.ph))); }
+  effect.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+resetHeroes();
+updateHud(true);
+requestAnimationFrame(frame);
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) bgm.pause(); else if (state === 'play') playMusic(); });
+if (document.fonts) document.fonts.load('40px Bangers').then(() => { for (const k in wordCache) delete wordCache[k]; }).catch(() => { });
+if (AUTOTEST) startGame();
+window.__cw = { sting(k) { const h = heroes.find(x => x.kind === k); h.inv = 0; stingHero(h, offsetU(h.u, h.face, 1, new THREE.Vector3())); }, get active() { return active.kind; }, heroScreen(k) { const h = heroes.find(x => x.kind === k); const p = h.u.clone().multiplyScalar(R + h.h + 0.75).project(camera); return { x: (p.x * 0.5 + 0.5) * innerWidth, y: (-p.y * 0.5 + 0.5) * innerHeight }; }, get state() { return state; }, get wave() { return wave; }, get score() { return score; }, get pens() { return pens; }, set pens(v) { pens = v; }, bees, bullets, heroes, stats, setActive, startGame, get bulletCount() { return bulletCount; }, spawnBee, spawnPen, camU, camFwd, knight, fairy, soldier };
+</script>
+</body>
+</html>

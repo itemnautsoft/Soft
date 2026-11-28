@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111111">
+<title>NextQuest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{--px:"Press Start 2P",ui-monospace,Menlo,monospace;--ui:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+ --ink:#111;--paper:#fbf9f3;--yel:#ffe94d;--org:#ff9a2e;--grn:#4fd65a;--blu:#2f80ed;--sea:#1fb5e6}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--paper);color:#fff;font-family:var(--ui);overflow:hidden;
+ touch-action:none;user-select:none;-webkit-user-select:none;overscroll-behavior:none}
+button{font:inherit;color:inherit}
+.hide{display:none!important}
+#map{position:fixed;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+/* Dragon Quest-style windows: flat black, white border, nothing extra */
+.win{background:#111;border:3px solid #fff;border-radius:10px;box-shadow:0 0 0 2px #111;padding:16px;font-size:15px;line-height:1.5;color:#fff}
+.btn{background:#111;border:2px solid #fff;border-radius:8px;min-height:44px;padding:10px 14px;font-size:14px;font-weight:700;letter-spacing:.03em;
+ cursor:pointer;color:#fff;box-shadow:0 0 0 2px #111;touch-action:manipulation}
+.btn:active{background:#333;transform:translateY(1px)}
+.btn.gold{background:var(--yel);border-color:#111;color:#111;box-shadow:0 0 0 2px #fff}
+.btn.dim{opacity:.4}
+#hud{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 10px) 12px 0;display:flex;gap:8px;
+ justify-content:space-between;align-items:flex-start;pointer-events:none}
+#stats{padding:8px 12px;font-size:14px;line-height:1.35;pointer-events:auto;font-variant-numeric:tabular-nums}
+#stats b{color:var(--yel)}
+#stats small{display:block;font-size:12px;color:#bbb}
+#gear{pointer-events:auto;width:46px;min-height:44px;padding:0;font-size:18px}
+#chip{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 72px);padding:8px 14px;
+ font-size:14px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+#chip b{color:var(--yel)}
+#osm{position:fixed;right:4px;bottom:calc(env(safe-area-inset-bottom) + 70px);font:10px ui-monospace,Menlo,monospace;
+ color:#111;background:#fffc;padding:1px 4px;border-radius:3px;pointer-events:none}
+#side{position:fixed;right:10px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px}
+#side .btn{width:46px;height:46px;min-height:0;padding:0;font-size:18px}
+#side .btn.on{background:var(--yel);color:#111;border-color:#111;box-shadow:0 0 0 2px #fff}
+#bar{position:fixed;left:0;right:0;bottom:0;padding:8px 8px calc(env(safe-area-inset-bottom) + 8px);display:flex;gap:6px;justify-content:center}
+#bar .btn{flex:1;max-width:120px;padding:12px 2px;font-size:12px}
+#pad{position:fixed;left:10px;bottom:calc(env(safe-area-inset-bottom) + 78px);display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:4px}
+#pad .btn{padding:0;min-height:0;font-size:14px}
+#pad .sp{visibility:hidden}
+#toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 120px);padding:10px 14px;font-size:14px;
+ max-width:90vw;text-align:center;pointer-events:none;transition:opacity .4s}
+#dlgWrap{position:fixed;inset:0;background:#0006;display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+#dlg{width:100%;max-width:460px;max-height:84vh;display:flex;flex-direction:column}
+#dlgT{font-family:var(--px);color:var(--yel);font-size:11px;line-height:1.6;margin-bottom:12px}
+#dlgB{overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;user-select:text;-webkit-user-select:text}
+#dlgB p{margin:0 0 12px}
+#dlgB small{color:#bbb;font-size:13px}
+#dlgB b{color:var(--yel)}
+#dlgBtns{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;justify-content:flex-end}
+.row{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #ffffff2a}
+.row:last-child{border-bottom:0}
+.row .ic{width:32px;height:32px;image-rendering:pixelated;flex:none}
+.row .tx{flex:1;min-width:0;font-size:14px;line-height:1.45}
+.row .tx b{font-size:15px;color:#fff}
+.row .tx i{font-style:normal;color:#bbb;font-size:13px}
+.row .btn{min-height:40px;padding:8px 12px;font-size:13px;flex:none}
+.sec{font-family:var(--px);font-size:10px;color:var(--yel);margin:18px 0 4px}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tabs .btn{flex:1;padding:8px 4px;font-size:12px}
+.tabs .btn.on{background:var(--yel);color:#111;border-color:#111}
+textarea{width:100%;min-height:80px;font:16px/1.45 var(--ui);background:#222;color:#fff;border:2px solid #fff;border-radius:8px;padding:10px;user-select:text;-webkit-user-select:text}
+.note img{width:100%;border:2px solid #fff;border-radius:8px;display:block}
+.load{padding:0;margin:0}
+.load li{list-style:none;margin:6px 0}
+#intro{position:fixed;inset:0;background:#05060f;z-index:30;overflow:hidden}
+#intro .st{position:absolute;width:2px;height:2px;background:#fff;animation:tw 3s infinite ease-in-out}
+@keyframes tw{0%,100%{opacity:.2}50%{opacity:1}}
+#paper{position:absolute;left:50%;top:26%;width:160px;height:116px;transform:translate(-50%,-50%);background:var(--paper);border:3px solid #fff;
+ border-radius:2px;display:flex;align-items:center;justify-content:center;color:#111;font-family:var(--px);font-size:13px;
+ background-image:linear-gradient(#bcd7f0 1px,transparent 1px),linear-gradient(90deg,#bcd7f0 1px,transparent 1px);background-size:16px 16px;
+ animation:float 5s infinite ease-in-out;opacity:0;transition:opacity 2s}
+#paper span{background:var(--yel);padding:4px 6px}
+@keyframes float{0%,100%{margin-top:0}50%{margin-top:-10px}}
+#dream{position:absolute;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 24px);min-height:130px;font-size:17px;line-height:1.6;max-width:560px;margin:0 auto}
+#caret{position:absolute;right:14px;bottom:8px;animation:tw 1s infinite}
+#skip{position:absolute;right:12px;top:calc(env(safe-area-inset-top) + 12px);font-size:12px;min-height:40px;padding:8px 12px}
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:40;transition:opacity .6s}
+#pocket{position:fixed;inset:0;background:#000;z-index:25;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+#pkBig{font-size:56px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--yel)}
+#pkLbl{font-size:18px;color:#ccc;margin-top:6px;max-width:320px}
+#pkHint{position:absolute;left:24px;right:24px;bottom:calc(env(safe-area-inset-bottom) + 32px);font-size:14px;line-height:1.5;color:#777}
+</style>
+</head>
+<body>
+<canvas id="map"></canvas>
+<div id="hud" class="hide"><div class="win" id="stats"></div><button class="win btn" id="gear" aria-label="Menu">&#9881;</button></div>
+<div id="chip" class="win hide"></div>
+<div id="osm" class="hide">&copy; OpenStreetMap contributors</div>
+<div id="side" class="hide">
+ <button class="btn" id="zin" aria-label="Zoom in">+</button>
+ <button class="btn" id="zout" aria-label="Zoom out">&minus;</button>
+ <button class="btn on" id="me" aria-label="Follow me">&#9678;</button>
+</div>
+<div id="pad" class="hide">
+ <span class="sp"></span><button class="btn" data-d="0,1">&#9650;</button><span class="sp"></span>
+ <button class="btn" data-d="-1,0">&#9664;</button><button class="btn" id="turbo" style="font-size:7px">x1</button><button class="btn" data-d="1,0">&#9654;</button>
+ <span class="sp"></span><button class="btn" data-d="0,-1">&#9660;</button><span class="sp"></span>
+</div>
+<div id="bar" class="hide">
+ <button class="btn" id="bQuest">QUESTS</button>
+ <button class="btn" id="bBag">BAG</button>
+ <button class="btn gold" id="bSnap">SNAP</button>
+ <button class="btn" id="bNotes">JOURNAL</button>
+ <button class="btn" id="bPocket">POCKET</button>
+</div>
+<input type="file" id="cam" accept="image/*" capture="environment" hidden>
+<div id="toast" class="win hide"></div>
+<div id="dlgWrap" class="hide"><div class="win" id="dlg"><div id="dlgT"></div><div id="dlgB"></div><div id="dlgBtns"></div></div></div>
+<div id="intro" class="hide"><div id="paper"><span>HOME</span></div><button class="btn" id="skip">SKIP</button>
+ <div class="win" id="dream"><span id="dreamTxt"></span><span id="caret">&#9660;</span></div></div>
+<div id="pocket" class="hide"><div id="pkBig"></div><div id="pkLbl"></div><div id="pkHint">Phone in your pocket, eyes on the street. You'll hear a chime when you arrive. Tap to open the map.</div></div>
+<div id="flash"></div>
+
+<script>
+'use strict';
+/* =========================================================================
+   NextQuest — prototype 0.1  (itemnaut × Claude)
+   Your real streets become a JRPG overworld. Plant a flag at home, the map
+   downloads from OpenStreetMap, and simple rules (no AI) place shops,
+   dungeons, lore stones and daily treasure at real walking distances.
+   ========================================================================= */
+const $=s=>document.querySelector(s);
+const DEMO={lat:40.9347,lon:-74.1197};           // Fair Lawn, NJ
+const R=4300;                                     // download radius (m): covers a 2.5 mi walk out
+const CELL=10, REVEAL=30;                         // fog cell size, reveal radius (m)
+const STRIDE=0.8, MILE=1609.34, ARRIVE=30;        // 10k steps ≈ 5 mi; arrival radius (m)
+const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+const MOCK=/[?&]mock/.test(location.search);
+const LS='nextquest.v1';
+const PX=3;                                       // CSS pixels per game pixel
+
+let S=null, world=null, grid=null, Dflag=null, flagNode=-1, places=[], today=null;
+let revealed=new Set(), lastFix=null, target=null, tree=null, routeCache=null;
+const inside=new Set();
+
+/* ---------------- storage ---------------- */
+function loadState(){try{return JSON.parse(localStorage.getItem(LS))}catch(e){return null}}
+let saveT=0;
+function save(now){if(!S)return;const f=()=>{try{S.revealed=[...revealed];localStorage.setItem(LS,JSON.stringify(S))}catch(e){console.warn(e)}};
+ clearTimeout(saveT);if(now)f();else saveT=setTimeout(f,1200)}
+const idb=(()=>{let p;const open=()=>p||(p=new Promise((res,rej)=>{const r=indexedDB.open('nextquest',1);
+ r.onupgradeneeded=()=>{r.result.createObjectStore('kv');r.result.createObjectStore('notes',{keyPath:'id'})};
+ r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
+ const tx=(st,mode,fn)=>open().then(db=>new Promise((res,rej)=>{const t=db.transaction(st,mode);const q=fn(t.objectStore(st));
+  t.oncomplete=()=>res(q?q.result:undefined);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)}));
+ return{get:k=>tx('kv','readonly',s=>s.get(k)),set:(k,v)=>tx('kv','readwrite',s=>s.put(v,k)),del:k=>tx('kv','readwrite',s=>s.delete(k)),
+  notes:()=>tx('notes','readonly',s=>s.getAll()),putNote:n=>tx('notes','readwrite',s=>s.put(n)),delNote:id=>tx('notes','readwrite',s=>s.delete(id))}})();
+
+/* ---------------- math ---------------- */
+let O={lat:0,lon:0,kx:1,ky:110540};
+function setOrigin(lat,lon){O={lat,lon,kx:111320*Math.cos(lat*Math.PI/180),ky:110540}}
+const P=(lat,lon)=>[(lon-O.lon)*O.kx,(lat-O.lat)*O.ky];
+const U=(x,y)=>[O.lat+y/O.ky,O.lon+x/O.kx];
+function hash(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function rng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const dateKey=(d=new Date())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const mi=m=>(m/MILE).toFixed(m<MILE*10?1:0)+' mi';
+const steps=m=>(Math.round(m/STRIDE/100)*100).toLocaleString();
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function polyArea(p){let a=0;for(let i=0,n=p.length;i<n;i+=2){const j=(i+2)%n;a+=p[i]*p[j+1]-p[j]*p[i+1]}return Math.abs(a/2)}
+function centroid(p){let x=0,y=0,n=p.length/2;for(let i=0;i<p.length;i+=2){x+=p[i];y+=p[i+1]}return[x/n,y/n]}
+function pointIn(a,x,y){const b=a.b;if(x<b[0]||x>b[2]||y<b[1]||y>b[3])return false;const p=a.p;let c=false;
+ for(let i=0,j=p.length-2;i<p.length;j=i,i+=2){if((p[i+1]>y)!==(p[j+1]>y)&&x<(p[j]-p[i])*(y-p[i+1])/(p[j+1]-p[i+1])+p[i])c=!c}return c}
+function mkPoly(k,pts,name){const p=Float32Array.from(pts);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+ for(let i=0;i<p.length;i+=2){if(p[i]<x0)x0=p[i];if(p[i]>x1)x1=p[i];if(p[i+1]<y0)y0=p[i+1];if(p[i+1]>y1)y1=p[i+1]}
+ return{k,p,b:[x0,y0,x1,y1],name:name||null}}
+function sunElev(lat,lon,d=new Date()){const r=Math.PI/180;const day=(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())-Date.UTC(d.getUTCFullYear(),0,0))/864e5;
+ const decl=-23.44*Math.cos(r*360/365*(day+10));const ha=((d.getUTCHours()+d.getUTCMinutes()/60+lon/15)-12)*15;
+ return Math.asin(Math.sin(lat*r)*Math.sin(decl*r)+Math.cos(lat*r)*Math.cos(decl*r)*Math.cos(ha*r))/r}
+
+/* ---------------- map data: OpenStreetMap + Wikipedia ---------------- */
+async function overpass(q){let err;for(const url of OVERPASS){try{const ac=new AbortController();const to=setTimeout(()=>ac.abort(),160000);
+ const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:ac.signal});
+ clearTimeout(to);if(!r.ok)throw new Error('map server said '+r.status);return await r.json()}catch(e){err=e}}throw err}
+const HW='primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|pedestrian|footway|path|steps|cycleway|track|bridleway';
+const qNet=(la,lo,r)=>`[out:json][timeout:150];way["highway"~"^(${HW})$"](around:${r},${la},${lo});out body qt;>;out skel qt;`;
+const qFeat=(la,lo,r)=>{const A=`(around:${r},${la},${lo})`;return `[out:json][timeout:150];(way["leisure"~"^(park|nature_reserve|garden|recreation_ground)$"]${A};way["landuse"~"^(forest|meadow|village_green|recreation_ground)$"]${A};way["natural"~"^(wood|water|scrub|wetland)$"]${A};way["waterway"~"^(river|stream|canal)$"]${A};);out geom qt;(nwr["shop"~"^(convenience|supermarket|general|variety_store|deli|chemist|bakery)$"]${A};nwr["amenity"~"^(pharmacy|cafe|ice_cream|library|townhall|fountain)$"]${A};nwr["historic"]${A};nwr["tourism"~"^(artwork|viewpoint|museum|attraction)$"]${A};);out center qt;`};
+async function wikiNear(la,lo){try{const u=`https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${la.toFixed(5)}|${lo.toFixed(5)}&gsradius=10000&gslimit=100&format=json&origin=*`;
+ const j=await(await fetch(u)).json();return(j.query&&j.query.geosearch||[]).map(g=>({type:'wiki',pageid:g.pageid,title:g.title,lat:g.lat,lon:g.lon}))}catch(e){return[]}}
+
+function buildNet(j){
+ const LL=new Map();for(const e of j.elements)if(e.type==='node')LL.set(e.id,e);
+ const idx=new Map(),X=[],Y=[],ea=[],eb=[],ew=[],roads=[];
+ const gi=id=>{let i=idx.get(id);if(i===undefined){const n=LL.get(id);if(!n)return-1;const[x,y]=P(n.lat,n.lon);i=X.length;X.push(x);Y.push(y);idx.set(id,i)}return i};
+ for(const e of j.elements){if(e.type!=='way'||!e.nodes)continue;const t=e.tags||{},hw=t.highway;if(!hw)continue;
+  const foot=t.foot,footOK=foot==='yes'||foot==='designated';
+  if(foot==='no'||((t.access==='private'||t.access==='no')&&!footOK))continue;
+  const kind=/^(primary|secondary)/.test(hw)?2:/^(tertiary|unclassified|residential|living_street)/.test(hw)?1:0;
+  const walk=!(kind===2&&(t.sidewalk==='no'||t.sidewalk==='none')&&!footOK);   // sidewalks only
+  const pts=[];let pv=-1;
+  for(const id of e.nodes){const i=gi(id);if(i<0){pv=-1;continue}pts.push(X[i],Y[i]);
+   if(walk&&pv>=0&&pv!==i){ea.push(pv);eb.push(i);ew.push(Math.hypot(X[i]-X[pv],Y[i]-Y[pv]))}pv=i}
+  if(pts.length>=4)roads.push(mkPoly(kind,pts,t.name))}
+ const n=X.length,off=new Int32Array(n+1);for(let k=0;k<ea.length;k++){off[ea[k]+1]++;off[eb[k]+1]++}for(let i=0;i<n;i++)off[i+1]+=off[i];
+ const to=new Int32Array(ea.length*2),w=new Float32Array(ea.length*2),f=off.slice(0,n);
+ for(let k=0;k<ea.length;k++){const a=ea[k],b=eb[k];to[f[a]]=b;w[f[a]++]=ew[k];to[f[b]]=a;w[f[b]++]=ew[k]}
+ roads.sort((a,b)=>a.k-b.k);
+ return{g:{n,x:Float32Array.from(X),y:Float32Array.from(Y),off,to,w},roads}}
+
+const KEEP=['historic','tourism','memorial','artwork_type','inscription','description','start_date','wikipedia','amenity','shop','cuisine','opening_hours'];
+function buildFeat(j,wiki){const areas=[],pois=[];
+ for(const e of j.elements){const t=e.tags||{};
+  if(e.geometry){const G=e.geometry.filter(Boolean);if(G.length<2)continue;const pts=[];for(const g of G){const[x,y]=P(g.lat,g.lon);pts.push(x,y)}
+   const closed=G.length>3&&G[0].lat===G[G.length-1].lat&&G[0].lon===G[G.length-1].lon;let k=null;
+   if(t.waterway)k='river';else if(t.natural==='water')k='water';else if(t.natural==='wood'||t.landuse==='forest')k='wood';
+   else if(t.natural==='wetland'||t.natural==='scrub'||t.landuse==='meadow')k='meadow';else if(t.leisure||t.landuse)k='park';
+   if(!k||(k!=='river'&&!closed))continue;const a=mkPoly(k,pts,t.name);
+   if(k==='river')a.wide=t.waterway==='river'?16:t.waterway==='canal'?8:3;else{a.area=polyArea(a.p);[a.cx,a.cy]=centroid(a.p)}
+   areas.push(a);continue}
+  const lat=e.lat??(e.center&&e.center.lat),lon=e.lon??(e.center&&e.center.lon);if(lat==null)continue;
+  const sh=t.shop||'',am=t.amenity||'';let k=null;
+  if(am==='pharmacy'||/^(convenience|supermarket|general|variety_store|deli|chemist)$/.test(sh))k='shop';
+  else if(am==='cafe'||am==='ice_cream'||sh==='bakery')k='inn';
+  else if(am==='library')k='guild';else if(am==='townhall')k='castle';
+  else if(t.historic||t.tourism||am==='fountain')k='lore';
+  if(!k)continue;const[x,y]=P(lat,lon);const tags={};for(const q of KEEP)if(t[q])tags[q]=t[q];
+  pois.push({k,id:e.type[0]+e.id,name:t.name||null,x,y,tags})}
+ for(const w of wiki){const[x,y]=P(w.lat,w.lon);if(Math.hypot(x,y)>R)continue;pois.push({k:'lore',id:'w'+w.pageid,name:w.title,x,y,pageid:w.pageid,tags:{}})}
+ const ord={park:0,meadow:1,wood:2,water:3,river:4};areas.sort((a,b)=>ord[a.k]-ord[b.k]);
+ return{areas,pois}}
+
+/* --- mock world (for desk testing: add ?mock to the URL) --- */
+function mockData(lat,lon){const prev=O;setOrigin(lat,lon);let id=1;const els=[],ids={},N=40,SP=110,r=rng(7);
+ const nid=(i,j)=>{const k=i+','+j;if(!ids[k]){const[la,lo]=U(i*SP+(r()-.5)*20,j*SP+(r()-.5)*20);ids[k]=id;els.push({type:'node',id:id++,lat:la,lon:lo})}return ids[k]};
+ for(let j=-N;j<=N;j++){const row=[],col=[];for(let i=-N;i<=N;i++){row.push(nid(i,j));col.push(nid(j,i))}
+  els.push({type:'way',id:id++,nodes:row,tags:{highway:j%6===0?'secondary':'residential',name:'Row '+j}});
+  els.push({type:'way',id:id++,nodes:col,tags:{highway:j%6===0?'secondary':'residential',name:'Col '+j}})}
+ for(let k=0;k<60;k++){const i=Math.floor((r()-.5)*2*N),j=Math.floor((r()-.5)*2*N);els.push({type:'way',id:id++,nodes:[nid(i,j),nid(i+1,j+1)],tags:{highway:'footway'}})}
+ const fe=[];const box=(cx,cy,w,h,tags)=>{const g=[[cx-w,cy-h],[cx+w,cy-h],[cx+w,cy+h],[cx-w,cy+h],[cx-w,cy-h]].map(([x,y])=>{const[la,lo]=U(x,y);return{lat:la,lon:lo}});fe.push({type:'way',id:id++,geometry:g,tags})};
+ box(400,-300,160,120,{leisure:'park',name:'Memorial Park'});box(-900,700,300,220,{natural:'wood',name:'Old Woods'});box(2200,1500,260,400,{leisure:'park',name:'River Park'});
+ box(-2600,-1800,240,200,{leisure:'park',name:'Far Meadows'});box(1000,2600,200,120,{natural:'water',name:'Blue Pond'});
+ const g2=[];for(let i=-45;i<=45;i++){const[la,lo]=U(3000+Math.sin(i/6)*120,i*100);g2.push({lat:la,lon:lo})}fe.push({type:'way',id:id++,geometry:g2,tags:{waterway:'river',name:'Passaic River'}});
+ const poi=(x,y,tags)=>{const[la,lo]=U(x,y);fe.push({type:'node',id:id++,lat:la,lon:lo,tags})};
+ for(let k=0;k<30;k++)poi((r()-.5)*7000,(r()-.5)*7000,{shop:'convenience',name:'Corner Mart '+k});
+ poi(180,140,{shop:'convenience',name:'QuickChek'});poi(-700,-400,{amenity:'pharmacy',name:'Drug Fair'});
+ for(let k=0;k<8;k++)poi((r()-.5)*5000,(r()-.5)*5000,{amenity:'cafe',name:'Cafe '+k});
+ poi(-600,900,{amenity:'library',name:'Maurice Pine Library'});poi(1300,-500,{amenity:'townhall',name:'Borough Hall'});
+ for(let k=0;k<12;k++)poi((r()-.5)*6000,(r()-.5)*6000,{historic:'memorial',name:'Old Marker '+k,inscription:'Erected 1929 to honor the founders.'});
+ O=prev;return{net:{elements:els},feat:{elements:fe}}}
+
+async function downloadWorld(){
+ setOrigin(S.flag.lat,S.flag.lon);
+ const st=[['net','Charting streets and sidewalks'],['feat','Surveying shops, parks and landmarks'],['wiki','Gathering local legends'],['calc','Measuring every path from your flag']];
+ let cur=0;const show=(c,err)=>{cur=c;dlg({title:'THE MAP UNFOLDS',html:`<ul class="load">${st.map(([k,t],i)=>`<li>${i<cur?'&#10003;':i===cur?(err?'&#10007;':'&#9654;'):'&middot;'} ${t}</li>`).join('')}</ul>`+
+  (err?`<p style="color:#ff9b9b;margin-top:10px">${esc(err)}</p>`:'<p style="margin-top:10px"><small>This can take a minute. Keep the app open.</small></p>'),
+  buttons:err?[{t:'TRY AGAIN',fn:downloadWorld}]:[]})};
+ try{
+  // blur the flag: the query centre is moved 100–300 m at random so servers never see the exact home spot
+  const a=Math.random()*2*Math.PI,d=100+Math.random()*200;const[qa,qo]=U(Math.cos(a)*d,Math.sin(a)*d);const rq=Math.round(R+d+60);
+  let net,feat,wiki=[];
+  if(MOCK){const m=mockData(S.flag.lat,S.flag.lon);net=m.net;feat=m.feat;show(1);show(2)}
+  else{show(0);net=await overpass(qNet(qa,qo,rq));show(1);feat=await overpass(qFeat(qa,qo,rq));show(2);wiki=await wikiNear(qa,qo)}
+  show(3);await new Promise(r=>setTimeout(r,30));
+  const N=buildNet(net),F=buildFeat(feat,wiki);
+  if(N.g.n<10)throw new Error('No walkable streets found here. Try again later, or plant your flag somewhere else.');
+  world={g:N.g,roads:N.roads,areas:F.areas,pois:F.pois,made:Date.now(),v:1};
+  await idb.set('world',world).catch(e=>console.warn('world not cached',e));
+  closeDlg();startGame(true);
+ }catch(e){console.error(e);show(cur,e.message||String(e))}
+}
+
+/* ---------------- graph ---------------- */
+const walkable=n=>world.g.off[n+1]>world.g.off[n];
+function buildGrid(){const B=60,m=new Map(),g=world.g;for(let i=0;i<g.n;i++){const k=(Math.floor(g.x[i]/B)+5000)*10000+(Math.floor(g.y[i]/B)+5000);let a=m.get(k);if(!a)m.set(k,a=[]);a.push(i)}return{B,m}}
+function nearest(x,y,maxR=400,filter=walkable){const{B,m}=grid,g=world.g,gx=Math.floor(x/B),gy=Math.floor(y/B);let best=-1,bd=Infinity;
+ for(let r=0;(r-1)*B<=maxR;r++){for(let i=gx-r;i<=gx+r;i++)for(let j=gy-r;j<=gy+r;j++){if(Math.max(Math.abs(i-gx),Math.abs(j-gy))!==r)continue;
+  const a=m.get((i+5000)*10000+(j+5000));if(!a)continue;for(const n of a){if(filter&&!filter(n))continue;const d=Math.hypot(g.x[n]-x,g.y[n]-y);if(d<bd){bd=d;best=n}}}
+  if(best>=0&&bd<=r*B)break}return bd<=maxR?best:-1}
+function nodesIn(x,y,r0,r1){const{B,m}=grid,g=world.g,out=[];const gx0=Math.floor((x-r1)/B),gx1=Math.floor((x+r1)/B),gy0=Math.floor((y-r1)/B),gy1=Math.floor((y+r1)/B);
+ for(let i=gx0;i<=gx1;i++)for(let j=gy0;j<=gy1;j++){const a=m.get((i+5000)*10000+(j+5000));if(a)for(const n of a){const d=Math.hypot(g.x[n]-x,g.y[n]-y);if(d>=r0&&d<=r1&&walkable(n))out.push(n)}}return out}
+function dijkstra(src,maxD=9000){const g=world.g,n=g.n,d=new Float64Array(n).fill(Infinity),pv=new Int32Array(n).fill(-1);if(src<0)return{d,pv};
+ const hn=[],hd=[];
+ const push=(v,dv)=>{let i=hn.length;hn.push(v);hd.push(dv);while(i>0){const p=(i-1)>>1;if(hd[p]<=dv)break;hn[i]=hn[p];hd[i]=hd[p];i=p}hn[i]=v;hd[i]=dv};
+ const pop=()=>{const v=hn[0],lv=hn.pop(),ld=hd.pop();if(hn.length){let i=0;const L=hn.length;for(;;){let c=2*i+1;if(c>=L)break;if(c+1<L&&hd[c+1]<hd[c])c++;if(hd[c]>=ld)break;hn[i]=hn[c];hd[i]=hd[c];i=c}hn[i]=lv;hd[i]=ld}return v};
+ d[src]=0;push(src,0);
+ while(hn.length){const dv=hd[0],v=pop();if(dv>d[v])continue;if(dv>maxD)break;
+  for(let e=g.off[v];e<g.off[v+1];e++){const u=g.to[e],nd=dv+g.w[e];if(nd<d[u]){d[u]=nd;pv[u]=v;push(u,nd)}}}
+ return{d,pv}}
+
+/* ---------------- world generation rules (deterministic, no AI) ---------------- */
+const ROLE={shop:'ITEM SHOP',inn:'INN',guild:"EXPLORERS' GUILD",castle:'CASTLE (TOWN HALL)',dungeon:'DUNGEON',lore:'LORE STONE',chest:'MILE CHEST',prize:'GRAND CHEST',merchant:'TRAVELING MERCHANT',note:'FIELD NOTE',flag:'HOME BASE'};
+function wdOf(x,y){const n=nearest(x,y,300);if(n<0)return{n:-1,wd:Infinity};return{n,wd:Dflag[n]+Math.hypot(world.g.x[n]-x,world.g.y[n]-y)}}
+function nodeAtDist(t){const g=world.g;let b=-1,bd=Infinity;for(let i=0;i<g.n;i++){const e=Math.abs(Dflag[i]-t);if(e<bd){bd=e;b=i}}return b}
+function placeWorld(){
+ const g=world.g,out=[],used=new Set(),by=(a,b)=>a.wd-b.wd;
+ const all=world.pois.map(p=>Object.assign({},p,wdOf(p.x,p.y))).filter(p=>p.wd<6500);
+ const far=(p,list,m)=>list.every(q=>Math.hypot(q.x-p.x,q.y-p.y)>=m);
+ const take=(p,role)=>{used.add(p.id);out.push(Object.assign({},p,{role}))};
+ // Item shops: the closest real shop (at least a short stroll away), then a few more spread 0.2–1.5 mi out
+ const shops=all.filter(p=>p.k==='shop').sort(by),cs=[];
+ const s0=shops.find(p=>p.wd>=100);if(s0){take(s0,'shop');cs.push(s0)}
+ for(const p of shops){if(cs.length>=5)break;if(used.has(p.id)||p.wd<350||p.wd>2500)continue;if(far(p,cs,500)){take(p,'shop');cs.push(p)}}
+ if(!cs.length){const n=nodeAtDist(300);if(n>=0)take({id:'v-shop',k:'shop',name:null,x:g.x[n],y:g.y[n],n,wd:Dflag[n],tags:{}},'shop')}
+ // Inns: cafes and bakeries
+ const ci=[];for(const p of all.filter(p=>p.k==='inn').sort(by)){if(ci.length>=3)break;if(p.wd<150)continue;if(far(p,ci,450)){take(p,'inn');ci.push(p)}}
+ // Guild = nearest library, Castle = town hall
+ const lib=all.filter(p=>p.k==='guild'&&p.wd<4300).sort(by)[0];if(lib)take(lib,'guild');
+ const cas=all.filter(p=>p.k==='castle'&&p.wd<5000).sort(by)[0];if(cas)take(cas,'castle');
+ // Dungeons: the biggest parks and woods, entrance at the nearest path
+ const greens=world.areas.filter(a=>(a.k==='park'||a.k==='wood')&&a.area>6000).map(a=>Object.assign({a},wdOf(a.cx,a.cy))).filter(o=>o.n>=0&&o.wd>=300&&o.wd<=3800).sort((p,q)=>q.a.area-p.a.area);
+ const cd=[];for(const o of greens){if(cd.length>=3)break;const p={id:'d'+Math.round(o.a.cx)+'_'+Math.round(o.a.cy),k:'dungeon',name:o.a.name,x:g.x[o.n],y:g.y[o.n],n:o.n,wd:Dflag[o.n],tags:{}};
+  if(far(p,cd,700)){take(p,'dungeon');cd.push(p)}}
+ // Lore stones: named historic places, art, viewpoints and geotagged Wikipedia articles
+ const seen=[];for(const p of all.filter(p=>p.k==='lore'&&p.name&&!used.has(p.id)&&p.wd<=4500).sort(by)){if(seen.length>=80)break;
+  if(seen.some(q=>q.name===p.name&&Math.hypot(q.x-p.x,q.y-p.y)<300))continue;take(p,'lore');seen.push(p)}
+ return out}
+function describeSpot(x,y){let best=null,bd=450;for(const p of places){const d=Math.hypot(p.x-x,p.y-y);if(p.name&&d<bd){bd=d;best=p.name}}
+ if(best)return'near '+best;let rn=null;bd=80;for(const r of world.roads){if(!r.name||x<r.b[0]-80||x>r.b[2]+80||y<r.b[1]-80||y>r.b[3]+80)continue;
+  for(let i=0;i<r.p.length;i+=2){const d=Math.hypot(r.p[i]-x,r.p[i+1]-y);if(d<bd){bd=d;rn=r.name}}}return rn?'on '+rn:'somewhere out there'}
+function makeDaily(){const dk=dateKey(),g=world.g,rnd=rng(hash(S.flag.lat.toFixed(5)+S.flag.lon.toFixed(5)+dk));
+ const ring=(t,tol)=>{const c=[];for(let i=0;i<g.n;i++)if(Math.abs(Dflag[i]-t)<tol)c.push(i);return c};
+ const score=i=>{let s=0;const x=g.x[i],y=g.y[i];for(const p of places)if((p.role==='lore'||p.role==='dungeon')&&Math.hypot(p.x-x,p.y-y)<200)s+=1;
+  for(const a of world.areas)if((a.k==='park'||a.k==='wood')&&pointIn(a,x,y)){s+=1.5;break}return Math.min(s,3)};
+ const pick=(t,tol,pref)=>{const c=ring(t,tol);if(!c.length){let b=-1,bd=-1;for(let i=0;i<g.n;i++){const d=Dflag[i];if(d<=t&&d>bd){bd=d;b=i}}return b}
+  if(!pref)return c[Math.floor(rnd()*c.length)];let b=c[0],bs=-1;for(const i of c){const s=pref(i)+rnd()*1.2;if(s>bs){bs=s;b=i}}return b};
+ const mk=(n,role,id)=>n<0?null:{id,role,n,x:g.x[n],y:g.y[n],wd:Dflag[n],name:null,where:describeSpot(g.x[n],g.y[n])};
+ // Mile Chest: 1 mile out = 2 miles round trip.  Grand Chest: 2.5 miles out along sidewalks = a 5-mile, ~10k-step day.
+ return{dk,chest:mk(pick(MILE,90),'chest','chest-'+dk),prize:mk(pick(2.5*MILE,160,score),'prize','prize-'+dk)}}
+function allPlaces(){const a=places.slice();if(today){for(const k of['chest','prize']){const p=today[k];if(p&&!S.opened[p.id])a.push(p)}}
+ if(S.merchant&&S.merchant.until>Date.now())a.push(S.merchant);return a}
+
+/* ---------------- sprites ---------------- */
+// Thick ink outlines, flat highlighter colours (green, yellow, orange, blue) on printer paper
+const PAL={k:'#111111',w:'#ffffff',r:'#ff4d4d',b:'#2f80ed',y:'#ffe94d',o:'#ff9a2e',g:'#4fd65a',G:'#1f8a46',s:'#f6c59b',h:'#8a5a2b',
+ c:'#e9e6dc',d:'#7a7a7a',t:'#fff3c4',l:'#9be7ff',R:'#ff4d4d',n:'#5a3a1a'};
+function spr(rows,over={}){const h=rows.length,w=rows[0].length,c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');
+ for(let j=0;j<h;j++)for(let i=0;i<w;i++){const ch=rows[j][i];if(ch==='.')continue;x.fillStyle=over[ch]||PAL[ch]||'#f0f';x.fillRect(i,j,1,1)}return c}
+const HOUSE=["....kkkk....","...kRRRRk...","..kRRRRRRk..",".kRRRRRRRRk.","kkkkkkkkkkkk",".kttttttttk.",".ktkktllltk.",".ktkoktlltk.",".ktkokttttk.",".ktkokttttk.","kkkkkkkkkkkk"];
+const CHEST=[".kkkkkkkk.","kooooooook","kooooooook","kkkkyykkkk","kooyyyyook","koooyyoook","kooooooook",".kkkkkkkk."];
+const BODY_LEGS=["..kgggggk..","..kgk.kgk..","..ksk.ksk..",".kkkk.kkkk."];
+const HEAD=["...kkkkk...","..kyyyyyk..","kkkkkkkkkkk",".ksksssksk.",".ksssssssk.","..kkkkkkk.."];
+const SP={
+ player:spr([...HEAD,".kbbbbbbbk.","ksbbbbbbbsk",".kbbbbbbbk.",...BODY_LEGS]),
+ playerMap:spr([...HEAD,".kbkkkkkbk.","kskwwwwwksk",".kkwbwywkk.",...BODY_LEGS]),   // stops to check the map
+ flag:spr(["kk.......","krrrrk...","krrrrrrk.","krrwrrrrk","krrrrrrk.","krrrrk...","kk.......","kk.......","kk.......","kk.......","kk.......","kkkk....."]),
+ shop:spr(HOUSE,{R:'#2f80ed'}),inn:spr(HOUSE,{R:'#ff9a2e'}),guild:spr(HOUSE,{R:'#4fd65a'}),
+ castle:spr([".b........b.",".k........k.","kckck..kckck","kccckkkkccck","kcccccccccck","kcckcccckcck","kcccccccccck","kcccckkcccck","kccckddkccck","kccckddkccck","kkkkkkkkkkkk"]),
+ dungeon:spr(["...kkkkkk...","..kggggggk..",".kggGggGggk.","kgggkkkkgggk","kggkkkkkkggk","kggkkkkkkggk","kggkkkkkkggk","kkkkkkkkkkkk"]),
+ chest:spr(CHEST),prize:spr(CHEST,{o:'#2f80ed'}),
+ lore:spr(["..kkkk..",".kcccck.","kccbbcck","kcbccbck","kccbbcck","kcccccck","kcbbbbck","kcccccck","kcccccck","kkkkkkkk","gggggggg"]),
+ merchant:spr(["...kkkkkk...","..kyyyyyyk..",".kyrryyrryk.","kkkkkkkkkkkk",".kssk.kttk..",".kssk.kttk..","kkkkkkkkkkkk","kooooooooook",".kdk....kdk.","..k......k.."]),
+ note:spr(["kkkkkk.","kwwwwbk","kwkkwbk","kwwwwbk","kwkkwbk","kwwwwbk","kkkkkkk"]),
+ tree:spr(["..k..",".kgk.","kgGgk",".kgk.","..n.."]),
+ pine:spr(["..k..",".kGk.","kGgGk",".kGk.","kGGGk","..n.."])};
+function iconURL(role){const c=SP[role]||SP.lore,z=document.createElement('canvas'),s=Math.max(c.width,c.height);z.width=z.height=s;
+ z.getContext('2d').drawImage(c,Math.floor((s-c.width)/2),s-c.height);return z.toDataURL()}
+
+/* ---------------- rendering ---------------- */
+const cv=$('#map'),ctx=cv.getContext('2d'),fogCv=document.createElement('canvas'),fctx=fogCv.getContext('2d');
+let W=0,H=0,dirty=true,follow=true;const view={x:0,y:0,m:1.1};
+function resize(){W=Math.ceil(innerWidth/PX);H=Math.ceil(innerHeight/PX);cv.width=W;cv.height=H;fogCv.width=W;fogCv.height=H;dirty=true}
+addEventListener('resize',resize);
+const sx=x=>(x-view.x)/view.m+W/2, sy=y=>H/2-(y-view.y)/view.m;
+const ckey=(i,j)=>(i+50000)*100000+(j+50000);
+const INK='#111';
+let notesCache=[],trail=[],lastMoveT=0;const D={x:0,y:0,ok:false};   // D = where the explorer is drawn (glides toward the GPS fix)
+const lit=(x,y)=>revealed.has(ckey(Math.floor(x/CELL),Math.floor(y/CELL)));
+// Lore stones are discovered, not handed out as a checklist: you see one once you're near it or have walked its block.
+const loreSeen=p=>!!(S.lore[p.id]||lit(p.x,p.y)||(S.pos&&Math.hypot(p.x-S.pos.x,p.y-S.pos.y)<400));
+function draw(t){if(!world)return;const m=view.m,x0=view.x-W/2*m,x1=view.x+W/2*m,y0=view.y-H/2*m,y1=view.y+H/2*m;
+ const vis=b=>!(b[2]<x0-20||b[0]>x1+20||b[3]<y0-20||b[1]>y1+20);
+ ctx.imageSmoothingEnabled=false;ctx.fillStyle='#fffdf6';ctx.fillRect(0,0,W,H);ctx.lineJoin='round';ctx.lineCap='round';
+ // land and water: flat highlighter fills, ink outlines
+ for(const a of world.areas){if(!vis(a.b))continue;const p=a.p,path=new Path2D();path.moveTo(sx(p[0]),sy(p[1]));for(let i=2;i<p.length;i+=2)path.lineTo(sx(p[i]),sy(p[i+1]));
+  if(a.k==='river'){const w=Math.max(2,a.wide/m);ctx.strokeStyle=INK;ctx.lineWidth=w+2;ctx.stroke(path);ctx.strokeStyle='#1fb5e6';ctx.lineWidth=w;ctx.stroke(path);continue}
+  path.closePath();ctx.fillStyle={park:'#8ee05a',meadow:'#d4f27a',wood:'#3cc46a',water:'#1fb5e6'}[a.k];ctx.fill(path);ctx.strokeStyle=INK;ctx.lineWidth=1;ctx.stroke(path);
+  if((a.k==='park'||a.k==='wood')&&m<2.6){ctx.save();ctx.clip(path);const sp=(a.k==='wood'?11:18)*m,spr=a.k==='wood'?SP.pine:SP.tree;
+   const b=a.b;for(let i=Math.floor(Math.max(b[0],x0)/sp);i<=Math.min(b[2],x1)/sp;i++)for(let j=Math.floor(Math.max(b[1],y0)/sp);j<=Math.min(b[3],y1)/sp+1;j++){const h=hash('t'+i+':'+j);
+    if(a.k==='park'&&h%3)continue;ctx.drawImage(spr,Math.floor(sx(i*sp))+(h&3)-2,Math.floor(sy(j*sp))+(h>>3&3)-2)}ctx.restore()}}
+ // streets: yellow highlighter, main roads orange, footpaths blue ink
+ const big=m<2.2,paths=[new Path2D(),new Path2D(),new Path2D()];
+ for(const r of world.roads){if(!vis(r.b))continue;const p=r.p,q=paths[r.k];q.moveTo(sx(p[0]),sy(p[1]));for(let i=2;i<p.length;i+=2)q.lineTo(sx(p[i]),sy(p[i+1]))}
+ ctx.setLineDash(m<2.6?[2,2]:[]);ctx.strokeStyle='#2f80ed';ctx.lineWidth=1;ctx.stroke(paths[0]);ctx.setLineDash([]);
+ ctx.strokeStyle=INK;ctx.lineWidth=big?5:m<5?3:2;ctx.stroke(paths[1]);ctx.lineWidth=big?7:m<5?4:2;ctx.stroke(paths[2]);
+ if(m<5){ctx.strokeStyle='#ffe94d';ctx.lineWidth=big?3:1;ctx.stroke(paths[1]);ctx.strokeStyle='#ff9a2e';ctx.lineWidth=big?5:2;ctx.stroke(paths[2])}
+ // unexplored land is blank graph paper: walking draws the map
+ fctx.globalCompositeOperation='source-over';fctx.clearRect(0,0,W,H);fctx.fillStyle='#e6e0cc';fctx.fillRect(0,0,W,H);
+ const G=50;if(G/m>=5){fctx.fillStyle='#9fc2e6';for(let i=Math.ceil(x0/G);i*G<=x1;i++)fctx.fillRect(Math.floor(sx(i*G)),0,1,H);for(let j=Math.ceil(y0/G);j*G<=y1;j++)fctx.fillRect(0,Math.floor(sy(j*G)),W,1)}
+ fctx.globalCompositeOperation='destination-out';const i0=Math.floor(x0/CELL),i1=Math.floor(x1/CELL),j0=Math.floor(y0/CELL),j1=Math.floor(y1/CELL);
+ const cellRect=(i,j)=>{const a=Math.floor(sx(i*CELL)),b=Math.floor(sy((j+1)*CELL));fctx.fillRect(a,b,Math.ceil(sx((i+1)*CELL))-a,Math.ceil(sy(j*CELL))-b)};
+ if((i1-i0+1)*(j1-j0+1)<revealed.size){for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++)if(revealed.has(ckey(i,j)))cellRect(i,j)}
+ else for(const k of revealed){const i=Math.floor(k/100000)-50000,j=k%100000-50000;if(i>=i0&&i<=i1&&j>=j0&&j<=j1)cellRect(i,j)}
+ fctx.globalCompositeOperation='source-over';ctx.globalAlpha=.85;ctx.drawImage(fogCv,0,0);ctx.globalAlpha=1;
+ // the route, marked like a highlighter on a paper map
+ const rt=route();if(rt){const q=new Path2D();q.moveTo(sx(rt.pts[0]),sy(rt.pts[1]));for(let i=2;i<rt.pts.length;i+=2)q.lineTo(sx(rt.pts[i]),sy(rt.pts[i+1]));
+  ctx.strokeStyle='rgba(47,128,237,.45)';ctx.lineWidth=6;ctx.stroke(q)}
+ // footprints
+ if(m<3&&trail.length){ctx.fillStyle=INK;const n=trail.length;for(let i=0;i<n;i++){const f=trail[i];ctx.globalAlpha=.12+.5*i/n;ctx.fillRect(Math.round(sx(f.x))+(i%2?1:-1),Math.round(sy(f.y)),1,1)}ctx.globalAlpha=1}
+ // things on the map
+ const bob=Math.floor(t/400)%2;
+ const put=(c,x,y,lift=0)=>{const X=Math.round(sx(x)-c.width/2),Y=Math.round(sy(y)-c.height)-lift;if(X<-20||X>W+20||Y<-20||Y>H+20)return;ctx.drawImage(c,X,Y)};
+ put(SP.flag,0,0);
+ for(const n of notesCache)if(m<5)put(SP.note,n.x,n.y);
+ for(const p of allPlaces()){if(p.role==='lore'&&(m>5||!loreSeen(p)))continue;ctx.globalAlpha=lit(p.x,p.y)||S.visited[p.id]?1:.75;
+  put(SP[p.role],p.x,p.y,(p.role==='prize'||p.role==='merchant')?bob:0);ctx.globalAlpha=1}
+ if(D.ok){const still=Date.now()-lastMoveT;put(still>8000?SP.playerMap:SP.player,D.x,D.y,still<600?bob:0)}
+ // the sun sets on the paper too
+ const el=sunElev(S.flag.lat,S.flag.lon);let tint=null;
+ if(el<-6)tint='rgba(20,30,80,.36)';else if(el<0)tint='rgba(110,60,140,.2)';else if(el<8)tint='rgba(255,170,60,.1)';
+ if(tint){ctx.fillStyle=tint;ctx.fillRect(0,0,W,H)}}
+
+let lastDraw=0;
+function loop(t){requestAnimationFrame(loop);if(!world||!S||!S.pos)return;
+ // responsive but loose: the explorer and camera glide to each new fix instead of snapping
+ if(!D.ok){D.x=S.pos.x;D.y=S.pos.y;D.ok=true}
+ const dx=S.pos.x-D.x,dy=S.pos.y-D.y;if(Math.hypot(dx,dy)>300){D.x=S.pos.x;D.y=S.pos.y;dirty=true}else if(Math.abs(dx)+Math.abs(dy)>.02){D.x+=dx*.15;D.y+=dy*.15;dirty=true}
+ if(follow&&(view.x!==D.x||view.y!==D.y)){view.x=D.x;view.y=D.y;dirty=true}
+ if(dirty||t-lastDraw>400){draw(t);lastDraw=t;dirty=false}}
+
+/* ---------------- routes ---------------- */
+function setTarget(p){target=p;routeCache=null;if(!p){tree=null;hud();dirty=true;return}
+ const n=p.n>=0?p.n:nearest(p.x,p.y,300);tree=n>=0?dijkstra(n,12000):null;hud();dirty=true}
+function route(){if(!tree||!S.pos)return null;const n=nearest(S.pos.x,S.pos.y,250);if(n<0||!isFinite(tree.d[n]))return null;
+ if(routeCache&&routeCache.n===n)return routeCache;const g=world.g,pts=[S.pos.x,S.pos.y];let c=n,k=0;while(c>=0&&k++<50000){pts.push(g.x[c],g.y[c]);c=tree.pv[c]}
+ pts.push(target.x,target.y);return routeCache={n,pts,left:tree.d[n]+Math.hypot(g.x[n]-S.pos.x,g.y[n]-S.pos.y)}}
+
+/* ---------------- movement, fog, rewards ---------------- */
+function reveal(x,y){let nw=0;const r=REVEAL,i0=Math.floor((x-r)/CELL),i1=Math.floor((x+r)/CELL),j0=Math.floor((y-r)/CELL),j1=Math.floor((y+r)/CELL);
+ for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const cx=(i+.5)*CELL-x,cy=(j+.5)*CELL-y;if(cx*cx+cy*cy<=(r+CELL/2)**2){const k=ckey(i,j);if(!revealed.has(k)){revealed.add(k);nw++}}}return nw}
+function revealLine(ax,ay,bx,by){const d=Math.hypot(bx-ax,by-ay),n=Math.max(1,Math.ceil(d/5));let nw=0;for(let s=1;s<=n;s++)nw+=reveal(ax+(bx-ax)*s/n,ay+(by-ay)*s/n);return nw}
+// The play diary: one page per day, filled in automatically as you walk
+function logDay(name){const dk=dateKey();const d=S.diary[dk]||(S.diary[dk]={m:0,places:[],chest:0,prize:0});if(name&&!d.places.includes(name))d.places.push(name);return d}
+function credit(seg,nw){const dk=dateKey();if(S.day.dk!==dk)S.day={dk,m:0};S.day.m+=seg;S.total+=seg;logDay().m+=seg;
+ S.acc.g+=seg;S.acc.c+=nw;let got=0;while(S.acc.g>=25){S.acc.g-=25;got++}while(S.acc.c>=12){S.acc.c-=12;got++}S.gold+=got;
+ S.acc.mer+=seg;if(S.acc.mer>=350){S.acc.mer=0;if(!(S.merchant&&S.merchant.until>Date.now())&&Math.random()<.35)spawnMerchant()}}
+function onPos(pos){if(simOn)return;const c=pos.coords;gpsAcc=Math.round(c.accuracy);if(c.accuracy>35){hud();return}const[x,y]=P(c.latitude,c.longitude);onMove(x,y,false)}
+function onMove(x,y,sim){const now=Date.now(),L=lastFix;
+ if(!L){lastFix={x,y,t:now};S.pos={x,y};reveal(x,y);after();return}
+ const seg=Math.hypot(x-L.x,y-L.y);if(!sim&&seg<4)return;
+ const v=seg/Math.max(.5,(now-L.t)/1000);let nw;
+ if(sim||(v<4.2&&seg<250)){nw=revealLine(L.x,L.y,x,y);credit(seg,nw);lastMoveT=now;
+  const f=trail[trail.length-1];if(!f||Math.hypot(x-f.x,y-f.y)>=6){trail.push({x,y});if(trail.length>80)trail.shift()}}
+ else reveal(x,y);   // faster than a jog = a car or bus: no credit
+ lastFix={x,y,t:now};S.pos={x,y};after()}
+function after(){checkArrive();hud();dirty=true;save()}
+function spawnMerchant(){const c=nodesIn(S.pos.x,S.pos.y,50,120);if(!c.length)return;const n=c[Math.floor(Math.random()*c.length)],g=world.g;
+ S.merchant={id:'m'+Date.now(),role:'merchant',name:'Wex',n,x:g.x[n],y:g.y[n],wd:Dflag[n],until:Date.now()+12*60000};
+ toast('A merchant just parked his cart nearby. He won\'t stay long.');blip([660,880,990])}
+function checkArrive(){if(!S.pos)return;for(const p of allPlaces()){const d=Math.hypot(p.x-S.pos.x,p.y-S.pos.y);
+ if(d<=ARRIVE){if(!inside.has(p.id)){inside.add(p.id);arrive(p)}}else if(d>ARRIVE+20)inside.delete(p.id)}}
+
+/* ---------------- items: few, and every one does something ---------------- */
+const ITEMS={frag:{n:'Map Fragment',p:30,d:"Draws in the land around today's Grand Chest.",use:useFrag},
+ compass:{n:'Old Compass',p:20,d:"Points to the nearest lore stone you haven't read.",use:useCompass}};
+const SHOP=['frag','compass'],MERCH=['frag','compass'];
+const give=(k,n=1)=>{S.inv[k]=(S.inv[k]||0)+n};
+function useFrag(){if(!today||!today.prize)return false;for(let a=0;a<360;a+=20)revealLine(today.prize.x,today.prize.y,today.prize.x+Math.cos(a*Math.PI/180)*80,today.prize.y+Math.sin(a*Math.PI/180)*80);
+ setTarget(today.prize);follow=false;view.x=today.prize.x;view.y=today.prize.y;closeDlg();toast('The fragment fills in a corner of your map.');return true}
+function nearestUnread(maxD=Infinity){let b=null,bd=maxD;for(const p of places){if(p.role!=='lore'||S.lore[p.id])continue;const d=Math.hypot(p.x-S.pos.x,p.y-S.pos.y);if(d<bd){bd=d;b=p}}return b}
+function useCompass(){const b=nearestUnread();if(!b){toast('The needle spins. No unread lore nearby.');return false}
+ setTarget(b);closeDlg();toast('The needle points to '+b.name+'.');return true}
+
+/* ---------------- arrivals ---------------- */
+const first=p=>{const f=!S.visited[p.id];S.visited[p.id]=S.visited[p.id]||dateKey();return f};
+const todayOnce=(p,tag)=>{const k=tag+':'+p.id,dk=dateKey();if(S.once[k]===dk)return false;S.once[k]=dk;return true};
+function arrive(p){pocket(false);blip([880,1175]);const nm=p.name?esc(p.name):'';
+ if(target&&target.id===p.id)setTarget(null);
+ const isNew=first(p);if(p.role!=='merchant'&&p.role!=='chest'&&p.role!=='prize')logDay(p.name||ROLE[p.role]);
+ switch(p.role){
+ case'shop':return openShop(p,SHOP,1);
+ case'merchant':return openShop(p,MERCH,.6);
+ case'inn':{const r=nearestUnread(1600);   // the regulars point you somewhere real
+  return dlg({title:'INN',html:`<p><b>${nm||'The corner café'}</b></p><p>You grab a seat. The regulars are talking.</p>`+
+   (r?`<p>"Ever been to ${esc(r.name)}? It's about ${mi(Math.hypot(r.x-S.pos.x,r.y-S.pos.y))} from here. Nobody reads the sign."</p><p><small>Marked on your map.</small></p>`:'<p>"Nothing new today. Coffee\'s good, though."</p>'),
+   buttons:[{t:'OK',fn:()=>{if(r)setTarget(r)}}]})}
+ case'guild':return dlg({title:"EXPLORERS' GUILD",html:`<p><b>${nm}</b></p>`+(isNew?'<p>Hand-drawn maps of the town cover every wall. Some are neat. Most aren\'t.</p><p>"Everyone here started out lost. Add your notes to the wall."</p>':'<p>Someone pinned a new bird sketch to the wall.</p>')});
+ case'castle':if(isNew){S.gold+=20;return dlg({title:'CASTLE',html:`<p><b>${nm}</b></p><p>The clerk stamps a form. "Welcome to town. Officially."</p><p>Welcome gift: <b>20 gold</b>.</p>`})}
+  return dlg({title:'CASTLE',html:`<p><b>${nm}</b></p><p>The line is long today. You decide to come back another time.</p>`});
+ case'dungeon':{const t=nm||'The Green Depths';if(todayOnce(p,'dun')){S.gold+=15;const fr=Math.random()<.25;if(fr)give('frag');
+   return dlg({title:'DUNGEON',html:`<p><b>${t}</b></p><p>The path dips under the trees. Wet leaves. Quiet.</p><p>Something glints in the roots: <b>15 gold</b>${fr?' and a <b>Map Fragment</b>':''}.</p>`})}
+  return dlg({title:'DUNGEON',html:`<p><b>${t}</b></p><p>Just squirrels today. Come back tomorrow.</p>`})}
+ case'lore':return openLore(p,true);
+ case'chest':S.opened[p.id]=1;S.gold+=40;give('compass');logDay().chest=1;fanfare();save(true);
+  return dlg({title:'MILE CHEST',html:'<p>One mile from home. <b>+40 gold</b> and an <b>Old Compass</b>.</p><p><small>Walk back and that\'s two miles. A new chest turns up tomorrow.</small></p>'});
+ case'prize':S.opened[p.id]=1;S.gold+=150;give('frag');S.stars=(S.stars||0)+1;logDay().prize=1;fanfare();save(true);
+  return dlg({title:'GRAND CHEST',html:`<p>2.5 miles along the sidewalks, ${esc(p.where)}.</p><p><b>+150 gold</b>, a <b>Map Fragment</b>, and a star in today's diary.</p><p>Walk home and today was a 5-mile day.</p>`})}}
+function openShop(p,list,mult){const merch=p.role==='merchant';
+ const draw=()=>{dlg({title:merch?'TRAVELING MERCHANT':'ITEM SHOP',
+  html:`<p><b>${esc(p.name||'')}</b></p>`+(merch?'<p>"Rare goods. No receipts. I\'m gone in a few minutes."</p>':'<p>"Welcome in! Exact change appreciated."</p>')+`<p>You have <b>${S.gold} gold</b>.</p>`+
+   list.map(k=>{const it=ITEMS[k],pr=Math.ceil(it.p*mult);return`<div class="row"><div class="tx"><b>${it.n}</b> <i>${pr} gold</i><br>${it.d}<br><i>You have ${S.inv[k]||0}</i></div><button class="btn${S.gold<pr?' dim':''}" data-buy="${k}" data-pr="${pr}">BUY</button></div>`}).join(''),
+  buttons:[{t:'LEAVE'}]});
+  $('#dlgB').onclick=e=>{const b=e.target.closest('[data-buy]');if(!b)return;const pr=+b.dataset.pr;if(S.gold<pr){blip([200]);toast('Not enough gold. Keep walking!');return}
+   S.gold-=pr;give(b.dataset.buy);blip([990,1320]);save();hud();draw()}};draw()}
+async function openLore(p,here){const nm=esc(p.name||'Old Stone');
+ if(!here&&!S.lore[p.id]){return dlg({title:'LORE STONE',html:`<p><b>${nm}</b></p><p>The writing is too faint to read from here. Walk over to read it.</p><p><small>${mi(p.wd)} from your flag along the paths.</small></p>`,buttons:[{t:'CLOSE'},{t:'GO HERE',cls:'gold',fn:()=>setTarget(p)}]})}
+ if(!S.lore[p.id]){dlg({title:'LORE STONE',html:`<p><b>${nm}</b></p><p>You brush the leaves off and read...</p>`});first(p);
+  let txt='';try{txt=await loreText(p)}catch(e){}
+  if(!txt)txt=[p.tags.historic&&('A '+p.tags.historic.replace(/_/g,' ')+'.'),p.tags.tourism&&('A local '+p.tags.tourism+'.'),p.tags.inscription&&('It reads: "'+p.tags.inscription+'"'),p.tags.description,p.tags.start_date&&('Dated '+p.tags.start_date+'.')].filter(Boolean).join(' ')||'Nobody has written its story down yet. What do you think it was for? Snap a photo and write your guess.';
+  S.lore[p.id]={name:p.name,text:txt,dk:dateKey(),wiki:p.pageid||null};save(true)}
+ const L=S.lore[p.id];dlg({title:'LORE STONE',html:`<p><b>${nm}</b></p><p>${esc(L.text)}</p>`+(L.wiki?`<p><small>From Wikipedia. <a style="color:#9be7ff" href="https://en.wikipedia.org/?curid=${L.wiki}" target="_blank" rel="noopener">Read more</a></small></p>`:'')+'<p><small>Saved to your journal.</small></p>'})}
+async function loreText(p){let q='';if(p.pageid)q='pageids='+p.pageid;else if(p.tags.wikipedia){const t=p.tags.wikipedia.replace(/^en:/,'');if(t===p.tags.wikipedia&&/^[a-z]{2}:/.test(t))return'';q='titles='+encodeURIComponent(t)}else return'';
+ const j=await(await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&exsentences=5&redirects=1&${q}&format=json&origin=*`)).json();
+ const pg=Object.values(j.query.pages)[0];if(pg&&pg.pageid&&!p.pageid)p.pageid=pg.pageid;return pg&&pg.extract||''}
+
+/* ---------------- UI ---------------- */
+let toastT=0;function toast(m){const t=$('#toast');t.innerHTML=esc(m);t.classList.remove('hide');t.style.opacity=1;clearTimeout(toastT);toastT=setTimeout(()=>{t.style.opacity=0;setTimeout(()=>t.classList.add('hide'),400)},2800)}
+function dlg({title,html,buttons=[{t:'OK'}]}){$('#dlgT').innerHTML=title||'';$('#dlgB').innerHTML=html||'';$('#dlgB').onclick=null;$('#dlgB').scrollTop=0;
+ const bb=$('#dlgBtns');bb.innerHTML='';for(const b of buttons){const e=document.createElement('button');e.className='btn'+(b.cls?' '+b.cls:'');e.textContent=b.t;
+  e.onclick=()=>{if(!b.keep)closeDlg();b.fn&&b.fn()};bb.appendChild(e)}$('#dlgWrap').classList.remove('hide')}
+function closeDlg(){$('#dlgWrap').classList.add('hide');hud()}
+let gpsAcc=null;
+const todayM=()=>S.day.dk===dateKey()?S.day.m:0;
+function hud(){if(!S||!world)return;const dm=todayM();
+ const sun=sunElev(S.flag.lat,S.flag.lon)>0?'&#9728;':'&#9790;';
+ const note=simOn?'Sim walk':gpsAcc==null?'Finding GPS...':gpsAcc>35?'Weak GPS (&plusmn;'+gpsAcc+' m)':'';
+ $('#stats').innerHTML=`${sun} <b>${Math.round(dm/STRIDE).toLocaleString()}</b> steps &middot; ${mi(dm)} &middot; <b>${S.gold}</b> gold`+(note?`<small>${note}</small>`:'');
+ const c=$('#chip');if(target){const r=route();c.innerHTML=`${esc(target.name||ROLE[target.role])} &middot; <b>${r?mi(r.left):'?'}</b> to go &nbsp;&#10005;`;c.classList.remove('hide')}else c.classList.add('hide');
+ $('#me').classList.toggle('on',follow);pocketTick()}
+function placeTitle(p){return(ROLE[p.role]||'')+(p.name?' · '+p.name:'')}
+function tapAt(gx,gy){const hits=[];const test=(p,c)=>{const X=sx(p.x),Y=sy(p.y)-c.height/2;const d=Math.hypot(X-gx,Y-gy);if(d<11)hits.push([d,p])};
+ for(const p of allPlaces()){if(p.role==='lore'&&!loreSeen(p))continue;test(p,SP[p.role])}for(const n of notesCache)test(Object.assign({role:'note'},n),SP.note);test({role:'flag',x:0,y:0},SP.flag);
+ if(!hits.length)return;hits.sort((a,b)=>a[0]-b[0]);const p=hits[0][1];blip([700]);
+ if(p.role==='note')return showNote(p.id);
+ if(p.role==='flag')return dlg({title:'HOME',html:'<p>Your flag. Every distance in the game is measured from here, along real sidewalks.</p><p><small>It never leaves this phone.</small></p>'});
+ const near=S.pos&&Math.hypot(p.x-S.pos.x,p.y-S.pos.y)<=ARRIVE;if(near)return arrive(p);
+ if(p.role==='lore')return openLore(p,false);
+ const extra=p.role==='prize'?`<p>Today's big one, ${esc(p.where)}. There and back is a 5-mile, 10,000-step day.</p>`:p.role==='chest'?`<p>Today's chest, ${esc(p.where)}. One mile out, two miles round trip.</p>`:
+  p.role==='merchant'?'<p>He packs up soon.</p>':'';
+ dlg({title:ROLE[p.role],html:(p.name?`<p><b>${esc(p.name)}</b></p>`:'')+extra+`<p>${mi(p.wd)} from your flag along the paths.<br><small>Round trip ${mi(2*p.wd)}, about ${steps(2*p.wd)} steps.</small></p>`,buttons:[{t:'CLOSE'},{t:'GO HERE',cls:'gold',fn:()=>setTarget(p)}]})}
+function questList(){const row=(p,extra)=>`<div class="row"><img class="ic" src="${iconURL(p.role)}" alt=""><div class="tx"><b>${esc(p.name||ROLE[p.role])}</b>${S.visited[p.id]?' &#10003;':''}<br>${p.name?`<i>${esc(ROLE[p.role])}</i><br>`:''}${extra||''}<i>${mi(p.wd)} out &middot; ${steps(2*p.wd)} steps round trip</i></div><button class="btn" data-go="${esc(p.id)}">GO</button></div>`;
+ const daily=allPlaces().filter(p=>p.role==='prize'||p.role==='chest'||p.role==='merchant');
+ const done=today&&['chest','prize'].filter(k=>today[k]&&S.opened[today[k].id]).map(k=>ROLE[k].toLowerCase()).join(' and ');
+ const around=places.filter(p=>p.role!=='lore'||loreSeen(p)).sort((a,b)=>a.wd-b.wd).slice(0,15);
+ dlg({title:'QUESTS',html:'<div class="sec">TODAY</div>'+(daily.map(p=>row(p,p.where?esc(p.where)+'<br>':'')).join('')||'<p>Both chests are open. New ones turn up tomorrow.</p>')+(done?`<p><small>Opened today: ${done}.</small></p>`:'')+
+  '<div class="sec">AROUND TOWN</div>'+around.map(p=>row(p)).join('')+'<p><small>Distances follow real sidewalks and paths from your flag. More lore stones show up as you explore.</small></p>',buttons:[{t:'CLOSE'}]});
+ $('#dlgB').onclick=e=>{const b=e.target.closest('[data-go]');if(!b)return;const p=allPlaces().find(q=>q.id===b.dataset.go);if(!p)return;closeDlg();setTarget(p);follow=false;view.x=p.x;view.y=p.y;dirty=true;hud()}}
+function bag(){const ks=Object.keys(S.inv).filter(k=>ITEMS[k]&&S.inv[k]>0);
+ dlg({title:'BAG',html:`<p>You have <b>${S.gold} gold</b>.<br><small>${mi(S.total)} walked in all${S.stars?` &middot; ${S.stars} Grand Chest${S.stars>1?'s':''}`:''}.</small></p>`+
+  (ks.length?ks.map(k=>{const it=ITEMS[k];return`<div class="row"><div class="tx"><b>${it.n}</b> <i>x${S.inv[k]}</i><br>${it.d}</div><button class="btn" data-use="${k}">USE</button></div>`}).join(''):'<p>Empty. Item shops sell maps and compasses.</p>'),buttons:[{t:'CLOSE'}]});
+ $('#dlgB').onclick=e=>{const b=e.target.closest('[data-use]');if(!b)return;const k=b.dataset.use;if(ITEMS[k].use()){S.inv[k]--;save();hud()}}}
+/* --- pocket mode: phone away, eyes on the street --- */
+function pocket(on){const P=$('#pocket');if(!on){P.classList.add('hide');return}audioOn();wake();P.classList.remove('hide');pocketTick()}
+function pocketTick(){const P=$('#pocket');if(!S||P.classList.contains('hide'))return;const r=target&&route();
+ $('#pkBig').textContent=r?mi(r.left):Math.round(todayM()/STRIDE).toLocaleString();
+ $('#pkLbl').textContent=r?'to '+(target.name||ROLE[target.role].toLowerCase()):'steps today'}
+$('#pocket').onclick=()=>pocket(false);$('#bPocket').onclick=()=>pocket(true);
+
+/* --- journal: play diary, field notes (photos), lore --- */
+async function refreshNotes(){try{notesCache=(await idb.notes()).sort((a,b)=>b.t-a.t)}catch(e){notesCache=[]}dirty=true}
+$('#bSnap').onclick=()=>$('#cam').click();
+$('#cam').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+ const blob=await shrink(f).catch(()=>null);if(!blob){toast('Could not read that photo.');return}const url=URL.createObjectURL(blob);
+ dlg({title:'NEW FIELD NOTE',html:`<div class="note"><img src="${url}" alt=""></div><p style="margin-top:12px">What did you find? A bird, a plant, a bug, a strange door...</p><textarea id="noteTx" placeholder="Big hawk circling the park. Red tail?"></textarea><p><small>Guesses welcome. Show a neighbor and let them correct you.</small></p>`,
+  buttons:[{t:'DISCARD',fn:()=>URL.revokeObjectURL(url)},{t:'SAVE',cls:'gold',fn:async()=>{const note=$('#noteTx').value.trim();const n={id:Date.now(),t:Date.now(),x:S.pos.x,y:S.pos.y,blob,note};
+   await idb.putNote(n);await refreshNotes();toast('Saved to your journal.');save()}}]})};
+function shrink(file){return new Promise((res,rej)=>{const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{const s=Math.min(1,1280/Math.max(img.naturalWidth,img.naturalHeight));
+ const c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*s);c.height=Math.round(img.naturalHeight*s);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);
+ c.toBlob(b=>b?res(b):rej(),'image/jpeg',.82)};img.onerror=rej;img.src=u})}   // re-encoding drops EXIF and GPS
+let jTab='diary';
+const niceDate=dk=>{const[y,m,d]=dk.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})};
+function journal(){const urls=[];const notes=notesCache.map(n=>{const u=URL.createObjectURL(n.blob);urls.push(u);return`<div class="row"><img class="ic" style="width:60px;height:60px;object-fit:cover;image-rendering:auto;border:2px solid #fff;border-radius:6px" src="${u}" alt=""><div class="tx"><i>${new Date(n.t).toLocaleDateString()}</i><br>${esc(n.note)||'<i>(no note yet)</i>'}</div><button class="btn" data-note="${n.id}">OPEN</button></div>`}).join('');
+ const lore=Object.entries(S.lore).sort((a,b)=>a[1].dk<b[1].dk?1:-1).map(([id,l])=>`<div class="row"><img class="ic" src="${iconURL('lore')}" alt=""><div class="tx"><b>${esc(l.name)}</b><br>${esc(l.text.slice(0,120))}${l.text.length>120?'...':''}</div><button class="btn" data-lore="${esc(id)}">READ</button></div>`).join('');
+ const photosOn=dk=>notesCache.filter(n=>dateKey(new Date(n.t))===dk).length;
+ const diary=Object.entries(S.diary).sort((a,b)=>a[0]<b[0]?1:-1).map(([dk,d])=>{const ph=photosOn(dk);
+  return`<div class="row"><div class="tx"><b>${niceDate(dk)}</b>${d.prize?' &#9733;':''}<br>${steps(d.m)} steps &middot; ${mi(d.m)}${ph?` &middot; ${ph} photo${ph>1?'s':''}`:''}<br><i>${d.places.length?'Stopped at '+d.places.map(esc).join(', ')+'.':'Just walking.'}${d.chest?' Found the Mile Chest.':''}${d.prize?' Found the Grand Chest.':''}</i></div></div>`}).join('');
+ const tab=(k,l)=>`<button class="btn${jTab===k?' on':''}" data-tab="${k}">${l}</button>`;
+ dlg({title:'JOURNAL',html:`<div class="tabs">${tab('diary','DIARY')}${tab('notes','PHOTOS ('+notesCache.length+')')}${tab('lore','LORE ('+Object.keys(S.lore).length+')')}</div>`+
+  (jTab==='diary'?(diary||'<p>Your walks get written down here, one page a day.</p>'):jTab==='notes'?(notes||'<p>No photos yet. Tap SNAP when you see a bird, a plant or anything odd.</p>'):(lore||'<p>No lore yet. Walk up to a lore stone to read it.</p>')),
+  buttons:[{t:'CLOSE',fn:()=>urls.forEach(URL.revokeObjectURL)}]});
+ $('#dlgB').onclick=e=>{const t=e.target.closest('[data-tab]'),n=e.target.closest('[data-note]'),l=e.target.closest('[data-lore]');
+  if(t){jTab=t.dataset.tab;journal()}else if(n)showNote(+n.dataset.note);else if(l){const L=S.lore[l.dataset.lore];dlg({title:'LORE',html:`<p><b>${esc(L.name)}</b></p><p>${esc(L.text)}</p>`,buttons:[{t:'BACK',fn:journal}]})}}}
+function showNote(id){const n=notesCache.find(q=>q.id===id);if(!n)return;const u=URL.createObjectURL(n.blob);
+ dlg({title:'FIELD NOTE',html:`<div class="note"><img src="${u}" alt=""></div><p style="margin-top:8px"><small>${new Date(n.t).toLocaleString()} &middot; ${mi(Math.hypot(n.x,n.y))} from your flag</small></p><textarea id="noteTx">${esc(n.note)}</textarea>`,
+  buttons:[{t:'DELETE',fn:()=>confirmBox('Delete this photo and note?',async()=>{await idb.delNote(id);await refreshNotes();URL.revokeObjectURL(u)})},{t:'LOOK UP',keep:true,fn:()=>open('https://www.google.com/search?q='+encodeURIComponent(($('#noteTx').value||'')+' identification'),'_blank')},
+   {t:'SHARE',keep:true,fn:async()=>{const file=new File([n.blob],'field-note.jpg',{type:'image/jpeg'});const text=$('#noteTx').value;
+    try{if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],text});else{const a=document.createElement('a');a.href=u;a.download='field-note.jpg';a.click()}}catch(e){}}},
+   {t:'SAVE',cls:'gold',fn:async()=>{n.note=$('#noteTx').value.trim();await idb.putNote(n);await refreshNotes();URL.revokeObjectURL(u);toast('Note updated.')}}]})}
+
+/* --- menu --- */
+function menu(){dlg({title:'MENU',html:`<p>Your flag, map, gold and photos stay on this phone. To draw the map, the game asks OpenStreetMap and Wikipedia about a blurred area around your flag, never the exact spot.</p>
+ <p><small>Keep the game open while you walk (or use POCKET). Phones pause web pages in the background.</small></p>
+ <p><small>NextQuest prototype &middot; itemnaut &times; Claude<br>Map data &copy; OpenStreetMap contributors (ODbL). History from Wikipedia (CC BY-SA).</small></p>`,
+ buttons:[{t:simOn?'SIM WALK: ON':'SIM WALK: OFF',fn:()=>{if(S.demo){toast('The demo always uses sim walk.');return}setSim(!simOn)}},{t:'REDRAW MAP',fn:()=>confirmBox('Download the map again? Your progress stays.',async()=>{await idb.del('world');world=null;downloadWorld()})},
+  {t:'START OVER',fn:()=>confirmBox('Pull up your flag and start over? Your map, gold, items and diary are erased. Photos stay.',async()=>{await idb.del('world');localStorage.removeItem(LS);location.reload()})},{t:'CLOSE',cls:'gold'}]})}
+function confirmBox(msg,yes){dlg({title:'SURE?',html:`<p>${esc(msg)}</p>`,buttons:[{t:'NO'},{t:'YES',cls:'gold',fn:yes}]})}
+
+/* ---------------- input ---------------- */
+const pts=new Map();let gest=null;
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});audioOn();wake();
+ if(pts.size===1)gest={sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,t:Date.now(),moved:false};
+ else if(pts.size===2){const[a,b]=[...pts.values()];gest={pinch:Math.hypot(a.x-b.x,a.y-b.y),m:view.m,moved:true}}});
+cv.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId)||!gest)return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(gest.pinch&&pts.size>=2){const[a,b]=[...pts.values()];view.m=clamp(gest.m*gest.pinch/Math.max(10,Math.hypot(a.x-b.x,a.y-b.y)),.35,9);dirty=true;return}
+ const dx=e.clientX-gest.sx,dy=e.clientY-gest.sy;if(!gest.moved&&Math.hypot(dx,dy)>7){gest.moved=true;follow=false;hud()}
+ if(gest.moved){view.x=gest.vx-dx/PX*view.m;view.y=gest.vy+dy/PX*view.m;dirty=true}});
+const up=e=>{if(!pts.has(e.pointerId))return;pts.delete(e.pointerId);
+ if(gest&&!gest.moved&&!gest.pinch&&Date.now()-gest.t<450)tapAt(e.clientX/PX,e.clientY/PX);
+ if(pts.size===1){const[a]=[...pts.values()];gest={sx:a.x,sy:a.y,vx:view.x,vy:view.y,t:0,moved:true}}else if(!pts.size)gest=null};
+cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+cv.addEventListener('wheel',e=>{e.preventDefault();view.m=clamp(view.m*Math.exp(e.deltaY*.002),.35,9);dirty=true},{passive:false});
+$('#zin').onclick=()=>{view.m=clamp(view.m/1.5,.35,9);dirty=true};$('#zout').onclick=()=>{view.m=clamp(view.m*1.5,.35,9);dirty=true};
+$('#me').onclick=()=>{follow=true;dirty=true;hud()};
+$('#chip').onclick=()=>{if(target)confirmBox('Stop following this quest?',()=>setTarget(null))};
+$('#bQuest').onclick=questList;$('#bBag').onclick=bag;$('#bNotes').onclick=()=>{refreshNotes().then(journal)};$('#gear').onclick=menu;
+document.addEventListener('gesturestart',e=>e.preventDefault());
+// sim walk d-pad (desk testing, demo mode)
+// sim walk d-pad (desk testing, demo mode): a little momentum, so it starts and stops like a person
+let simOn=false,simDir=null,simV=[0,0],simT=0,turbo=1;
+function setSim(on){simOn=on;$('#pad').classList.toggle('hide',!on);if(S)S.sim=on;hud();save()}
+function simStep(){const max=.6*turbo,tx=simDir?simDir[0]*max:0,ty=simDir?simDir[1]*max:0;simV[0]+=(tx-simV[0])*.22;simV[1]+=(ty-simV[1])*.22;
+ if(!simDir&&Math.hypot(simV[0],simV[1])<.03){simV=[0,0];clearInterval(simT);simT=0;return}if(S.pos)onMove(S.pos.x+simV[0],S.pos.y+simV[1],true)}
+document.querySelectorAll('#pad [data-d]').forEach(b=>{const go=e=>{e.preventDefault();audioOn();simDir=b.dataset.d.split(',').map(Number);if(!simT)simT=setInterval(simStep,100)};
+ const stop=()=>{simDir=null};b.addEventListener('pointerdown',go);b.addEventListener('pointerup',stop);b.addEventListener('pointerleave',stop);b.addEventListener('pointercancel',stop)});
+$('#turbo').onclick=()=>{turbo=turbo===1?5:turbo===5?20:1;$('#turbo').textContent='x'+turbo};
+
+/* ---------------- sound + wake lock ---------------- */
+let AC=null;function audioOn(){if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(AC&&AC.state==='suspended')AC.resume()}
+function blip(fs,dur=.07){if(!AC)return;let t=AC.currentTime;for(const f of fs){const o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.value=f;g.gain.setValueAtTime(.05,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g).connect(AC.destination);o.start(t);o.stop(t+dur);t+=dur}}
+const fanfare=()=>blip([523,523,523,698,880,784,880,1046],.11);
+let wl=null;async function wake(){try{if('wakeLock'in navigator&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>wl=null)}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){wl=null;wake()}});
+
+/* ---------------- the dream ---------------- */
+const DREAM=["...You're dreaming.",'A blank map floats in the dark. One word on it: HOME.','The map clears its throat.',
+ '"I\'m a map with nothing on me yet. Walk, and I\'ll draw what you see."','"Start where you stand. Plant your flag."','...Your alarm goes off.'];
+function intro(){const I=$('#intro');I.classList.remove('hide');for(let i=0;i<90;i++){const s=document.createElement('div');s.className='st';s.style.left=Math.random()*100+'%';s.style.top=Math.random()*70+'%';s.style.animationDelay=Math.random()*3+'s';I.appendChild(s)}
+ let li=0,ci=0,typing=null;const tx=$('#dreamTxt');
+ const type=()=>{const L=DREAM[li];ci=0;tx.textContent='';clearInterval(typing);typing=setInterval(()=>{ci++;tx.textContent=L.slice(0,ci);if(ci%2)blip([300+ci%5*40],.02);if(ci>=L.length){clearInterval(typing);typing=null}},34);
+  if(li===1)$('#paper').style.opacity=1;if(li===DREAM.length-1){$('#paper').style.opacity=0;blip([880,0,880,0,880],.08)}};
+ const next=()=>{audioOn();if(typing){clearInterval(typing);typing=null;tx.textContent=DREAM[li];return}li++;if(li>=DREAM.length)return wakeUp();type()};
+ I.onpointerdown=e=>{if(e.target.id==='skip')return;next()};$('#skip').onclick=()=>wakeUp();setTimeout(type,700);
+ function wakeUp(){I.onpointerdown=null;const f=$('#flash');f.style.opacity=1;blip([392,523,659,784],.12);setTimeout(()=>{I.classList.add('hide');f.style.opacity=0;plantDialog()},700)}}
+function plantDialog(){dlg({title:'YOU WAKE UP',html:`<p>New town. Boxes still packed. Streets you don't know yet.</p><p>Plant your flag where you stand. It becomes <b>HOME</b>: the spot every shop, park and treasure is measured from, along real sidewalks.</p><p><small>Best done at home. The flag stays on this phone.</small></p>`,
+ buttons:[{t:'TRY THE DEMO',fn:()=>plant(DEMO.lat,DEMO.lon,true)},{t:'PLANT FLAG HERE',cls:'gold',keep:true,fn:gpsPlant}]})}
+function gpsPlant(){if(!navigator.geolocation){toast('No GPS on this device. Try the demo.');return}
+ dlg({title:'FINDING YOU',html:'<p>Looking for your spot...</p><p id="acc"><small>Allow location when your phone asks.</small></p>',buttons:[{t:'CANCEL',fn:()=>{navigator.geolocation.clearWatch(wid);clearTimeout(tm);plantDialog()}}]});
+ let best=null,tm=0;const done=()=>{navigator.geolocation.clearWatch(wid);clearTimeout(tm);if(!best){dlg({title:'NO SIGNAL',html:'<p>Couldn\'t get your location. Check that Location is on for Safari, then try again.</p>',buttons:[{t:'BACK',fn:plantDialog}]});return}
+  plant(best.latitude,best.longitude,false,Math.round(best.accuracy))};
+ const wid=navigator.geolocation.watchPosition(p=>{if(!best||p.coords.accuracy<best.accuracy)best=p.coords;const a=$('#acc');if(a)a.innerHTML='<small>Accurate to about '+Math.round(best.accuracy)+' m</small>';if(best.accuracy<=15)done()},
+  e=>{if(e.code===1){navigator.geolocation.clearWatch(wid);clearTimeout(tm);dlg({title:'LOCATION OFF',html:'<p>The game needs your location to draw your map. Turn it on in Settings &gt; Privacy &gt; Location Services &gt; Safari Websites, or try the demo.</p>',buttons:[{t:'BACK',fn:plantDialog}]})}},
+  {enableHighAccuracy:true,maximumAge:0,timeout:20000});tm=setTimeout(done,12000)}
+function plant(lat,lon,demo,acc){S={v:2,flag:{lat,lon},demo,created:Date.now(),gold:10,inv:{},visited:{},once:{},opened:{},lore:{},diary:{},stars:0,day:{dk:dateKey(),m:0},total:0,acc:{g:0,c:0,mer:0},revealed:[],pos:{x:0,y:0},sim:demo,merchant:null};
+ revealed=new Set();save(true);blip([523,784]);
+ dlg({title:'FLAG PLANTED',html:`<p>${demo?'A flag in Fair Lawn, New Jersey. Walk with the arrow pad.':'Your flag is in'+(acc?' (accurate to about '+acc+' m)':'')+'.'}</p><p>Now the map can start drawing.</p>`,buttons:[{t:'DRAW THE MAP',cls:'gold',fn:downloadWorld}]})}
+
+/* ---------------- start ---------------- */
+let gpsWatch=null,started=false;
+function migrate(){S.diary=S.diary||{};S.stars=S.stars||0;S.inv=S.inv||{};for(const k of Object.keys(S.inv))if(!ITEMS[k])delete S.inv[k];delete S.xp}
+function startGame(fresh){setOrigin(S.flag.lat,S.flag.lon);migrate();grid=buildGrid();flagNode=nearest(0,0,800);Dflag=dijkstra(flagNode,9000).d;
+ places=placeWorld();today=makeDaily();revealed=new Set(S.revealed||[]);
+ if(fresh){reveal(0,0);for(let a=0;a<360;a+=30)revealLine(0,0,Math.cos(a*Math.PI/180)*45,Math.sin(a*Math.PI/180)*45)}
+ for(const id of['hud','side','bar','osm'])$('#'+id).classList.remove('hide');
+ lastFix=null;D.ok=false;onMove(S.pos.x,S.pos.y,true);
+ setSim(!!(S.demo||S.sim));
+ if(!started&&!S.demo&&navigator.geolocation)gpsWatch=navigator.geolocation.watchPosition(onPos,e=>{gpsAcc=null;if(e.code===1)toast('Location is off. Turn it on, or use SIM WALK in the menu.');hud()},{enableHighAccuracy:true,maximumAge:2000,timeout:30000});
+ refreshNotes();resize();hud();
+ if(fresh){const sh=places.filter(p=>p.role==='shop').sort((a,b)=>a.wd-b.wd)[0];
+  dlg({title:'DAY 1',html:'<p>Your map has one thing on it so far: your flag.</p><p>Every street you walk gets drawn in for good. Shops, inns, parks and old stories were placed from your town\'s real map.</p>'+
+   (sh?`<p>Nearest item shop: <b>${esc(sh.name||'the corner store')}</b>, ${mi(sh.wd)} away.</p>`:'')+
+   (today.prize?`<p>Today's <b>Grand Chest</b> is 2.5 miles out, ${esc(today.prize.where)}. There and back is a 10,000-step day.</p>`:'')+'<p><small>Tap QUESTS to pick where to go.</small></p>',buttons:[{t:"LET'S GO",cls:'gold'}]})}
+ if(!started)setInterval(()=>{if(world&&today&&today.dk!==dateKey()){today=makeDaily();toast('New day. New chests.');hud();dirty=true}
+  if(S.merchant&&S.merchant.until<Date.now()){S.merchant=null;dirty=true}},20000);started=true}
+async function boot(){resize();requestAnimationFrame(loop);S=loadState();
+ if(!S)return intro();
+ setOrigin(S.flag.lat,S.flag.lon);
+ try{world=await idb.get('world')}catch(e){world=null}
+ if(!world)return downloadWorld();
+ startGame(false)}
+boot();
+</script>
+</body>
+</html>

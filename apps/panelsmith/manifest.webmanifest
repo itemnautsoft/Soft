@@ -1,0 +1,28 @@
+{
+  "name": "Panelsmith",
+  "short_name": "Panelsmith",
+  "description": "Make comic pages on your phone from your own photos. A prototype by Claude (AI), made for itemnaut.",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#121215",
+  "theme_color": "#1d1d22",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
