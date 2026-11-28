@@ -1,0 +1,9 @@
+{
+  "title": "Tonpet",
+  "blurb": "A new wind instrument somewhere between a trumpet and a bassoon. The sound isn't samples: it's a physical model of a lip-reed and a conical reed blowing through a modelled air column, so your breath into the mic shapes and sustains every note. Glide from brassy to woody with one dial.",
+  "date": "2026-11-27",
+  "updated": "2026-11-27",
+  "tags": ["mobile", "music", "instrument", "creative"],
+  "controls": "Hold a key to play. Turn on Mic breath and blow at the bottom of the phone, or slide the Air strip. Slide a finger sideways on a key to bend the pitch. Trumpet ↔ Bassoon dial sets the character, and Shape sets the key, scale, octave, vibrato and room. Computer: A–; and Q–T play, Space blows",
+  "artifact": "https://claude.ai/artifact/EgU96DM1fGbzYE9tXavqGW"
+}
