@@ -9,6 +9,6 @@
     "library",
     "comics"
   ],
-  "controls": "Add a folder, then Refresh to pick up new books. Select: tap books or stacks (or Select all on a search) and Move to stack. Drag a book onto another to stack (long-press first on touch); drop at an edge to reorder. Tap a stack to swipe through it. Reader: drag or tap pages, 3D/Flat and 1/2 pages up top, Aa for text size, manga direction and pairing. Works offline once opened; on iPad it keeps copies of your books inside the app.",
+  "controls": "Add a folder, then Refresh to pick up new books. Select: tap books or stacks (or Select all on a search) and Move to stack. Drag a book onto another to stack (long-press first on touch); drop at an edge to reorder. Tap a stack to swipe through it. Reader: drag or tap pages, 3D/Flat and 1/2 pages up top, Aa for text size, manga direction and pairing. Works offline once opened. On iPad, pick the folder again after Safari reloads the page; your stacks and reading spots are kept.",
   "artifact": "https://claude.ai/artifact/MmvQ25upcXAfRciLRaQPnz"
 }

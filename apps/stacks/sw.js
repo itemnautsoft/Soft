@@ -1,5 +1,5 @@
 // Stacks offline cache: the app shell, the PDF engine and the fonts, so the library opens with no connection.
-const V='stacks-v3';
+const V='stacks-v4';
 const CORE=['./','index.html','manifest.webmanifest','icon-180.png','icon-192.png','icon-512.png'];
 const PDF='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 const EXT=[PDF+'pdf.min.js',PDF+'pdf.worker.min.js'];
