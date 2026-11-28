@@ -28,7 +28,6 @@ canvas{display:block;position:fixed;inset:0}
 #op{width:44px;height:120px;flex:none;writing-mode:vertical-lr;direction:rtl;accent-color:var(--accent)}
 #hint{position:fixed;left:0;right:0;bottom:calc(12px + env(safe-area-inset-bottom,0px));padding:0 max(16px,env(safe-area-inset-left,0px)) 0 max(16px,env(safe-area-inset-right,0px));text-align:center;color:var(--fg);font-size:14px;pointer-events:none;transition:opacity .6s;text-shadow:0 0 6px var(--bg),0 0 2px var(--bg)}
 #stats{position:fixed;left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));font-size:12px;color:var(--muted);pointer-events:none;font-variant-numeric:tabular-nums}
-#woodBar input{accent-color:var(--accent)}
 #ask{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:0 max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));touch-action:auto;z-index:20}
 #askF{background:var(--panel);color:var(--fg);border-radius:16px;padding:18px;width:min(340px,100%);display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 30px var(--shadow)}
 #askT{margin:0;font-size:15px;line-height:1.4}
@@ -40,7 +39,11 @@ canvas{display:block;position:fixed;inset:0}
 #autoF{background:var(--panel);color:var(--fg);border-radius:16px;padding:18px;width:min(360px,100%);display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 30px var(--shadow)}
 #autoF .ttl{margin:0;font-size:17px;font-weight:600}
 #autoF label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:15px}
-#autoF input[type=number]{width:110px;font-size:16px;padding:8px 10px;border-radius:8px;border:1px solid var(--muted);background:var(--bg);color:var(--fg);font-variant-numeric:tabular-nums}
+#autoF .fc{display:flex;flex-direction:column;gap:8px}#autoF .fcTop{display:flex;justify-content:space-between;align-items:baseline;font-size:15px}
+#aNv{font-weight:600;font-variant-numeric:tabular-nums}#aN{width:100%;accent-color:var(--accent);min-height:28px}
+#aPre{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+#aPre button{min-height:48px;border:1px solid transparent;border-radius:10px;background:var(--bg);color:var(--fg);font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px}
+#aPre button small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}#aPre button.on{border-color:var(--accent);font-weight:600}
 #autoF input[type=range]{flex:1;accent-color:var(--accent)}
 #autoF input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
 #autoF .note{margin:0;font-size:13px;color:var(--muted);line-height:1.4}
@@ -54,7 +57,6 @@ canvas{display:block;position:fixed;inset:0}
 #autoF #aGo{background:var(--accent);color:#fff;font-weight:600}#autoF #aGo:disabled{opacity:.5}
 #warn{position:fixed;left:calc(10px + env(safe-area-inset-left,0px));top:calc(30px + env(safe-area-inset-top,0px));border:none;border-radius:16px;min-height:32px;padding:6px 12px;background:var(--danger);color:#fff;font-size:13px;font-weight:600;box-shadow:0 2px 6px var(--shadow);cursor:pointer;max-width:calc(100% - 90px);text-align:left}
 #ringUI .b{position:fixed;z-index:15;background:var(--accent);color:#fff;font-size:22px}#ringUI .b span{display:inline-block}
-#ringUI #rImg{background:var(--panel);color:var(--fg)}
 @media (prefers-reduced-motion:reduce){#hint{transition:none}}
 </style>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
@@ -62,8 +64,6 @@ canvas{display:block;position:fixed;inset:0}
 <body>
 <div id="stats"></div>
 <div id="bar">
-<button class="b" id="bWood" title="Wood carving mode">🪵</button>
-<button class="b" id="bRef" title="Reference box from drawings">📐</button>
 <button class="b" id="bImp" title="Import sculpt">📂</button>
 <button class="b" id="bHi" title="Show/hide sculpt">👁</button>
 <input type="range" id="op" min="0.1" max="1" step="0.05" value="0.85" title="Low-poly opacity">
@@ -84,18 +84,13 @@ canvas{display:block;position:fixed;inset:0}
 </div>
 <input type="file" id="file" hidden>
 <button class="b" id="bX" title="Cancel unfinished face" style="position:fixed;left:calc(10px + env(safe-area-inset-left,0px));top:50%;transform:translateY(-50%);display:none;color:var(--danger);font-size:22px">✕</button>
-<input type="file" id="refFile" accept="image/*" hidden>
-<div id="woodBar" style="position:fixed;left:50%;bottom:calc(42px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:none;gap:6px;flex-wrap:wrap;justify-content:center;width:min(96vw,520px)">
-<button class="b wt" style="border-radius:22px;width:auto;padding:0 12px;font-size:13px" data-t="gouge">Gouge</button><button class="b wt off" style="border-radius:22px;width:auto;padding:0 12px;font-size:13px" data-t="chisel">Chisel</button>
-<button class="b wt off" style="border-radius:22px;width:auto;padding:0 12px;font-size:13px" data-t="vtool">V-tool</button><button class="b wt off" style="border-radius:22px;width:auto;padding:0 12px;font-size:13px" data-t="knife">Knife</button>
-<button class="b wt off" style="border-radius:22px;width:auto;padding:0 12px;font-size:13px" data-t="sand">Sand</button>
-<input type="range" id="wSize" min="0.03" max="0.2" step="0.005" value="0.08" style="width:110px" title="Tool size">
-<button class="b" style="border-radius:22px;width:auto;padding:0 12px;font-size:13px" id="wNew">New block</button></div>
 <div id="ask" hidden><form id="askF"><p id="askT"></p><input id="askI" type="number" inputmode="numeric" min="10"><div class="row"><button type="button" id="askNo">Cancel</button><button type="submit" id="askYes">OK</button></div></form></div>
-<div id="autoP" hidden><form id="autoF">
+<div id="autoP" hidden><form id="autoF" novalidate>
 <p class="ttl">Auto retopology</p>
 <div id="aKind"><button type="button" data-k="quad" class="on">Quads that follow the shape</button><button type="button" data-k="tri">Quick triangles</button></div>
-<label for="aN">Faces <input id="aN" type="number" inputmode="numeric" min="20" max="20000" step="50" value="800"></label>
+<div class="fc"><div class="fcTop"><label for="aN">Faces</label><output id="aNv" for="aN">about 1,000</output></div>
+<input id="aN" type="range" min="0" max="100" step="1" value="50" aria-describedby="aNv">
+<div id="aPre"><button type="button" data-n="300">Light<small>300</small></button><button type="button" data-n="1000">Medium<small>1,000</small></button><button type="button" data-n="3000">Detailed<small>3,000</small></button><button type="button" data-n="8000">Dense<small>8,000</small></button></div></div>
 <label id="aSmL" for="aSm">Smoothness <input id="aSm" type="range" min="0" max="1" step="0.05" value="0.5"></label>
 <label id="aMiL" for="aMi">Mirror across the centre line <input id="aMi" type="checkbox"></label>
 <p class="note">Replaces your low-poly mesh. Undo brings it back. Big counts on dense sculpts can take a minute on a phone.</p>
@@ -103,7 +98,7 @@ canvas{display:block;position:fixed;inset:0}
 <div class="row"><button type="button" id="aNo">Cancel</button><button type="submit" id="aGo">Make quads</button></div>
 </form></div>
 <button id="warn" hidden title="Show the next problem face"></button>
-<div id="ringUI" hidden><button class="b" id="rA" title="Wrap a ring this way"><span>⟷</span></button><button class="b" id="rB" title="Wrap a ring this way"><span>⟷</span></button><button class="b" id="rImg" title="Put a drawing on this side">🖼</button></div>
+<div id="ringUI" hidden><button class="b" id="rA" title="Wrap a ring this way"><span>⟷</span></button><button class="b" id="rB" title="Wrap a ring this way"><span>⟷</span></button></div>
 <div id="hint"></div>
 <script type="text/plain" id="qremeshSrc">
 // Polygo quad remesher: the Instant Meshes method (Jakob, Tarini, Panozzo, Sorkine-Hornung 2015), written in JS.
@@ -593,7 +588,6 @@ import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 import {STLExporter} from 'three/addons/exporters/STLExporter.js';
 import {PLYExporter} from 'three/addons/exporters/PLYExporter.js';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
-import {MarchingCubes} from 'three/addons/objects/MarchingCubes.js';
 import {SimplifyModifier} from 'three/addons/modifiers/SimplifyModifier.js';
 import {mergeVertices,mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -624,8 +618,7 @@ function ask(text,{value,ok='OK'}={}){return new Promise(res=>{const A=$('ask'),
   setTimeout(()=>(value===undefined?$('askYes'):I).focus(),0)})}
 let meshVer=0;
 const save=()=>{meshVer++;hist.push(JSON.stringify([V,F]));if(hist.length>80)hist.shift()};
-const undo=()=>{meshVer++;if(woodMode){if(!woodUndo.length)return hint('No more undo: wood remembers');wood.field.set(woodUndo.pop());return woodRefresh()}
-  if(!hist.length)return;[V,F]=JSON.parse(hist.pop());pend=[];rebuild()};
+const undo=()=>{meshVer++;if(!hist.length)return;[V,F]=JSON.parse(hist.pop());pend=[];rebuild()};
 
 // ---------- high-res sculpt ----------
 const hiMat=new THREE.MeshStandardMaterial({color:0xb9b2a8,roughness:.8,flatShading:false});
@@ -634,7 +627,6 @@ function geoMesh(g){g.computeVertexNormals();
 let highGeo=null;
 function setHigh(root){
   meshVer++;
-  refMode=false;
   if(high)scene.remove(high);
   root.traverse(o=>{if(o.isMesh&&!o.geometry.attributes.normal)o.geometry.computeVertexNormals()});
   root.updateMatrixWorld(true);const bb=new THREE.Box3().setFromObject(root),c=new THREE.Vector3(),sz=new THREE.Vector3();
@@ -810,117 +802,7 @@ function snapHit(p,n){if(!high)return null;const P=new THREE.Vector3(...p),N=new
   rc.far=Infinity;return best}
 function snap(p,n){if(free())return p;const h=snapHit(p,n);return h?h.point.toArray():p}
 
-// ---------- reference box mode ----------
-let refMode=false;const refTex={},refImg={};
-const refMat=new THREE.ShaderMaterial({transparent:true,side:THREE.DoubleSide,depthWrite:false,
-  polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,
-  uniforms:{tF:{value:null},hF:{value:0},tB:{value:null},tS:{value:null},tT:{value:null},hB:{value:0},hS:{value:0},hT:{value:0},
-    bmin:{value:new THREE.Vector3(-1,-1,-1)},bmax:{value:new THREE.Vector3(1,1,1)},op:{value:.85}},
-  vertexShader:`varying vec3 vW;void main(){vW=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(vW,1.);}`,
-  fragmentShader:`uniform sampler2D tF,tB,tS,tT;uniform float hF,hB,hS,hT,op;uniform vec3 bmin,bmax;varying vec3 vW;
-  void main(){vec3 n=normalize(cross(dFdx(vW),dFdy(vW)));vec3 a=abs(n);vec3 r=clamp((vW-bmin)/(bmax-bmin),0.,1.);
-   vec4 c=vec4(.8,.8,.8,1.);
-   if(a.z>=a.x&&a.z>=a.y){ if(n.z>0.){if(hF>.5)c=texture2D(tF,vec2(r.x,r.y));} else if(hB>.5)c=texture2D(tB,vec2(1.-r.x,r.y)); else if(hF>.5)c=texture2D(tF,vec2(r.x,r.y)); }
-   else if(a.x>=a.y){ if(hS>.5)c=texture2D(tS,vec2(n.x>0.?1.-r.z:r.z,r.y)); }
-   else { if(hT>.5)c=texture2D(tT,vec2(r.x,n.y>0.?1.-r.z:r.z)); }
-   float sh=.8+.2*a.y;gl_FragColor=vec4(c.rgb*sh,op);}`});
-let curSlot=null,boxDim=[2,2,2];
-const blank=new THREE.DataTexture(new Uint8Array([204,204,204,255]),1,1);blank.needsUpdate=true;
-function refUniforms(){const u=refMat.uniforms,[W,H,D]=boxDim;
-  for(const[k,t,h]of[['front','tF','hF'],['back','tB','hB'],['side','tS','hS'],['top','tT','hT']]){u[t].value=refTex[k]||blank;u[h].value=refTex[k]?1:0}
-  u.bmin.value.set(-W/2,-H/2,-D/2);u.bmax.value.set(W/2,H/2,D/2);u.op.value=lowMat.opacity}
-async function newRefBox(){if(V.length&&!(await ask('Start a new reference box? This replaces the current mesh.',{ok:'Start'})))return;
-  if(high){scene.remove(high);high=null;highGeo=null}
-  for(const k in refTex)delete refTex[k];boxDim=[2,2,2];save();setBox();refMode=true;texOn=false;$('bTex').classList.add('off');
-  grid.visible=true;controls.target.set(0,0,0);refUniforms();rebuild();
-  hint('Hold a face of the cube to add your drawing to that side')}
-function setBox(){const[W,H,D]=boxDim,x=W/2,y=H/2,z=D/2;
-  V=[[-x,-y,z],[x,-y,z],[x,y,z],[-x,y,z],[-x,-y,-z],[x,-y,-z],[x,y,-z],[-x,y,-z]];
-  F=[[0,1,2,3],[5,4,7,6],[1,5,6,2],[4,0,3,7],[3,2,6,7],[4,5,1,0]];pend=[];grid.position.y=-y}
-function faceSlot(n){const a=[Math.abs(n.x),Math.abs(n.y),Math.abs(n.z)];
-  if(a[2]>=a[0]&&a[2]>=a[1])return n.z>0?'front':'back';if(a[0]>=a[1])return 'side';return 'top'}
-function holdFace(x,y){if(!refMode)return false;
-  rc.setFromCamera(new THREE.Vector2(x/innerWidth*2-1,-y/innerHeight*2+1),cam);const h=rc.intersectObject(lowMesh,false)[0];
-  if(!h)return false;const n=h.face.normal.clone();if(n.dot(rc.ray.direction)>0)n.negate();
-  curSlot=faceSlot(n);hint('Choose the '+curSlot+' image');$('refFile').click();return true}
-$('refFile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const img=new Image();
-  img.onload=()=>{refImg[curSlot]=img;const t=new THREE.Texture(img);t.colorSpace=THREE.SRGBColorSpace;t.needsUpdate=true;refTex[curSlot]=t;
-    const ar=img.width/img.height,fresh=V.length===8&&F.length===6;
-    if(fresh){if(curSlot==='front'||curSlot==='back')boxDim[0]=boxDim[1]*ar;
-      else if(curSlot==='side')boxDim[2]=boxDim[1]*ar;else if(curSlot==='top')boxDim[2]=boxDim[0]/ar;save();setBox()}
-    refUniforms();rebuild();hint(curSlot[0].toUpperCase()+curSlot.slice(1)+' added'+(fresh?'':' (box already shaped, size kept)'))};
-  img.src=URL.createObjectURL(f)};
-$('bRef').onclick=newRefBox;
-
-
-// ---------- WOOD CARVING MODE ----------
-let woodMode=false,woodTool='gouge',woodSize=.08,woodUndo=[];
-const RES=/Mobi|Android|iPhone|iPad/.test(navigator.userAgent)?52:68;
-const woodMat=new THREE.ShaderMaterial({
-  uniforms:{tF:{value:null},tB:{value:null},tS:{value:null},tT:{value:null},hF:{value:0},hB:{value:0},hS:{value:0},hT:{value:0},
-    bmin:{value:new THREE.Vector3(-1,-1,-1)},bmax:{value:new THREE.Vector3(1,1,1)},refOp:{value:.35}},
-  vertexShader:`varying vec3 vP;varying vec3 vN;void main(){vP=position;vN=normalize(normalMatrix*normal);
-    gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-  fragmentShader:`uniform sampler2D tF,tB,tS,tT;uniform float hF,hB,hS,hT,refOp;uniform vec3 bmin,bmax;varying vec3 vP;varying vec3 vN;
-  float h3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
-  float vn(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
-    return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),
-               mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z);}
-  void main(){
-    vec3 p=vP;float wob=vn(p*vec3(3.,.6,3.))*.6+vn(p*vec3(9.,1.5,9.))*.15;
-    float r=length(p.xz-vec2(.35,-.25))*16.+wob*2.5;float ring=fract(r);
-    float late=smoothstep(.0,.12,ring)*(1.-smoothstep(.55,1.,ring));
-    vec3 light=vec3(.86,.69,.48),dark=vec3(.58,.38,.22);
-    vec3 col=mix(dark,light,late);
-    col*=.92+.08*vn(vec3(p.x*120.,p.y*6.,p.z*120.));
-    vec3 a=abs(normalize(vN));vec3 rr=clamp((p-bmin)/(bmax-bmin),0.,1.);vec4 rf=vec4(0.);
-    vec3 n=normalize(cross(dFdx(vP),dFdy(vP)));vec3 an=abs(n);
-    if(an.z>=an.x&&an.z>=an.y){ if(n.z>0.){if(hF>.5)rf=texture2D(tF,rr.xy);} else if(hB>.5)rf=texture2D(tB,vec2(1.-rr.x,rr.y)); else if(hF>.5)rf=texture2D(tF,rr.xy);}
-    else if(an.x>=an.y){ if(hS>.5)rf=texture2D(tS,vec2(n.x>0.?1.-rr.z:rr.z,rr.y)); }
-    else { if(hT>.5)rf=texture2D(tT,vec2(rr.x,n.y>0.?1.-rr.z:rr.z)); }
-    col=mix(col,rf.rgb,rf.a*refOp*step(.001,hF+hB+hS+hT));
-    vec3 N=normalize(vN);float d=max(dot(N,normalize(vec3(.4,.7,.6))),0.);
-    gl_FragColor=vec4(col*(.38+.72*d),1.);}`});
-const wood=new MarchingCubes(RES,woodMat,false,false,90000);
-wood.isolation=50;wood.scale.setScalar(1.3);wood.visible=false;scene.add(wood);
-const WH=RES/2,K=25*WH;
-const wl=i=>(i-WH)/WH, wi=x=>x*WH+WH;
-let woodHalf=[.55,.8,.55];
-function newBlock(){const b=refMode&&boxDim?boxDim.map(v=>v/Math.max(...boxDim)*.8):[.55,.8,.55];woodHalf=b;
-  const f=wood.field,N=RES;
-  for(let z=0;z<N;z++)for(let y=0;y<N;y++)for(let x=0;x<N;x++){
-    const qx=Math.abs(wl(x))-b[0],qy=Math.abs(wl(y))-b[1],qz=Math.abs(wl(z))-b[2];
-    const o=Math.hypot(Math.max(qx,0),Math.max(qy,0),Math.max(qz,0))+Math.min(Math.max(qx,qy,qz),0);
-    const edge=x<2||y<2||z<2||x>N-3||y>N-3||z>N-3;
-    f[x+y*N+z*N*N]=edge?0:Math.max(0,Math.min(100,50-o*K))}
-  const u=woodMat.uniforms;for(const[k,t,h]of[['front','tF','hF'],['back','tB','hB'],['side','tS','hS'],['top','tT','hT']]){u[t].value=refTex[k]||null;u[h].value=refTex[k]?1:0}
-  u.bmin.value.set(-b[0],-b[1],-b[2]);u.bmax.value.set(b[0],b[1],b[2]);
-  woodUndo=[];wood.update();}
-// tool shapes: signed distance in local units (negative = wood removed)
-const v3=()=>new THREE.Vector3();
-function toolSDF(tool,q,n,t,sz){ // q = p - contact point
-  const h=q.dot(n);
-  if(tool==='gouge'){return q.clone().addScaledVector(n,-sz*.35).length()-sz}
-  if(tool==='chisel'){const rad=q.clone().addScaledVector(n,-h).length();return Math.max(rad-sz*1.2,-(h+sz*.3))}
-  const side=n.clone().cross(t).normalize(),along=Math.abs(q.dot(t)),sd=Math.abs(q.dot(side));
-  if(tool==='vtool')return Math.max(-sz*.6+sd-h,along-sz*.45);
-  if(tool==='knife')return Math.max(-sz*.55+sd*3-h,along-sz*.4);
-  return 1}
-function carve(c,n,t,tool,sz){const f=wood.field,N=RES,R=Math.ceil(sz*2*WH)+2;
-  const cx=Math.round(wi(c.x)),cy=Math.round(wi(c.y)),cz=Math.round(wi(c.z)),q=v3();
-  for(let z=Math.max(2,cz-R);z<=Math.min(N-3,cz+R);z++)for(let y=Math.max(2,cy-R);y<=Math.min(N-3,cy+R);y++)for(let x=Math.max(2,cx-R);x<=Math.min(N-3,cx+R);x++){
-    const i=x+y*N+z*N*N;if(f[i]<=0)continue;q.set(wl(x)-c.x,wl(y)-c.y,wl(z)-c.z);
-    if(tool==='sand'){if(q.length()>sz*1.3||f[i]>=99)continue;
-      const av=(f[i-1]+f[i+1]+f[i-N]+f[i+N]+f[i-N*N]+f[i+N*N])/6;f[i]=Math.min(f[i],f[i]*.55+av*.45);continue}
-    const d=toolSDF(tool,q,n,t,sz);if(d*K<50)f[i]=Math.max(0,Math.min(f[i],50+d*K))}}
-function stamp(c,n,t){const M=v=>new THREE.Vector3(-v.x,v.y,v.z);
-  carve(c,n,t,woodTool,woodSize);if(mirOn)carve(M(c),M(n),M(t),woodTool,woodSize);
-  if(woodTool==='sand')return;
-  // grain: Y is along the grain; cutting across it tears out chips
-  const across=1-Math.abs(t.y);
-  if(across>.4&&Math.random()<across*.45){const side=n.clone().cross(t).normalize();
-    const cc=c.clone().addScaledVector(side,(Math.random()-.5)*woodSize*1.6).addScaledVector(t,(Math.random()-.2)*woodSize).addScaledVector(n,woodSize*.15);
-    const cs=woodSize*(.25+Math.random()*.35);carve(cc,n,t,'gouge',cs);if(mirOn)carve(M(cc),M(n),M(t),'gouge',cs)}}
+const woodMode=false,refMode=false,woodHalf=[.55,.8,.55];   // wood carving and the reference box were removed (2026-11-27)
 
 // ---------- low-poly mesh display ----------
 const lowMat=new THREE.MeshStandardMaterial({color:0x4aa3ff,transparent:true,opacity:.85,side:THREE.DoubleSide,
@@ -966,7 +848,7 @@ function meshGeo(){const useU=texOn&&texMat&&VU.length===V.length,tp=[],tu=[];tr
   F.forEach((f,fi)=>{for(let i=1;i<f.length-1;i++){triFace.push(fi);for(const j of [f[0],f[i],f[i+1]]){tp.push(...V[j]);if(useU)tu.push(...VU[j])}}});
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(tp,3));
   if(useU)g.setAttribute('uv',new THREE.Float32BufferAttribute(tu,2));g.computeVertexNormals();
-  lowMesh.geometry.dispose();lowMesh.geometry=g;lowMesh.material=refMode?refMat:useU?texMat:lowMat}
+  lowMesh.geometry.dispose();lowMesh.geometry=g;lowMesh.material=useU?texMat:lowMat}
 function rebuild(){meshGeo();
   if(texOn&&high){clearTimeout(rebuild.t);rebuild.t=setTimeout(()=>{sampleAll();meshGeo()},250)}
   const lp=[];for(const e of edges().values())lp.push(...V[e.a],...V[e.b]);
@@ -1177,11 +1059,18 @@ let qWorker = null, autoKind = 'quad';
 function setAutoKind(k) { autoKind = k; document.querySelectorAll('#aKind button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
   $('aSmL').hidden = $('aMiL').hidden = k !== 'quad'; $('aGo').textContent = k === 'quad' ? 'Make quads' : 'Make triangles'; }
 document.querySelectorAll('#aKind button').forEach(b => b.onclick = () => setAutoKind(b.dataset.k));
-function auto() { if (!high) return hint('Load a sculpt first'); $('aMi').checked = mirOn; setAutoKind(autoKind);
+// faces slider: 100 to 10,000 on a log scale, rounded to friendly numbers, with quick picks
+const facesAt = t => { const n = 100 * Math.pow(100, t / 100); return n < 1000 ? Math.round(n / 50) * 50 : n < 3000 ? Math.round(n / 100) * 100 : Math.round(n / 500) * 500; };
+const sliderFor = n => Math.round(Math.log(n / 100) / Math.log(100) * 100);
+function showFaces() { const n = facesAt(+$('aN').value); $('aNv').textContent = 'about ' + n.toLocaleString('en-US');
+  document.querySelectorAll('#aPre button').forEach(b => b.classList.toggle('on', +b.dataset.n === n)); return n; }
+$('aN').oninput = showFaces;
+document.querySelectorAll('#aPre button').forEach(b => b.onclick = () => { $('aN').value = sliderFor(+b.dataset.n); showFaces(); });
+function auto() { if (!high) return hint('Load a sculpt first'); $('aMi').checked = mirOn; setAutoKind(autoKind); showFaces();
   $('aProg').hidden = true; $('aGo').disabled = false; $('autoP').hidden = false; }
 function closeAuto() { if (qWorker) { qWorker.terminate(); qWorker = null; hint('Stopped'); } $('autoP').hidden = true; }
 $('aNo').onclick = closeAuto;
-$('autoF').onsubmit = e => { e.preventDefault(); const n = Math.max(20, Math.min(20000, Math.round(+$('aN').value) || 800));
+$('autoF').onsubmit = e => { e.preventDefault(); const n = showFaces();
   if (autoKind === 'tri') { $('autoP').hidden = true; runTri(n); } else runQuad(n, +$('aSm').value, $('aMi').checked); };
 function runQuad(n, smooth, symmetric) {
   const g = getHighGeo(), pos = new Float32Array(g.attributes.position.array);
@@ -1245,22 +1134,20 @@ function holdQuad(x, y) {
   const fi = triFace[h.faceIndex], f = F[fi]; if (!f) return;
   const n = h.face.normal.clone(); if (n.dot(rc.ray.direction) > 0) n.negate();
   const canRing = f.length === 4 && !free();
-  ringAt = { fi, slot: refMode ? faceSlot(n) : null };
-  if (!canRing && !refMode) return hint(f.length !== 4 ? 'The ring tool starts from a quad' : 'The ring tool wraps around a sculpt: load one and keep snapping on', 4000);
+  ringAt = { fi };
+  if (!canRing) return hint(f.length !== 4 ? 'The ring tool starts from a quad' : 'The ring tool wraps around a sculpt: load one and keep snapping on', 4000);
   const C = new THREE.Vector3(); f.forEach(v => C.add(new THREE.Vector3(...V[v]))); C.divideScalar(f.length); const c = scr(C.toArray());
   const mid = (i, j) => new THREE.Vector3(...V[f[i]]).add(new THREE.Vector3(...V[f[j]])).multiplyScalar(.5);
-  const place = (id, axis) => { const btn = $(id); btn.hidden = !canRing; if (!canRing) return;
+  const place = (id, axis) => { const btn = $(id);
     const a = axis === 0 ? [mid(0, 3), mid(1, 2)] : [mid(0, 1), mid(3, 2)], s0 = scr(a[0].toArray()), s1 = scr(a[1].toArray());
     let dx = s1[0] - s0[0], dy = s1[1] - s0[1]; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
     const px = Math.max(28, Math.min(innerWidth - 28, c[0] + dx * 70)), py = Math.max(28, Math.min(innerHeight - 28, c[1] + dy * 70));
     btn.style.left = (px - 22) + 'px'; btn.style.top = (py - 22) + 'px'; btn.firstChild.style.transform = 'rotate(' + Math.atan2(dy, dx) + 'rad)'; };
   place('rA', 0); place('rB', 1);
-  $('rImg').hidden = !refMode; $('rImg').style.left = (c[0] - 22) + 'px'; $('rImg').style.top = (c[1] - 22) + 'px';
   $('ringUI').hidden = false;
-  hint(canRing ? 'Tap an arrow to wrap a ring of quads that way' + (refMode ? ', or the picture for a drawing' : '') : 'Tap the picture to put a drawing on this side', 4000);
+  hint('Tap an arrow to wrap a ring of quads that way', 4000);
 }
 const hideRing = () => { $('ringUI').hidden = true; };
-$('rImg').onclick = () => { hideRing(); if (!ringAt) return; curSlot = ringAt.slot; hint('Choose the ' + curSlot + ' image'); $('refFile').click(); };
 function doRing(axis) {
   hideRing(); const fi = ringAt && ringAt.fi; if (fi == null || !F[fi] || F[fi].length !== 4) return;
   const sx = Math.sign(F[fi].reduce((s, v) => s + V[v][0], 0));
@@ -1305,65 +1192,27 @@ async function dl_(blob,n){
   const z=zip1(n,new Uint8Array(await blob.arrayBuffer()));
   try{await d.save({filename:n+'.zip',data:z});hint('Saved '+n+'.zip. Unzip it to get your '+n.split('.').pop().toUpperCase()+' file')}
   catch(e){hint(e&&e.code==='declined'?'Save cancelled':'Could not save the file'+(e&&e.code?' ('+e.code+')':''))}}
-function exportWood(fmt){const g=woodGeo(),m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xc49a6c}));
-  if(fmt==='obj'){const a=g.attributes.position.array;let o='# wood carving\n';
-    for(let i=0;i<a.length;i+=3)o+='v '+a[i].toFixed(5)+' '+a[i+1].toFixed(5)+' '+a[i+2].toFixed(5)+'\n';
-    for(let i=0;i<a.length/3;i+=3)o+='f '+(i+1)+' '+(i+2)+' '+(i+3)+'\n';return dl_(new Blob([o]),'carving.obj')}
-  if(fmt==='stl')return dl_(new Blob([new STLExporter().parse(m,{binary:true})]),'carving.stl');
-  if(fmt==='ply')return new PLYExporter().parse(m,r=>dl_(new Blob([r]),'carving.ply'),{binary:true});
-  new GLTFExporter().parse(m,r=>dl_(new Blob([r]),'carving.glb'),()=>hint('Export failed'),{binary:true})}
 function lowObj(){let mt=new THREE.MeshStandardMaterial({color:0x4aa3ff});if(lowMesh.material===texMat){mt=texMat.clone();Object.assign(mt,{transparent:false,opacity:1,depthWrite:true,polygonOffset:false})}
   const m=new THREE.Mesh(lowMesh.geometry.clone(),mt);m.name='polygo';return m}
-function exportAs(fmt){if(woodMode)return exportWood(fmt);if(!F.length)return hint('Nothing to export yet');
+function exportAs(fmt){if(!F.length)return hint('Nothing to export yet');
   if(fmt==='obj')return exportOBJ();
   if(fmt==='stl')return dl_(new Blob([new STLExporter().parse(lowObj(),{binary:true})]),'polygo.stl');
   if(fmt==='ply')return new PLYExporter().parse(lowObj(),r=>dl_(new Blob([r]),'polygo.ply'),{binary:true});
   if(fmt==='glb')new GLTFExporter().parse(lowObj(),r=>dl_(new Blob([r]),'polygo.glb'),e=>hint('Export failed'),{binary:true})}
 
 
-// ---------- wood touch ----------
-let W=null,woodDirty=false;
-function woodHit(x,y){rc.setFromCamera(new THREE.Vector2(x/innerWidth*2-1,-y/innerHeight*2+1),cam);
-  const h=rc.intersectObject(wood,false)[0];if(!h)return null;const n=h.face.normal.clone().normalize();
-  if(n.dot(rc.ray.direction)>0)n.negate();return {p:wood.worldToLocal(h.point.clone()),n}}
-function woodRefresh(){if(woodDirty)return;woodDirty=true;requestAnimationFrame(()=>{wood.update();
-  wood.geometry.boundingSphere=new THREE.Sphere(new THREE.Vector3(),2);woodDirty=false})}
-wood.frustumCulled=false;
-function woodDown(e){const h=woodHit(e.clientX,e.clientY);if(!h)return false;
-  woodUndo.push(new Float32Array(wood.field));if(woodUndo.length>5)woodUndo.shift();
-  controls.enabled=false;const camR=new THREE.Vector3(1,0,0).applyQuaternion(cam.quaternion);
-  W={last:h.p,n:h.n};if(['gouge','chisel','sand'].includes(woodTool)){stamp(h.p,h.n,camR);woodRefresh()}return true}
-function woodMove(e){if(!W)return;const h=woodHit(e.clientX,e.clientY);if(!h)return;
-  const d=h.p.clone().sub(W.last);if(d.length()<woodSize*.4)return;
-  const t=d.normalize(),n=h.n.clone().lerp(W.n,.5).normalize();stamp(h.p,n,t);W.last=h.p;W.n=h.n;woodRefresh()}
-function setWood(on){woodMode=on;wood.visible=on;[lowMesh,lines,pts,pendL].forEach(o=>o.visible=!on);
-  if(high)high.visible=!on&&!$('bHi').classList.contains('off');
-  $('woodBar').style.display=on?'flex':'none';$('bWood').classList.toggle('off',false);
-  if(on){$('bX').style.display='none';hideRing();runCheck();if(!setWood.made){newBlock();setWood.made=true}
-    controls.target.set(0,0,0);hint('Drag on the wood to carve. The grain runs up and down: cutting across it can chip.')}
-  else rebuild()}
-$('bWood').onclick=()=>setWood(!woodMode);
-document.querySelectorAll('.wt').forEach(b=>b.onclick=()=>{woodTool=b.dataset.t;
-  document.querySelectorAll('.wt').forEach(x=>x.classList.toggle('off',x!==b))});
-$('wSize').oninput=e=>woodSize=+e.target.value;
-$('wNew').onclick=async()=>{if(await ask('Start a fresh block of wood?',{ok:'New block'}))newBlock()};
-function woodGeo(){const n=wood.count*3,g=new THREE.BufferGeometry();
-  const pa=wood.geometry.attributes.position.array.slice(0,n).map(v=>v*1.3);
-  g.setAttribute('position',new THREE.Float32BufferAttribute(pa,3));g.computeVertexNormals();return g}
-
 // ---------- touch gestures (registered before OrbitControls so we can claim a touch) ----------
 let TG=null,G=null,touches=0,lastTap={t:0,k:null};
 el.addEventListener('pointerdown',e=>{touches++;if(!$('ringUI').hidden)hideRing();
-  if(touches>1){if(G){clearTimeout(G.lp);G=null}if(TG){if(TG.moved)TUTO.release();TG=null}W=null;controls.enabled=true;return}
+  if(touches>1){if(G){clearTimeout(G.lp);G=null}if(TG){if(TG.moved)TUTO.release();TG=null}controls.enabled=true;return}
   if(TUTO.hit(e.clientX,e.clientY)){TG={x:e.clientX,y:e.clientY,moved:false};controls.enabled=false;return}
-  if(woodMode){woodDown(e);return}
   const x=e.clientX,y=e.clientY,vi=pickV(x,y),ed=vi<0?pickE(x,y):null;
   G={x,y,t:performance.now(),vi,ed,moved:false,saved:false,hitStart:hitScreen(x,y,ed?V[ed.a].map((v,k)=>(v+V[ed.b][k])/2):undefined)};
   controls.enabled=!(vi>=0||ed);
   G.lp=setTimeout(()=>{if(!G||G.moved)return;
     if(G.vi>=0)delV(G.vi);else if(G.ed)loopCut(G.ed);else holdQuad(G.x,G.y);G=null;controls.enabled=true},550)});
 el.addEventListener('pointermove',e=>{if(TG){if(!TG.moved&&Math.hypot(e.clientX-TG.x,e.clientY-TG.y)>7){TG.moved=true;TUTO.grabAt(TG.x,TG.y)}if(TG.moved)TUTO.dragTo(e.clientX,e.clientY);return}
-  if(woodMode)return woodMove(e);if(!G)return;const dx=e.clientX-G.x,dy=e.clientY-G.y;
+if(!G)return;const dx=e.clientX-G.x,dy=e.clientY-G.y;
   if(!G.moved&&Math.hypot(dx,dy)>7){G.moved=true;clearTimeout(G.lp)}
   if(!G.moved||controls.enabled)return;
   if(!G.saved){save();G.saved=true;if(mirOn){if(G.vi>=0)G.mv=mir(G.vi);else if(G.ed)G.me=[mir(G.ed.a),mir(G.ed.b)]}}
@@ -1376,7 +1225,7 @@ el.addEventListener('pointermove',e=>{if(TG){if(!TG.moved&&Math.hypot(e.clientX-
       if(G.me[0]===G.ed.b)V[G.ed.b]=mp(V[G.ed.a])}}
   rebuild()});
 const up=e=>{touches=Math.max(0,touches-1);if(TG){const g=TG;TG=null;if(g.moved)TUTO.release();else TUTO.poke(g.x);setTimeout(()=>controls.enabled=true,0);return}
-  if(woodMode){W=null;setTimeout(()=>controls.enabled=true,0);return}if(!G)return;clearTimeout(G.lp);const g=G;G=null;
+  if(!G)return;clearTimeout(G.lp);const g=G;G=null;
   setTimeout(()=>controls.enabled=true,0);
   if(g.moved||performance.now()-g.t>400)return;
   // it's a tap
@@ -1400,7 +1249,7 @@ $('bMir').onclick=()=>{mirOn=!mirOn;$('bMir').classList.toggle('off',!mirOn);mir
 $('bSnap').onclick=()=>{snapOn=!snapOn;$('bSnap').classList.toggle('off',!snapOn);grid.visible=free();
   hint(snapOn?'Snapping to sculpt':'Free modelling: points go on a plane facing you, drags move freely')};
 $('bX').onclick=()=>{pend=[];rebuild();hint('Cancelled')};
-$('op').oninput=e=>{woodMat.uniforms.refOp.value=+e.target.value*.5;lowMat.opacity=+e.target.value;refMat.uniforms.op.value=+e.target.value;if(texMat)texMat.opacity=+e.target.value};
+$('op').oninput=e=>{lowMat.opacity=+e.target.value;if(texMat)texMat.opacity=+e.target.value};
 $('bTex').classList.add('off');
 $('bTex').onclick=()=>{texOn=!texOn;$('bTex').classList.toggle('off',!texOn);
   if(texOn){sampleAll();if(!texMat)hint('No material found on the sculpt');else hint('Low-poly uses the sculpt texture')}else hint('Plain blue view');meshGeo()};

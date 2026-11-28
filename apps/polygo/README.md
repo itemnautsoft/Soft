@@ -10,14 +10,11 @@ the old address `apps/retopo-studio/` redirects here.
   low-poly mesh that snaps to its surface. You can hide the sculpt, fade the low-poly, put the sculpt's
   texture on the low-poly (🎨) or run a rough automatic pass (✨) that makes triangles to clean up by hand.
 - **Free modelling:** turn snapping off (🧲) to place points on a plane facing the camera.
-- **Reference box (📐):** a blank cube. Hold a face to put a front, back, side or top drawing on it, then
-  shape the box to match.
-- **Wood carving (🪵):** a block with real growth rings. Use the gouge, chisel, V-tool, knife or sandpaper.
-  Cutting across the grain can chip, and undo only goes back five steps.
-- **Mirror (🪞):** copies every edit across the centre line (x = 0), including the carving.
+- **Mirror (🪞):** copies every edit across the centre line (x = 0).
 
 ## Retopology helpers
-- **Auto retopology (✨):** choose *Quads that follow the shape* or *Quick triangles*, a face count, smoothness, and
+- **Auto retopology (✨):** choose *Quads that follow the shape* or *Quick triangles*, a face count (slider from 100 to
+  10,000, or quick picks Light 300, Medium 1,000, Detailed 3,000, Dense 8,000), smoothness, and
   whether to mirror across the centre line. The quad option is the Instant Meshes method (orientation field, position
   field, then extraction), written in JavaScript in `qremeshSrc` inside the page. It runs in a background worker that
   starts only when you press Make quads, with a progress bar and Cancel. Tested: 83 to 97% quads and closed meshes on
@@ -50,4 +47,5 @@ hangs on no longer; drag him to carry him somewhere else. 🏀 turns him on or o
   through, so apply the modifier first.
 
 ## Not done yet
-- In-app drawing on the reference box.
+
+Wood carving and the reference-image box were removed on 2026-11-27 (they're still in the repo history, up to commit `010476e`).
