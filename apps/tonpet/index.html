@@ -100,10 +100,10 @@ input[type=range]{width:100%;height:40px;accent-color:var(--brass);background:tr
 select{height:44px;border-radius:12px;border:1.5px solid var(--keyEdge);background:var(--key);padding:0 10px;font-size:16px;width:100%}
 .seg{display:flex;gap:6px}.seg .btn{flex:1;padding:0 6px}
 .hint{font-size:13px;color:var(--mute);margin:12px 0 0}
-.take{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--keyEdge)}
+.take{display:grid;gap:8px;padding:12px 0;border-bottom:1px solid var(--keyEdge)}
+.fmts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.fmts .btn{min-width:62px}.fmts .sv{font-size:13px;font-weight:700;color:var(--mute);margin-right:2px}.fmts .del{margin-left:auto}
 .take audio{width:100%;height:40px}
-.take b{font-size:14px;grid-column:1/-1}
-.take a{color:var(--brass);font-weight:700;font-size:14px;min-height:44px;display:flex;align-items:center}
+.take b{font-size:14px}
 .empty{color:var(--mute);font-size:14px;padding:8px 0}
 .gate{position:fixed;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 90%,transparent);z-index:9;padding:24px;text-align:center}
 .gate.hide{display:none}
@@ -380,7 +380,7 @@ const noteLabel=m=>NAMES[m%12]+(Math.floor(m/12)-1);
 buildKeys();
 
 // ---------- audio
-let ctx=null,node=null,voice=null,lipG,reedG,lipLP,reedLP,noiseG,wet,dry,meter,meterBuf,recDest=null;
+let ctx=null,node=null,voice=null,tapNode=null,lipG,reedG,lipLP,reedLP,noiseG,wet,dry,meter,meterBuf,recDest=null;
 const send=m=>{if(node&&node.port)node.port.postMessage(m);else if(voice){if('b' in m)voice.bT=m.b;if('f' in m)voice.fT=m.f;if('vib' in m)voice.vibT=m.vib;if(m.snap)voice.f=voice.fT;}};
 function impulse(sec){const n=Math.floor(ctx.sampleRate*sec),b=ctx.createBuffer(2,n,ctx.sampleRate);
  for(let c=0;c<2;c++){const d=b.getChannelData(c);let lp=0;for(let i=0;i<n;i++){const t=i/n;lp+=((Math.random()*2-1)-lp)*(0.5-0.4*t);d[i]=lp*Math.pow(1-t,2.6)*(i<ctx.sampleRate*0.012?i/(ctx.sampleRate*0.012):1);}}return b;}
@@ -395,7 +395,13 @@ async function wake(){
  class TonpetProc extends AudioWorkletProcessor{constructor(){super();this.v=makeVoice(sampleRate);const v=this.v;
   this.port.onmessage=e=>{const d=e.data;if('b' in d)v.bT=d.b;if('f' in d)v.fT=d.f;if('vib' in d)v.vibT=d.vib;if(d.snap)v.f=v.fT;};}
   process(i,o){const out=o[0];this.v.process(out[0],out[1]||out[0],out[0].length);return true;}}
- registerProcessor('tonpet',TonpetProc);`;
+ registerProcessor('tonpet',TonpetProc);
+ class TapProc extends AudioWorkletProcessor{constructor(){super();this.on=false;this.L=new Float32Array(4096);this.R=new Float32Array(4096);this.n=0;
+  this.port.onmessage=e=>{this.on=e.data.on;if(!this.on){this.flush();this.port.postMessage({done:true});}};}
+  flush(){if(this.n){this.port.postMessage({L:this.L.slice(0,this.n),R:this.R.slice(0,this.n)});this.n=0;}}
+  process(i){if(!this.on)return true;const inp=i[0];const a=inp&&inp[0],b=inp&&(inp[1]||inp[0]);const m=a?a.length:128;
+   for(let k=0;k<m;k++){this.L[this.n]=a?a[k]:0;this.R[this.n]=b?b[k]:0;if(++this.n===4096)this.flush();}return true;}}
+ registerProcessor('tonpet-tap',TapProc);`;
  try{
   if(!ctx.audioWorklet)throw 0;
   const url=URL.createObjectURL(new Blob([workletSrc],{type:'application/javascript'}));
@@ -427,6 +433,11 @@ async function wake(){
  dry=ctx.createGain();wet=ctx.createGain();const conv=ctx.createConvolver();conv.buffer=impulse(2.4);
  comp.connect(dry);dry.connect(ctx.destination);comp.connect(conv);conv.connect(wet);wet.connect(ctx.destination);
  if(ctx.createMediaStreamDestination){recDest=ctx.createMediaStreamDestination();dry.connect(recDest);wet.connect(recDest);}
+ try{
+  if(node){tapNode=new AudioWorkletNode(ctx,'tonpet-tap',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2],channelCount:2,channelCountMode:'explicit'});tapNode.port.onmessage=e=>tapMsg(e.data);}
+  else{tapNode=ctx.createScriptProcessor(4096,2,2);tapNode.on=false;tapNode.onaudioprocess=ev=>{if(!tapNode.on)return;const ib=ev.inputBuffer;tapMsg({L:ib.getChannelData(0).slice(),R:ib.getChannelData(ib.numberOfChannels>1?1:0).slice()});};}
+  dry.connect(tapNode);wet.connect(tapNode);const mute=ctx.createGain();mute.gain.value=0;tapNode.connect(mute).connect(ctx.destination);
+ }catch(e){tapNode=null;}
  meter=ctx.createAnalyser();meter.fftSize=1024;meterBuf=new Float32Array(1024);comp.connect(meter);
  applySettings('all');
  $('gate').classList.add('hide');
@@ -693,33 +704,98 @@ async function startPlay(bounce){
  if(bounce)play.take=startTake('Bounce');
  setPlayUI(true);
 }
-function stopPlay(){if(!play)return;const p=play;play=null;metro=null;phT=-1;placeLines();updPos();setPlayUI(false);if(p.take)stopTake(p.take);}
+function stopPlay(){if(!play)return;const p=play;play=null;metro=null;phT=-1;placeLines();updPos();setPlayUI(false);if(p.take){$('bounceBtn').disabled=true;setStatus('Letting the room ring out…');setTimeout(()=>{stopTake(p.take);$('bounceBtn').disabled=false;},1600);}}
 function setPlayUI(on){$('sPlay').textContent=on?'■ Stop':'▶ Play';$('playBtn').textContent=on?'■':'▶';$('bounceBtn').disabled=on;}
 function flashHint(t){const h=$('sheetHint'),o=h.dataset.o||h.textContent;h.dataset.o=o;h.textContent=t;clearTimeout(h._t);h._t=setTimeout(()=>h.textContent=o,2200);}
 
 // ---------- recording: notes to the sheet, audio to takes
 let rec=null;const takes=[];let dl=null;
-const fname=t=>`tonpet-${t.name.toLowerCase().replace(/\s+/g,'-')}.${t.ext}`;
+const baseName=t=>`tonpet-${t.name.toLowerCase().replace(/\s+/g,'-')}`;
 try{if(window.claude&&claude.use)claude.use('downloads').then(x=>{dl=x;renderTakes();}).catch(()=>{});}catch(e){}
 function pickMime(){if(!window.MediaRecorder)return null;for(const m of ['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg'])if(MediaRecorder.isTypeSupported(m))return m;return '';}
+// lossless tap: raw PCM after the reverb, collected alongside the compressed take
+let tapPcm=null;
+function tapMsg(d){if(!tapPcm)return;if(d.done){tapPcm.fin();return;}tapPcm.L.push(d.L);tapPcm.R.push(d.R);}
+function tapOn(){const p={L:[],R:[],sr:ctx.sampleRate};p.done=new Promise(r=>p.fin=r);tapPcm=p;if(tapNode.port)tapNode.port.postMessage({on:true});else tapNode.on=true;return p;}
+function tapOff(){if(!tapPcm)return;const p=tapPcm;if(tapNode.port)tapNode.port.postMessage({on:false});else{tapNode.on=false;p.fin();}setTimeout(()=>p.fin(),1500);}
 function startTake(kind){
  const mime=pickMime();if(mime===null||!recDest){setStatus('This browser cannot record audio takes.');return null;}
  const mr=new MediaRecorder(recDest.stream,mime?{mimeType:mime}:undefined);const chunks=[];
  mr.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
- const tk={mr,chunks,kind,t0:performance.now()};
+ const tk={mr,chunks,kind,t0:performance.now(),pcm:tapNode?tapOn():null};
  mr.onstop=()=>{const type=mr.mimeType||mime||'audio/webm';const blob=new Blob(chunks,{type});const ext=type.includes('mp4')?'mp4':type.includes('ogg')?'ogg':'webm';
-  takes.unshift({blob,url:URL.createObjectURL(blob),ext,name:`${kind} ${takes.length+1}`,dur:(performance.now()-tk.t0)/1000,when:new Date()});
+  takes.unshift({blob,pcm:tk.pcm,url:URL.createObjectURL(blob),ext,name:`${kind} ${takes.length+1}`,dur:(performance.now()-tk.t0)/1000,when:new Date()});
   $('takesBtn').textContent=`Takes ${takes.length}`;const msg=`Audio saved as ${kind.toLowerCase()} ${takes.length} in Takes.`;setStatus(kind==='Take'&&rec===null&&status.dataset.rec?status.dataset.rec+' '+msg:msg);status.dataset.rec='';renderTakes();};
  mr.start(250);return tk;
 }
-function stopTake(tk){if(tk&&tk.mr.state!=='inactive')tk.mr.stop();}
+function stopTake(tk){if(!tk)return;if(tk.pcm)tapOff();if(tk.mr.state!=='inactive')tk.mr.stop();}
+// ---------- export: WAV (16-bit), MP3 (192 kbps), zipped where the viewer only saves certain types
+function join(parts){let n=0;for(const p of parts)n+=p.length;const o=new Float32Array(n);let k=0;for(const p of parts){o.set(p,k);k+=p.length;}return o;}
+async function getPCM(t){
+ if(t.pcm){await t.pcm.done;if(t.pcm.L.length)return {L:join(t.pcm.L),R:join(t.pcm.R),sr:t.pcm.sr};}
+ const buf=await ctx.decodeAudioData(await t.blob.arrayBuffer());return {L:buf.getChannelData(0),R:buf.numberOfChannels>1?buf.getChannelData(1):buf.getChannelData(0),sr:buf.sampleRate};
+}
+const s16=x=>{x=x>1?1:x<-1?-1:x;return x<0?x*32768:x*32767;};
+function wavBlob({L,R,sr}){
+ const n=L.length,b=new ArrayBuffer(44+n*4),v=new DataView(b);let o=0;
+ const str=s=>{for(const c of s)v.setUint8(o++,c.charCodeAt(0));},u32=x=>{v.setUint32(o,x,true);o+=4;},u16=x=>{v.setUint16(o,x,true);o+=2;};
+ str('RIFF');u32(36+n*4);str('WAVE');str('fmt ');u32(16);u16(1);u16(2);u32(sr);u32(sr*4);u16(4);u16(16);str('data');u32(n*4);
+ for(let i=0;i<n;i++){v.setInt16(o,s16(L[i]),true);v.setInt16(o+2,s16(R[i]),true);o+=4;}
+ return new Blob([b],{type:'audio/wav'});
+}
+let lameP=null;
+function loadLame(){
+ if(window.lamejs)return Promise.resolve();
+ const add=src=>new Promise((ok,no)=>{const sc=document.createElement('script');sc.src=src;sc.onload=()=>window.lamejs?ok():no();sc.onerror=no;document.head.appendChild(sc);});
+ return lameP||(lameP=add('lame.min.js').catch(()=>add('https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js')).catch(e=>{lameP=null;throw e;}));
+}
+async function mp3Blob({L,R,sr},prog){
+ await loadLame();
+ const enc=new lamejs.Mp3Encoder(2,sr,192),F=1152,out=[],l=new Int16Array(F),r=new Int16Array(F);
+ for(let i=0,f=0;i<L.length;i+=F,f++){const m=Math.min(F,L.length-i);
+  for(let k=0;k<m;k++){l[k]=s16(L[i+k]);r[k]=s16(R[i+k]);}
+  const b=enc.encodeBuffer(m<F?l.subarray(0,m):l,m<F?r.subarray(0,m):r);if(b.length)out.push(new Uint8Array(b));
+  if(f%150===0){prog(i/L.length);await new Promise(z=>setTimeout(z));}}
+ const e=enc.flush();if(e.length)out.push(new Uint8Array(e));
+ return new Blob(out,{type:'audio/mpeg'});
+}
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+async function zipBlob(name,blob){ // one stored (uncompressed) file
+ const d=new Uint8Array(await blob.arrayBuffer());let c=0xFFFFFFFF;for(let i=0;i<d.length;i++)c=CRC[(c^d[i])&255]^(c>>>8);c=(c^0xFFFFFFFF)>>>0;
+ const nm=new TextEncoder().encode(name),now=new Date();
+ const dt=((now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1)),dd=(((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate());
+ const lh=new DataView(new ArrayBuffer(30)),ch=new DataView(new ArrayBuffer(46)),eo=new DataView(new ArrayBuffer(22));
+ [[0,0x04034b50,4],[4,20,2],[6,0,2],[8,0,2],[10,dt,2],[12,dd,2],[14,c,4],[18,d.length,4],[22,d.length,4],[26,nm.length,2],[28,0,2]].forEach(([o,v,z])=>z===4?lh.setUint32(o,v,true):lh.setUint16(o,v,true));
+ [[0,0x02014b50,4],[4,20,2],[6,20,2],[8,0,2],[10,0,2],[12,dt,2],[14,dd,2],[16,c,4],[20,d.length,4],[24,d.length,4],[28,nm.length,2],[30,0,2],[32,0,2],[34,0,2],[36,0,2],[38,0,4],[42,0,4]].forEach(([o,v,z])=>z===4?ch.setUint32(o,v,true):ch.setUint16(o,v,true));
+ const cdOff=30+nm.length+d.length,cdLen=46+nm.length;
+ [[0,0x06054b50,4],[4,0,2],[6,0,2],[8,1,2],[10,1,2],[12,cdLen,4],[16,cdOff,4],[20,0,2]].forEach(([o,v,z])=>z===4?eo.setUint32(o,v,true):eo.setUint16(o,v,true));
+ return new Blob([lh,nm,d,ch,nm,eo],{type:'application/zip'});
+}
+async function saveTake(i,fmt,btn){
+ const t=takes[i];if(!t||btn.dataset.busy)return;const label=btn.textContent;btn.dataset.busy=1;
+ try{
+  let blob=t.blob,ext=t.ext;
+  if(fmt!=='orig'){btn.textContent='…';const pcm=await getPCM(t);
+   if(fmt==='wav'){blob=wavBlob(pcm);ext='wav';}
+   else{blob=await mp3Blob(pcm,p=>btn.textContent=Math.round(p*100)+'%');ext='mp3';}}
+  let name=`${baseName(t)}.${ext}`;
+  if(inFrame){
+   if(!dl)throw {code:'unavailable'};
+   if(ext==='wav'||ext==='mp3'){blob=await zipBlob(name,blob);name=`${baseName(t)}-${ext}.zip`;}
+   await dl.save({filename:name,data:blob});
+  }else{const a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);}
+  btn.textContent='Saved ✓';setTimeout(()=>btn.textContent=label,2200);
+ }catch(e){btn.textContent=label;
+  if(!(e&&e.code==='declined'))setStatus(fmt==='mp3'&&!window.lamejs?'The MP3 encoder could not load. Try WAV, or check the connection.':'That file could not be saved here.');}
+ delete btn.dataset.busy;
+}
 function renderTakes(){
- const L=$('takeList');
+ const L=$('takeList');const can=!inFrame||!!dl;
  if(!takes.length){L.innerHTML='<p class="empty">No takes yet. Press Rec on the instrument, or Bounce on the sheet.</p>';}
- else L.innerHTML=takes.map((t,i)=>`<div class="take"><b>${t.name} · ${t.dur.toFixed(1)} s · ${t.when.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</b><audio controls preload="metadata" src="${t.url}"></audio>${inFrame?(dl&&t.ext!=='ogg'?`<button class="btn" data-save="${i}">Save</button>`:''):`<a href="${t.url}" download="${fname(t)}">Save</a>`}<button class="btn" data-del="${i}" aria-label="Delete ${t.name}">✕</button></div>`).join('');
- for(const b of L.querySelectorAll('[data-save]'))b.onclick=async()=>{const t=takes[+b.dataset.save];try{await dl.save({filename:fname(t),data:t.blob});b.textContent='Saved';}catch(e){b.textContent=e&&e.code==='declined'?'Save':'Can’t save';}};
+ else L.innerHTML=takes.map((t,i)=>`<div class="take"><b>${t.name} · ${t.dur.toFixed(1)} s · ${t.when.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</b><audio controls preload="metadata" src="${t.url}"></audio><div class="fmts">${can?`<span class="sv">Save</span>${t.ext!=='ogg'||!inFrame?`<button class="btn" data-i="${i}" data-f="orig">${t.ext.toUpperCase()}</button>`:''}<button class="btn" data-i="${i}" data-f="wav">WAV</button><button class="btn" data-i="${i}" data-f="mp3">MP3</button>`:''}<button class="btn del" data-del="${i}" aria-label="Delete ${t.name}">✕</button></div></div>`).join('');
+ for(const b of L.querySelectorAll('[data-f]'))b.onclick=()=>saveTake(+b.dataset.i,b.dataset.f,b);
  for(const b of L.querySelectorAll('[data-del]'))b.onclick=()=>{const i=+b.dataset.del;URL.revokeObjectURL(takes[i].url);takes.splice(i,1);$('takesBtn').textContent=takes.length?`Takes ${takes.length}`:'Takes';renderTakes();};
- $('takeNote').textContent=inFrame&&!dl?'Takes last until you close the page. This view can’t save files, so open itemnautsoft.github.io/Soft/apps/tonpet/ to keep them.':'Takes last until you close the page, so tap Save to keep one.';
+ $('takeNote').textContent=!can?'Takes last until you close the page. This view can’t save files, so open itemnautsoft.github.io/Soft/apps/tonpet/ to keep them.':'Takes last until you close the page. WAV is lossless (16-bit stereo), MP3 is 192 kbps.'+(inFrame?' Here WAV and MP3 arrive zipped, because Claude’s viewer only saves certain file types.':'');
 }
 $('recBtn').onclick=async()=>{
  await ensure();
