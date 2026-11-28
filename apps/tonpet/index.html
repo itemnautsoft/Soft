@@ -698,15 +698,17 @@ function setPlayUI(on){$('sPlay').textContent=on?'■ Stop':'▶ Play';$('playBt
 function flashHint(t){const h=$('sheetHint'),o=h.dataset.o||h.textContent;h.dataset.o=o;h.textContent=t;clearTimeout(h._t);h._t=setTimeout(()=>h.textContent=o,2200);}
 
 // ---------- recording: notes to the sheet, audio to takes
-let rec=null;const takes=[];
+let rec=null;const takes=[];let dl=null;
+const fname=t=>`tonpet-${t.name.toLowerCase().replace(/\s+/g,'-')}.${t.ext}`;
+try{if(window.claude&&claude.use)claude.use('downloads').then(x=>{dl=x;renderTakes();}).catch(()=>{});}catch(e){}
 function pickMime(){if(!window.MediaRecorder)return null;for(const m of ['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg'])if(MediaRecorder.isTypeSupported(m))return m;return '';}
 function startTake(kind){
  const mime=pickMime();if(mime===null||!recDest){setStatus('This browser cannot record audio takes.');return null;}
  const mr=new MediaRecorder(recDest.stream,mime?{mimeType:mime}:undefined);const chunks=[];
  mr.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
  const tk={mr,chunks,kind,t0:performance.now()};
- mr.onstop=()=>{const type=mr.mimeType||mime||'audio/webm';const blob=new Blob(chunks,{type});const ext=type.includes('mp4')?'m4a':type.includes('ogg')?'ogg':'webm';
-  takes.unshift({url:URL.createObjectURL(blob),ext,name:`${kind} ${takes.length+1}`,dur:(performance.now()-tk.t0)/1000,when:new Date()});
+ mr.onstop=()=>{const type=mr.mimeType||mime||'audio/webm';const blob=new Blob(chunks,{type});const ext=type.includes('mp4')?'mp4':type.includes('ogg')?'ogg':'webm';
+  takes.unshift({blob,url:URL.createObjectURL(blob),ext,name:`${kind} ${takes.length+1}`,dur:(performance.now()-tk.t0)/1000,when:new Date()});
   $('takesBtn').textContent=`Takes ${takes.length}`;const msg=`Audio saved as ${kind.toLowerCase()} ${takes.length} in Takes.`;setStatus(kind==='Take'&&rec===null&&status.dataset.rec?status.dataset.rec+' '+msg:msg);status.dataset.rec='';renderTakes();};
  mr.start(250);return tk;
 }
@@ -714,9 +716,10 @@ function stopTake(tk){if(tk&&tk.mr.state!=='inactive')tk.mr.stop();}
 function renderTakes(){
  const L=$('takeList');
  if(!takes.length){L.innerHTML='<p class="empty">No takes yet. Press Rec on the instrument, or Bounce on the sheet.</p>';}
- else L.innerHTML=takes.map((t,i)=>`<div class="take"><b>${t.name} · ${t.dur.toFixed(1)} s · ${t.when.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</b><audio controls preload="metadata" src="${t.url}"></audio>${inFrame?'':`<a href="${t.url}" download="tonpet-${t.name.toLowerCase().replace(/\s+/g,'-')}.${t.ext}">Save</a>`}<button class="btn" data-del="${i}" aria-label="Delete ${t.name}">✕</button></div>`).join('');
+ else L.innerHTML=takes.map((t,i)=>`<div class="take"><b>${t.name} · ${t.dur.toFixed(1)} s · ${t.when.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</b><audio controls preload="metadata" src="${t.url}"></audio>${inFrame?(dl&&t.ext!=='ogg'?`<button class="btn" data-save="${i}">Save</button>`:''):`<a href="${t.url}" download="${fname(t)}">Save</a>`}<button class="btn" data-del="${i}" aria-label="Delete ${t.name}">✕</button></div>`).join('');
+ for(const b of L.querySelectorAll('[data-save]'))b.onclick=async()=>{const t=takes[+b.dataset.save];try{await dl.save({filename:fname(t),data:t.blob});b.textContent='Saved';}catch(e){b.textContent=e&&e.code==='declined'?'Save':'Can’t save';}};
  for(const b of L.querySelectorAll('[data-del]'))b.onclick=()=>{const i=+b.dataset.del;URL.revokeObjectURL(takes[i].url);takes.splice(i,1);$('takesBtn').textContent=takes.length?`Takes ${takes.length}`:'Takes';renderTakes();};
- $('takeNote').textContent=inFrame?'Takes last until you close the page. Claude’s viewer can’t save files, so open itemnautsoft.github.io/Soft/apps/tonpet/ to keep them.':'Takes last until you close the page, so tap Save to keep one.';
+ $('takeNote').textContent=inFrame&&!dl?'Takes last until you close the page. This view can’t save files, so open itemnautsoft.github.io/Soft/apps/tonpet/ to keep them.':'Takes last until you close the page, so tap Save to keep one.';
 }
 $('recBtn').onclick=async()=>{
  await ensure();
