@@ -1,6 +1,6 @@
 {
   "title": "Polygo",
-  "blurb": "Lay clean low-poly faces over your sculpts by touch, or let it lay quads that follow the shape. Wrap rings of quads and see overlaps in red. Tuto swings from your edges.",
+  "blurb": "Lay clean low-poly faces over your sculpts by touch, or let it lay quads that follow the shape. Wrap closed rings of quads, see overlaps in red, and let Tuto lasso points or faces for you.",
   "date": "2026-11-17",
   "updated": "2026-11-27",
   "tags": [
@@ -9,6 +9,6 @@
     "modelling",
     "tool"
   ],
-  "controls": "Tap to drop points (4 make a quad). Drag points or edges, double-tap an edge to extrude, hold an edge for a loop, hold a quad for a ring. One finger orbits, two zoom",
+  "controls": "Tap to drop points (4 make a quad). Drag points or edges, double-tap an edge to extrude, hold an edge for a loop, hold a quad for a ring, ➰ to lasso. One finger orbits, two zoom",
   "artifact": "https://claude.ai/artifact/9r6kfueP1DJ5TWi8ZPS6yf"
 }

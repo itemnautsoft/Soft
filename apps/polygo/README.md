@@ -21,8 +21,15 @@ the old address `apps/retopo-studio/` redirects here.
   test shapes; a 330,000-triangle sculpt becomes 1,500 quads in about 3 s on a laptop.
 - **Overlap warnings:** faces that overlap or cross, fold back over a neighbour, or twist into a bow-tie turn red.
   The ⚠ counter at the top left jumps to each one. Faces are also kept wound the same way, so exports have clean normals.
-- **Ring tool:** hold a quad and two arrows appear along its directions. Tap one to wrap quads of the same width around
-  the sculpt until the ring meets the first face (spacing is evened out when it closes). Works with mirror.
+- **Ring tool:** hold a quad and two arrows appear along its directions. Tap one and Polygo cuts a slice through the
+  sculpt along each side of the quad, then lays evenly spaced quads along those two slice loops. A slice through a
+  closed sculpt is always a closed loop, so the ring always reconnects exactly onto the first quad. On an open sculpt
+  where the slice has a gap it says so instead of leaving half a ring. Works with mirror.
+- **Lasso (➰):** Tuto jumps to the bottom-left corner and swings a lasso. Pick *Points* or *Faces*, draw a loop, and
+  when you let go Tuto throws the rope, it pulls tight, and everything inside (on the side facing you) is caught. He
+  keeps hold of the rope while you work: drag the catch to move it, drag the *Scale* button left or right to shrink or
+  grow it, or *Delete* it. Mirror keeps the other side matched, and with snapping on the catch is pressed back onto the
+  sculpt when you let go. *Done* puts Tuto back in the scene.
 
 ## Tuto
 Tuto from [Tuto](https://github.com/itemnautsoft/Tuto) lives in the app, with his body, poses and basketball dribble

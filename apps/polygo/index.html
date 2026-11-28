@@ -25,6 +25,17 @@ canvas{display:block;position:fixed;inset:0}
 .b{width:44px;height:44px;flex:none;border-radius:50%;border:none;background:var(--panel);color:var(--fg);box-shadow:0 2px 6px var(--shadow);font-size:20px;cursor:pointer}
 .b:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .b.off{opacity:.4}
+.b.on{background:var(--accent);color:#fff}
+#lassoSvg{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:6;overflow:visible}
+#lassoSvg .rope{fill:none;stroke:#c9a06a;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+#lassoSvg #lsPath{fill:rgba(201,160,106,.08)}
+#lassoSvg .ropeTwist{fill:none;stroke:#7d5d2e;stroke-width:4;stroke-dasharray:2 7;stroke-linecap:round;stroke-linejoin:round}
+#lassoBar{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;max-width:calc(100% - 92px);z-index:8}
+#lassoBar button{min-height:40px;padding:6px 14px;border:none;border-radius:20px;background:var(--panel);color:var(--fg);box-shadow:0 2px 6px var(--shadow);font-size:14px;cursor:pointer;touch-action:none}
+#lassoBar button:disabled{opacity:.45}
+#lsMode{display:flex;gap:2px;background:var(--panel);border-radius:20px;padding:3px;box-shadow:0 2px 6px var(--shadow)}
+#lsMode button{box-shadow:none;min-height:34px;padding:4px 12px;background:transparent}#lsMode button.on{background:var(--accent);color:#fff;font-weight:600}
+#lsCount{font-size:13px;color:var(--fg);background:var(--panel);border-radius:14px;padding:4px 10px;box-shadow:0 2px 6px var(--shadow);font-variant-numeric:tabular-nums}#lsCount:empty{display:none}
 #op{width:44px;height:120px;flex:none;writing-mode:vertical-lr;direction:rtl;accent-color:var(--accent)}
 #hint{position:fixed;left:0;right:0;bottom:calc(12px + env(safe-area-inset-bottom,0px));padding:0 max(16px,env(safe-area-inset-left,0px)) 0 max(16px,env(safe-area-inset-right,0px));text-align:center;color:var(--fg);font-size:14px;pointer-events:none;transition:opacity .6s;text-shadow:0 0 6px var(--bg),0 0 2px var(--bg)}
 #stats{position:fixed;left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));font-size:12px;color:var(--muted);pointer-events:none;font-variant-numeric:tabular-nums}
@@ -69,6 +80,7 @@ canvas{display:block;position:fixed;inset:0}
 <input type="range" id="op" min="0.1" max="1" step="0.05" value="0.85" title="Low-poly opacity">
 <button class="b" id="bSnap" title="Snap to sculpt on/off">🧲</button>
 <button class="b off" id="bMir" title="Mirror edits across the centre">🪞</button>
+<button class="b" id="bLasso" title="Lasso: Tuto ropes in points or faces">➰</button>
 <button class="b" id="bTuto" title="Tuto on or off">🏀</button>
 <button class="b" id="bTex" title="Use sculpt texture on low-poly">🎨</button>
 <button class="b" id="bAuto" title="Auto retopology">✨</button>
@@ -98,6 +110,9 @@ canvas{display:block;position:fixed;inset:0}
 <div class="row"><button type="button" id="aNo">Cancel</button><button type="submit" id="aGo">Make quads</button></div>
 </form></div>
 <button id="warn" hidden title="Show the next problem face"></button>
+<svg id="lassoSvg" hidden aria-hidden="true"><path id="lsTether" class="rope" d=""/><path id="lsPath" class="rope" d=""/><path id="lsPath2" class="ropeTwist" d=""/></svg>
+<div id="lassoBar" hidden><div id="lsMode"><button type="button" data-k="pts" class="on">Points</button><button type="button" data-k="faces">Faces</button></div>
+<span id="lsCount"></span><button type="button" id="lsScale" disabled title="Drag left or right to scale">⤢ Scale</button><button type="button" id="lsDel" disabled>Delete</button><button type="button" id="lsDone">Done</button></div>
 <div id="ringUI" hidden><button class="b" id="rA" title="Wrap a ring this way"><span>⟷</span></button><button class="b" id="rB" title="Wrap a ring this way"><span>⟷</span></button></div>
 <div id="hint"></div>
 <script type="text/plain" id="qremeshSrc">
@@ -849,6 +864,7 @@ function meshGeo(){const useU=texOn&&texMat&&VU.length===V.length,tp=[],tu=[];tr
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(tp,3));
   if(useU)g.setAttribute('uv',new THREE.Float32BufferAttribute(tu,2));g.computeVertexNormals();
   lowMesh.geometry.dispose();lowMesh.geometry=g;lowMesh.material=useU?texMat:lowMat}
+const rebuildHooks=[];
 function rebuild(){meshGeo();
   if(texOn&&high){clearTimeout(rebuild.t);rebuild.t=setTimeout(()=>{sampleAll();meshGeo()},250)}
   const lp=[];for(const e of edges().values())lp.push(...V[e.a],...V[e.b]);
@@ -858,6 +874,7 @@ function rebuild(){meshGeo();
   $('bX').style.display=pend.length?'block':'none';
   $('stats').textContent=V.length+' verts · '+F.length+' faces';
   checkSoon();
+  for(const h of rebuildHooks)h();
 }
 
 // ---------- screen picking ----------
@@ -994,64 +1011,80 @@ function fixWinding(F, V, center) {
   }
   return changed;
 }
-// Ring tool: from quad f, step its width over the surface, one quad at a time, until it meets the start.
-// surf(p, n) -> {p, n} snaps a point to the sculpt (n = surface normal) or returns null off the sculpt.
-// Returns {made, closed, why}. Adds vertices to V and faces to F.
-function wrapRing(V, F, fi, axis, surf, opts = {}) {
+// Ring tool: cut a slice through the sculpt along each side of quad fi (a plane holding that side and the quad's
+// normal). A slice through a closed sculpt is always a closed loop, so the ring is laid out along those two loops
+// with evenly spaced points and always reconnects exactly onto the starting quad.
+// pos/idx: the sculpt's merged triangles in world space. Returns {made, closed, why}.
+function sliceLoops(pos, idx, n, d) {
+  const nodes = new Map(), pts = [], adj = [];
+  const sd = i => { const v = pos[i * 3] * n[0] + pos[i * 3 + 1] * n[1] + pos[i * 3 + 2] * n[2] - d; return v === 0 ? 1e-12 : v; };
+  const node = (a, b, da, db) => { const k = a < b ? a * 4294967296 + b : b * 4294967296 + a; let id = nodes.get(k);
+    if (id === undefined) { const t = da / (da - db); id = pts.length; nodes.set(k, id); adj.push([]);
+      pts.push([pos[a * 3] + (pos[b * 3] - pos[a * 3]) * t, pos[a * 3 + 1] + (pos[b * 3 + 1] - pos[a * 3 + 1]) * t, pos[a * 3 + 2] + (pos[b * 3 + 2] - pos[a * 3 + 2]) * t]); }
+    return id; };
+  for (let t = 0; t < idx.length / 3; t++) {
+    const v = [idx[t * 3], idx[t * 3 + 1], idx[t * 3 + 2]], s = v.map(sd);
+    if ((s[0] > 0) === (s[1] > 0) && (s[1] > 0) === (s[2] > 0)) continue;
+    const hits = [];
+    for (let k = 0; k < 3; k++) { const a = v[k], b = v[(k + 1) % 3]; if ((s[k] > 0) !== (s[(k + 1) % 3] > 0)) hits.push(node(a, b, s[k], s[(k + 1) % 3])); }
+    if (hits.length === 2 && hits[0] !== hits[1]) { adj[hits[0]].push(hits[1]); adj[hits[1]].push(hits[0]); }
+  }
+  const seen = new Uint8Array(pts.length), loops = [];
+  for (let st = 0; st < pts.length; st++) {
+    if (seen[st]) continue;
+    const loop = [st]; seen[st] = 1; let prev = -1, cur = st, closed = false;
+    for (;;) {
+      const nb = adj[cur].filter(x => x !== prev); if (adj[cur].length !== 2) break;
+      const nx = nb[0]; if (nx === undefined) break;
+      if (nx === st) { closed = true; break; }
+      if (seen[nx]) break;
+      seen[nx] = 1; loop.push(nx); prev = cur; cur = nx;
+    }
+    loops.push({ p: loop.map(i => pts[i]), closed });
+  }
+  return loops;
+}
+function sliceRing(V, F, fi, axis, pos, idx) {
   const f = F[fi]; if (!f || f.length !== 4) return { made: [], closed: false, why: 'quad' };
   const [a, b, c, d] = f; let B0, B1, F0, F1;
   if (axis === 0) { B0 = a; F0 = b; B1 = d; F1 = c; } else { B0 = a; F0 = d; B1 = b; F1 = c; }
-  const sub = (p, q) => [p[0] - q[0], p[1] - q[1], p[2] - q[2]], dt = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2], len = p => Math.hypot(p[0], p[1], p[2]);
-  const L = (len(sub(V[F0], V[B0])) + len(sub(V[F1], V[B1]))) / 2; if (!(L > 1e-9)) return { made: [], closed: false, why: 'flat' };
-  const fwd = f[(f.indexOf(F0) + 1) % 4] === F1, n0 = V.length, start = [B0, B1], made = [], maxSteps = opts.maxSteps || 300;
-  const faceN = g => { let n = [0, 0, 0]; for (let k = 0; k < g.length; k++) { const p = V[g[k]], r = V[g[(k + 1) % g.length]];
-    n[0] += (p[1] - r[1]) * (p[2] + r[2]); n[1] += (p[2] - r[2]) * (p[0] + r[0]); n[2] += (p[0] - r[0]) * (p[1] + r[1]); } const l = len(n) || 1; return n.map(x => x / l); };
-  const near = (p, i) => len(sub(p, V[i]));
-  const key = g => [...g].sort((x, y) => x - y).join(',');
-  const faces = new Set(F.map(key));
-  let back = [B0, B1], front = [F0, F1], guess = faceN(f), closed = false, why = 'max';
-  for (let step = 1; step <= maxSteps; step++) {
-    const e0 = sub(V[front[1]], V[front[0]]), el = len(e0) || 1, e = e0.map(x => x / el), np = [];
-    for (let k = 0; k < 2; k++) {
-      const s0 = surf(V[front[k]], guess); const n = s0 ? s0.n : guess;
-      let t = sub(V[front[k]], V[back[k]]); const tnn = dt(t, n); t = t.map((x, q) => x - n[q] * tnn);
-      const te = dt(t, e); t = t.map((x, q) => x - e[q] * te); const tl = len(t); if (tl < 1e-12) break;
-      let sc = L / tl, s = null;
-      for (let it = 0; it < 3; it++) {        // a curved surface shortens the step once snapped: correct it to the quad's width
-        s = surf(V[front[k]].map((x, q) => x + t[q] * sc), n); if (!s) break;
-        const got = len(sub(s.p, V[front[k]])); if (got < 1e-12 || Math.abs(got - L) < 1e-4 * L) break; sc *= L / got;
-      }
-      if (!s) break; np.push(s.p);
+  const sub = (p, q) => [p[0] - q[0], p[1] - q[1], p[2] - q[2]], dt = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
+  const cr = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]], len = p => Math.hypot(p[0], p[1], p[2]);
+  let qn = [0, 0, 0]; for (let k = 0; k < 4; k++) { const p = V[f[k]], r = V[f[(k + 1) % 4]]; qn[0] += (p[1] - r[1]) * (p[2] + r[2]); qn[1] += (p[2] - r[2]) * (p[0] + r[0]); qn[2] += (p[0] - r[0]) * (p[1] + r[1]); }
+  const L = (len(sub(V[F0], V[B0])) + len(sub(V[F1], V[B1]))) / 2; if (!(L > 1e-9) || len(qn) < 1e-12) return { made: [], closed: false, why: 'flat' };
+  const rails = [];
+  for (const [Bk, Fk] of [[B0, F0], [B1, F1]]) {
+    let pn = cr(sub(V[Fk], V[Bk]), qn); const pl = len(pn); if (pl < 1e-12) return { made: [], closed: false, why: 'flat' }; pn = pn.map(x => x / pl);
+    const loops = sliceLoops(pos, idx, pn, dt(pn, V[Fk]));
+    // the loop passing closest to this side of the quad, and where the side's two corners sit along it
+    let best = null;
+    for (const lp of loops) { const P = lp.p, n = P.length; if (n < 3) continue;
+      const proj = q => { let bd = Infinity, bs = 0, acc = 0;
+        for (let k = 0; k < (lp.closed ? n : n - 1); k++) { const A = P[k], B = P[(k + 1) % n], ab = sub(B, A), l2 = dt(ab, ab) || 1e-30;
+          const u = Math.max(0, Math.min(1, dt(sub(q, A), ab) / l2)), x = [A[0] + ab[0] * u, A[1] + ab[1] * u, A[2] + ab[2] * u], dd = len(sub(q, x)), sl = Math.sqrt(l2);
+          if (dd < bd) { bd = dd; bs = acc + u * sl; } acc += sl; }
+        return [bd, bs, acc]; };
+      const [dF, sF, per] = proj(V[Fk]), [dB, sB] = proj(V[Bk]);
+      if (!best || dF + dB < best.err) best = { lp, sF, sB, per, err: dF + dB };
     }
-    if (np.length < 2) { why = 'edge'; break; }
-    let i0, i1;
-    if (step > 2 && near(np[0], start[0]) < 0.55 * L && near(np[1], start[1]) < 0.55 * L) { i0 = start[0]; i1 = start[1]; closed = true; }
-    else {
-      // stop rather than spiral over faces this ring already made
-      let hitOwn = false; for (let j = n0; j < V.length; j++) if (j !== front[0] && j !== front[1] && (near(np[0], j) < 0.5 * L || near(np[1], j) < 0.5 * L)) { hitOwn = true; break; }
-      if (hitOwn) { why = 'spiral'; break; }
-      i0 = V.push(np[0]) - 1; i1 = V.push(np[1]) - 1;
-    }
-    const nf = fwd ? [front[1], front[0], i0, i1] : [front[0], front[1], i1, i0];
-    if (faces.has(key(nf))) { why = 'exists'; break; }
-    F.push(nf); faces.add(key(nf)); made.push(nf); guess = faceN(nf);
-    if (closed) { why = 'closed'; break; }
-    back = front; front = [i0, i1];
+    if (!best) return { made: [], closed: false, why: 'open' };
+    if (!best.lp.closed) return { made: [], closed: false, why: 'open' };
+    if (best.err > 0.75 * L) return { made: [], closed: false, why: 'far' };
+    const fwdArc = ((best.sF - best.sB) % best.per + best.per) % best.per, dir = fwdArc <= best.per / 2 ? 1 : -1;
+    const arcBF = Math.min(fwdArc, best.per - fwdArc);
+    rails.push({ ...best, dir, rest: best.per - arcBF });
   }
-  if (closed && made.length > 1) {          // share any leftover gap evenly: re-space the new points along each rail
-    const rails = [[F0], [F1]]; for (const g of made) { const q = fwd ? [g[2], g[3]] : [g[3], g[2]]; rails[0].push(q[0]); rails[1].push(q[1]); }
-    for (const rail of rails) {
-      const pts = rail.map(i => V[i].slice()), segs = []; let tot = 0;
-      for (let k = 1; k < pts.length; k++) { const l = len(sub(pts[k], pts[k - 1])); segs.push(l); tot += l; }
-      const step = tot / (pts.length - 1);
-      for (let k = 1; k < rail.length - 1; k++) {
-        let want = step * k, j = 0; while (j < segs.length - 1 && want > segs[j]) { want -= segs[j]; j++; }
-        const u = segs[j] > 0 ? want / segs[j] : 0, p = pts[j].map((x, q) => x + (pts[j + 1][q] - x) * u);
-        const sn = surf(p, guess); V[rail[k]] = sn ? sn.p : p;
-      }
-    }
-  }
-  return { made, closed, why, n0 };
+  const N = Math.round((rails[0].rest + rails[1].rest) / 2 / L);
+  if (N < 3) return { made: [], closed: false, why: 'small' };
+  const pointAt = (rl, s) => { const P = rl.lp.p, n = P.length; s = ((s % rl.per) + rl.per) % rl.per; let acc = 0;
+    for (let k = 0; k < n; k++) { const A = P[k], B = P[(k + 1) % n], sl = len(sub(B, A)); if (acc + sl >= s || k === n - 1) { const u = sl > 0 ? Math.min(1, (s - acc) / sl) : 0; return [A[0] + (B[0] - A[0]) * u, A[1] + (B[1] - A[1]) * u, A[2] + (B[2] - A[2]) * u]; } acc += sl; } return P[0].slice(); };
+  const n0 = V.length, r = [[F0], [F1]];
+  for (let k = 0; k < 2; k++) { const rl = rails[k]; for (let j = 1; j < N; j++) r[k].push(V.push(pointAt(rl, rl.sF + rl.dir * j * rl.rest / N)) - 1); }
+  r[0].push(B0); r[1].push(B1);
+  const fwd = f[(f.indexOf(F0) + 1) % 4] === F1, made = [];
+  for (let j = 0; j < N; j++) { const f0 = r[0][j], f1 = r[1][j], n0_ = r[0][j + 1], n1_ = r[1][j + 1];
+    const nf = fwd ? [f1, f0, n0_, n1_] : [f0, f1, n1_, n0_]; F.push(nf); made.push(nf); }
+  return { made, closed: true, why: 'closed', n0 };
 }
 
 // ---------- auto retopology: quads (background worker, loaded on tap) or quick triangles ----------
@@ -1151,12 +1184,10 @@ const hideRing = () => { $('ringUI').hidden = true; };
 function doRing(axis) {
   hideRing(); const fi = ringAt && ringAt.fi; if (fi == null || !F[fi] || F[fi].length !== 4) return;
   const sx = Math.sign(F[fi].reduce((s, v) => s + V[v][0], 0));
-  save(); const nV = V.length;
-  const surf = (p, n) => { const h = snapHit(p, n); if (!h) return null;
-    const N = h.face ? h.face.normal.clone().transformDirection(h.object.matrixWorld).normalize() : new THREE.Vector3(...n);
-    return { p: h.point.toArray(), n: N.toArray() }; };
-  const r = wrapRing(V, F, fi, axis, surf);
-  if (!r.made.length) { hist.pop(); return hint(r.why === 'edge' ? 'There is no sculpt that way to wrap onto' : 'Could not start a ring from this quad', 4000); }
+  const g = getHighGeo(); save(); const nV = V.length;
+  const r = sliceRing(V, F, fi, axis, g.attributes.position.array, g.index.array);
+  if (!r.made.length) { hist.pop(); return hint({ open: 'This slice of the sculpt has an opening, so a ring can\'t close here', far: 'Couldn\'t follow the sculpt from this quad. Check it sits on the sculpt',
+    small: 'That ring would be fewer than three quads', flat: 'This quad is too thin to start a ring' }[r.why] || 'Could not start a ring from this quad', 4500); }
   let mirNote = '';
   if (mirOn) {
     const nR = V.length, crossed = sx !== 0 && V.slice(nV, nR).some(p => p[0] * sx < -CT());
@@ -1164,11 +1195,7 @@ function doRing(axis) {
     else { for (let j = nV; j < nR; j++) { if (Math.abs(V[j][0]) < CT()) V[j][0] = 0; else V.push(mp(V[j])); } r.made.forEach(f => addMirFace(f)); }
   }
   rebuild();
-  const nq = r.made.length + (r.closed ? 1 : 0);
-  const why = { closed: 'Ring closed: ' + nq + ' quads all the way round.', edge: 'Ring of ' + r.made.length + ' quads. It ran off the sculpt before it could close.',
-    spiral: 'Ring of ' + r.made.length + ' quads. It stopped before running over itself.', exists: 'Ring of ' + r.made.length + ' quads. It met faces that were already there.',
-    max: 'Ring of ' + r.made.length + ' quads.' }[r.why] || ('Ring of ' + r.made.length + ' quads.');
-  hint(why + mirNote, 5000);
+  hint('Ring closed: ' + (r.made.length + 1) + ' quads all the way round.' + mirNote, 5000);
 }
 $('rA').onclick = () => doRing(0); $('rB').onclick = () => doRing(1);
 
@@ -1204,6 +1231,8 @@ function exportAs(fmt){if(!F.length)return hint('Nothing to export yet');
 // ---------- touch gestures (registered before OrbitControls so we can claim a touch) ----------
 let TG=null,G=null,touches=0,lastTap={t:0,k:null};
 el.addEventListener('pointerdown',e=>{touches++;if(!$('ringUI').hidden)hideRing();
+  if(LS.on&&touches>1){if(LS.phase==='draw'){LS.phase='idle';LS.poly=null;drawPath();lsTether.setAttribute('d','')}if(LS.drag)endDrag();controls.enabled=true;return}
+  if(LS.on){lsDown(e);return}
   if(touches>1){if(G){clearTimeout(G.lp);G=null}if(TG){if(TG.moved)TUTO.release();TG=null}controls.enabled=true;return}
   if(TUTO.hit(e.clientX,e.clientY)){TG={x:e.clientX,y:e.clientY,moved:false};controls.enabled=false;return}
   const x=e.clientX,y=e.clientY,vi=pickV(x,y),ed=vi<0?pickE(x,y):null;
@@ -1211,7 +1240,7 @@ el.addEventListener('pointerdown',e=>{touches++;if(!$('ringUI').hidden)hideRing(
   controls.enabled=!(vi>=0||ed);
   G.lp=setTimeout(()=>{if(!G||G.moved)return;
     if(G.vi>=0)delV(G.vi);else if(G.ed)loopCut(G.ed);else holdQuad(G.x,G.y);G=null;controls.enabled=true},550)});
-el.addEventListener('pointermove',e=>{if(TG){if(!TG.moved&&Math.hypot(e.clientX-TG.x,e.clientY-TG.y)>7){TG.moved=true;TUTO.grabAt(TG.x,TG.y)}if(TG.moved)TUTO.dragTo(e.clientX,e.clientY);return}
+el.addEventListener('pointermove',e=>{if(LS.on){lsMove(e);return}if(TG){if(!TG.moved&&Math.hypot(e.clientX-TG.x,e.clientY-TG.y)>7){TG.moved=true;TUTO.grabAt(TG.x,TG.y)}if(TG.moved)TUTO.dragTo(e.clientX,e.clientY);return}
 if(!G)return;const dx=e.clientX-G.x,dy=e.clientY-G.y;
   if(!G.moved&&Math.hypot(dx,dy)>7){G.moved=true;clearTimeout(G.lp)}
   if(!G.moved||controls.enabled)return;
@@ -1224,7 +1253,7 @@ if(!G)return;const dx=e.clientX-G.x,dy=e.clientY-G.y;
     if(mirOn&&G.me){const ab=[G.ed.a,G.ed.b];ab.forEach((i,k)=>{const m=G.me[k];if(m===i)V[i][0]=0;else if(m>=0&&!ab.includes(m))V[m]=mp(V[i])});
       if(G.me[0]===G.ed.b)V[G.ed.b]=mp(V[G.ed.a])}}
   rebuild()});
-const up=e=>{touches=Math.max(0,touches-1);if(TG){const g=TG;TG=null;if(g.moved)TUTO.release();else TUTO.poke(g.x);setTimeout(()=>controls.enabled=true,0);return}
+const up=e=>{touches=Math.max(0,touches-1);if(LS.on){lsUp(e);return}if(TG){const g=TG;TG=null;if(g.moved)TUTO.release();else TUTO.poke(g.x);setTimeout(()=>controls.enabled=true,0);return}
   if(!G)return;clearTimeout(G.lp);const g=G;G=null;
   setTimeout(()=>controls.enabled=true,0);
   if(g.moved||performance.now()-g.t>400)return;
@@ -1255,7 +1284,7 @@ $('bTex').onclick=()=>{texOn=!texOn;$('bTex').classList.toggle('off',!texOn);
   if(texOn){sampleAll();if(!texMat)hint('No material found on the sculpt');else hint('Low-poly uses the sculpt texture')}else hint('Plain blue view');meshGeo()};
 $('bAuto').onclick=auto;$('bUndo').onclick=undo;$('bExp').onclick=()=>{const m=$('expMenu'),r=$('bExp').getBoundingClientRect();m.style.top=r.top+'px';m.style.display=m.style.display==='flex'?'none':'flex'};
 document.querySelectorAll('#expMenu button').forEach(b=>b.onclick=()=>{$('expMenu').style.display='none';exportAs(b.dataset.f)});
-const HELP='Hold a quad: ring tool · Red faces overlap or fold, tap the warning to see each · Poke Tuto to shoo him, drag him to carry him · Mirror button: copy edits across the centre · Tap sculpt: drop point (4 make a quad, tap the first to close a triangle) · Drag point or edge: move it on the surface · Double-tap edge: extrude · Hold edge: edge loop · Hold point: delete · One finger on empty space: orbit · Two fingers: zoom and pan';
+const HELP='➰ Lasso: draw a loop and Tuto ropes in the points or faces inside; drag them to move, use Scale or Delete · Hold a quad: ring tool · Red faces overlap or fold, tap the warning to see each · Poke Tuto to shoo him, drag him to carry him · Mirror button: copy edits across the centre · Tap sculpt: drop point (4 make a quad, tap the first to close a triangle) · Drag point or edge: move it on the surface · Double-tap edge: extrude · Hold edge: edge loop · Hold point: delete · One finger on empty space: orbit · Two fingers: zoom and pan';
 $('bHelp').onclick=()=>hint(HELP);
 addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='z')undo()});
 
@@ -1786,15 +1815,21 @@ function restUp(g) { return Yv.clone().addScaledVector(g.oH, -0.35).normalize();
 function hangFeet(g, out) { const up = restUp(g); if (g.kind === 'v') up.applyAxisAngle(g.oH, ST.theta); else up.applyAxisAngle(g.ax, ST.theta); return out.copy(g.P).addScaledVector(up, -HL); }
 function tryGrip() {
   if (!V.length) return false;
-  const es = [...edges().values()], useE = es.length && Math.random() < 0.5;
-  const g = useE ? (() => { const e = es[Math.floor(Math.random() * es.length)]; return { kind: 'e', a: e.a, b: e.b, u: rnd(0.25, 0.75), uT: 0.5, wait: 1 }; })()
-                 : { kind: 'v', i: Math.floor(Math.random() * V.length) };
-  g.P = new THREE.Vector3(); ST.ver = meshVer; if (!gripPos(g)) return false;
-  const h = box.max.y - box.min.y || 1; g.perch = g.P.y > box.max.y - 0.08 * h;
-  g.oH = outDir(g.P);
-  if (g.kind === 'e') { const a = V[g.a], b = V[g.b]; g.ax = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize(); if (Math.abs(g.ax.y) > 0.85) g.perch = false; }
-  ST.grip = g; ST.theta = 0; ST.omega = g.kind === 'v' ? rnd(1.6, 2.6) * (Math.random() < 0.5 ? -1 : 1) : 0;
-  startLeap(g.perch ? 'perch' : 'hang', false); return true;
+  const es = [...edges().values()], h = box.max.y - box.min.y || 1;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const useE = es.length && Math.random() < 0.5;
+    let g;
+    if (useE) { const e = es[Math.floor(Math.random() * es.length)]; g = { kind: 'e', a: e.a, b: e.b, u: rnd(0.25, 0.75), uT: 0.5, wait: 1 }; }
+    else { const i = Math.floor(Math.random() * V.length); g = { kind: 'v', i }; }
+    g.P = new THREE.Vector3(); if (g.kind === 'v') g.P.set(...V[g.i]); ST.ver = meshVer; if (!gripPos(g)) continue;
+    g.perch = g.P.y > box.max.y - 0.08 * h;
+    g.oH = outDir(g.P);
+    if (g.kind === 'e') { const a = V[g.a], b = V[g.b]; g.ax = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize(); if (Math.abs(g.ax.y) > 0.85) g.perch = false; }
+    if (!g.perch && g.P.y - HL < ST.floor + 0.03) continue;     // too low to hang from without his feet going through the floor
+    ST.grip = g; ST.theta = 0; ST.omega = g.kind === 'v' ? rnd(1.6, 2.6) * (Math.random() < 0.5 ? -1 : 1) : 0;
+    startLeap(g.perch ? 'perch' : 'hang', false); return true;
+  }
+  return false;
 }
 function startLeap(then, flip, target) {
   const A = ST.pos.clone(), tgt = target || leapTarget(then);
@@ -1923,15 +1958,216 @@ function dragTo(x, y) {
 function release() { if (ST.mode === 'held') { ST.mode = 'fall'; ST.vy = 0.6; } }
 function setOn(on) { ST.on = on; hero.root.visible = shadow.visible = on; if (on) { refreshBox(); ST.floor = floorY(); ST.mode = 'walk'; ST.grip = null; ST.s = ST.sT = nearestS(ST.pos.x, ST.pos.z); ST.offPath = true; } }
 refreshBox(); ST.floor = floorY(); ST.s = ST.sT = perim() * 0.1; atS(ST.s, ST.pos).setY(ST.floor);
-return { update, hit, poke, grabAt, dragTo, release, setOn, get on() { return ST.on; } };
+// ---- lasso Tuto: a second Tuto drawn over the screen's bottom-left corner. He spins a rope loop over his head,
+// throws it when a selection is drawn, then holds the rope while the selection is in use.
+function makeLassoHud(hud) {
+  const h = buildCharacter(); h.anim = newAnim(); hud.add(h.root);
+  const ROPE = 0xC9A06A, spin = new THREE.Group(); h.root.add(spin);
+  const loop = mesh(new THREE.TorusGeometry(0.62, 0.045, 6, 40), ROPE); loop.position.set(0.85, 0, 0); loop.rotation.x = Math.PI / 2; spin.add(loop);
+  const tail = mesh(new THREE.CylinderGeometry(0.04, 0.04, 1, 6), ROPE); tail.position.set(0.115, 0, 0); tail.scale.y = 0.23; tail.rotation.z = Math.PI / 2; spin.add(tail);
+  const S = { mag: 0, zr: 0, grounded: true, sit: 0, dance: -1, flipT: -1, airT: 0, glide: 0, hold: 0, ride: 0, sx: 0, sz: 0, held: false, gliding: false, grab: 0, grabUp: 0, grabLow: 0, shAmt: 0, db: null };
+  const hand = new THREE.Vector3(), up = new THREE.Vector3(0, 0.12, 0);
+  let mode = 'swing', t = 0, mt = 0;
+  function update(dt) {
+    t += dt; mt += dt; S.t = t; S.tms = t * 1000;
+    poseCharacter(h, S, dt);
+    const P = h.parts;
+    if (mode === 'swing') { P.shL.rotation.set(0.25 * Math.sin(t * 10), 0, -2.8); P.elL.rotation.set(0, 0, 0.35); }
+    else if (mode === 'throw') { const k = Math.min(1, mt / 0.16); P.shL.rotation.set(-1.5 * k, 0, -2.8 + 1.4 * k); P.elL.rotation.set(0, 0, 0.1); }
+    else { P.shL.rotation.set(-1.3, 0, -1.3); P.elL.rotation.set(0, 0, 0.25 + 0.05 * Math.sin(t * 3)); h.body.rotation.x -= 0.12; }
+    h.root.updateMatrixWorld(true);
+    hand.set(0, -0.27, 0); P.elL.localToWorld(hand);
+    spin.visible = mode === 'swing';
+    if (spin.visible) { spin.position.copy(h.root.worldToLocal(hand.clone())).add(up); spin.rotation.set(0.35, t * 11, 0); }
+  }
+  return { root: h.root, update, hand, setMode(m) { if (m !== mode) { mode = m; mt = 0; } }, get mode() { return mode; } };
+}
+return { update, hit, poke, grabAt, dragTo, release, setOn, makeLassoHud, get on() { return ST.on; }, _st: ST, _hero: hero };
 
 })();
 $('bTuto').onclick=()=>{TUTO.setOn(!TUTO.on);$('bTuto').classList.toggle('off',!TUTO.on);hint(TUTO.on?'Tuto is back':'Tuto is taking a break')};
 
-function resize(){renderer.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+// ---------- lasso: Tuto swings a lasso from the bottom-left corner; draw a loop to catch points or faces ----------
+// Pure helpers (also used by the tests)
+function pointInPoly(x, y, poly) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) c = !c; }
+  return c;
+}
+function polyArea(poly) { let a = 0; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) a += (poly[j][0] + poly[i][0]) * (poly[j][1] - poly[i][1]); return Math.abs(a / 2); }
+// toScreen(p) -> [x, y, z]; facing(fi) -> true if that face looks towards the camera (so hidden sides aren't caught)
+function lassoPick(V, F, poly, kind, toScreen, facing) {
+  const fv = new Map(); F.forEach((f, fi) => { for (const v of f) (fv.get(v) || fv.set(v, []).get(v)).push(fi); });
+  const out = new Set();
+  if (kind === 'pts') V.forEach((p, i) => { const s = toScreen(p); if (s[2] > 1 || !pointInPoly(s[0], s[1], poly)) return; const fs = fv.get(i); if (fs && !fs.some(facing)) return; out.add(i); });
+  else F.forEach((f, fi) => { const c = [0, 1, 2].map(k => f.reduce((a, v) => a + V[v][k], 0) / f.length), s = toScreen(c);
+    if (s[2] <= 1 && pointInPoly(s[0], s[1], poly) && facing(fi)) out.add(fi); });
+  return out;
+}
+function selVerts(F, sel, kind) { if (kind === 'pts') return [...sel]; const s = new Set(); for (const fi of sel) if (F[fi]) for (const v of F[fi]) s.add(v); return [...s]; }
+// Delete the selection (points take their faces with them; faces leave behind any point no other face uses).
+// twinOf(i) gives a vertex's mirror twin (or -1) when mirror is on, so the other side goes too.
+function deleteSel(V, F, sel, kind, twinOf) {
+  let delV = new Set(), delF = new Set();
+  if (kind === 'pts') { for (const i of sel) { delV.add(i); const m = twinOf ? twinOf(i) : -1; if (m >= 0) delV.add(m); }
+    F.forEach((f, fi) => { if (f.some(v => delV.has(v))) delF.add(fi); }); }
+  else {
+    for (const fi of sel) delF.add(fi);
+    if (twinOf) { const key = f => [...f].sort((a, b) => a - b).join(','), byKey = new Map(F.map((f, i) => [key(f), i]));
+      for (const fi of sel) { const m = F[fi].map(twinOf); if (m.every(x => x >= 0)) { const j = byKey.get(key(m)); if (j !== undefined) delF.add(j); } } }
+    const usedAfter = new Set(); F.forEach((f, fi) => { if (!delF.has(fi)) for (const v of f) usedAfter.add(v); });
+    for (const fi of delF) for (const v of F[fi]) if (!usedAfter.has(v)) delV.add(v);
+  }
+  const map = new Int32Array(V.length).fill(-1), nV = [];
+  V.forEach((p, i) => { if (!delV.has(i)) map[i] = nV.push(p) - 1; });
+  const nF = []; F.forEach((f, fi) => { if (!delF.has(fi)) nF.push(f.map(v => map[v])); });
+  return { V: nV, F: nF, points: delV.size, faces: delF.size };
+}
+
+// ---- lasso on screen
+const hudScene = new THREE.Scene();
+hudScene.add(new THREE.HemisphereLight(0xffffff, 0x888899, 2.2));
+{ const l = new THREE.DirectionalLight(0xffffff, 1.4); l.position.set(-200, 400, 600); hudScene.add(l); }
+const hudCam = new THREE.OrthographicCamera(0, 1, 1, 0, 1, 2000); hudCam.position.set(0, 0, 625);
+function hudResize() { hudCam.right = innerWidth; hudCam.top = innerHeight; hudCam.updateProjectionMatrix(); }
+const LS = { on: false, kind: 'pts', sel: new Set(), poly: null, phase: 'idle', pt: 0, hud: null, ver: -1, tutoWas: true, drag: null, pending: null, fade: 0 };
+const selPts = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ color: 0xff8a1f, size: 12, sizeAttenuation: false, depthTest: false }));
+const selFaces = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xff8a1f, transparent: true, opacity: .45, side: THREE.DoubleSide,
+  depthWrite: false, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 }));
+selPts.renderOrder = 7; selFaces.renderOrder = 4; scene.add(selPts, selFaces);
+const lsPath = $('lsPath'), lsPath2 = $('lsPath2'), lsTether = $('lsTether');
+const facesToward = fi => { const f = F[fi]; if (!f) return false; const n = fnorm(f), c = [0, 1, 2].map(k => f.reduce((a, v) => a + V[v][k], 0) / f.length);
+  return n[0] * (cam.position.x - c[0]) + n[1] * (cam.position.y - c[1]) + n[2] * (cam.position.z - c[2]) > 0; };
+const handXY = () => [LS.hud.hand.x, innerHeight - LS.hud.hand.y];
+const centroidOf = ids => { const c = [0, 0, 0]; for (const i of ids) for (let k = 0; k < 3; k++) c[k] += V[i][k] / ids.length; return c; };
+function ropeTo(x, y) { const [hx, hy] = handXY(), mx = (hx + x) / 2, my = Math.max(hy, y) + 40;   // a little sag
+  lsTether.setAttribute('d', `M${hx.toFixed(1)} ${hy.toFixed(1)} Q${mx.toFixed(1)} ${my.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)}`); }
+function drawPath(close) {
+  const d = LS.poly && LS.poly.length > 1 ? 'M' + LS.poly.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L') + (close ? 'Z' : '') : '';
+  lsPath.setAttribute('d', d); lsPath2.setAttribute('d', d);
+}
+function lassoRefresh() {
+  if (!LS.on) { selPts.visible = selFaces.visible = false; return; }
+  if (LS.sel.size && LS.ver !== meshVer && !LS.drag) LS.sel.clear();       // the mesh changed under us (undo, import): let go
+  const ids = selVerts(F, LS.sel, LS.kind).filter(i => V[i]);
+  selPts.geometry.dispose(); selPts.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(ids.flatMap(i => V[i]), 3));
+  const tp = []; if (LS.kind === 'faces') for (const fi of LS.sel) { const f = F[fi]; if (f) for (let i = 1; i < f.length - 1; i++) tp.push(...V[f[0]], ...V[f[i]], ...V[f[i + 1]]); }
+  selFaces.geometry.dispose(); selFaces.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(tp, 3));
+  selPts.visible = ids.length > 0; selFaces.visible = tp.length > 0;
+  $('lsScale').disabled = $('lsDel').disabled = !LS.sel.size;
+  $('lsCount').textContent = LS.sel.size ? LS.sel.size + (LS.kind === 'pts' ? (LS.sel.size === 1 ? ' point' : ' points') : (LS.sel.size === 1 ? ' face' : ' faces')) : '';
+}
+rebuildHooks.push(lassoRefresh);
+function clearSel() { LS.sel.clear(); LS.pending = null; LS.phase = 'idle'; LS.poly = null; drawPath(); lsTether.setAttribute('d', ''); if (LS.hud) LS.hud.setMode('swing'); lassoRefresh(); }
+function lassoOn() {
+  LS.on = true; $('bLasso').classList.add('on'); $('lassoBar').hidden = false; $('lassoSvg').hidden = false; hideRing(); $('bX').style.display = 'none';
+  if (!LS.hud) LS.hud = TUTO.makeLassoHud(hudScene);
+  LS.hud.root.visible = true; LS.tutoWas = TUTO.on; if (TUTO.on) TUTO.setOn(false);
+  clearSel(); hint('Draw a loop around the ' + (LS.kind === 'pts' ? 'points' : 'faces') + ' you want, and Tuto will rope them in', 5000);
+}
+function lassoOff() {
+  LS.on = false; LS.drag = null; $('bLasso').classList.remove('on'); $('lassoBar').hidden = true; $('lassoSvg').hidden = true;
+  clearSel(); if (LS.hud) LS.hud.root.visible = false; if (LS.tutoWas) TUTO.setOn(true); controls.enabled = true; rebuild();
+}
+$('bLasso').onclick = () => LS.on ? lassoOff() : lassoOn();
+$('lsDone').onclick = lassoOff;
+document.querySelectorAll('#lsMode button').forEach(b => b.onclick = () => { LS.kind = b.dataset.k;
+  document.querySelectorAll('#lsMode button').forEach(x => x.classList.toggle('on', x === b)); clearSel(); });
+// drawing, throwing, catching
+function lsDown(e) {
+  const x = e.clientX, y = e.clientY;
+  if (LS.sel.size && LS.phase === 'held' && onSel(x, y)) return startMove(x, y);
+  LS.phase = 'draw'; LS.poly = [[x, y]]; LS.pending = null; LS.sel.clear(); lassoRefresh(); LS.hud.setMode('swing');
+  lsPath.style.opacity = 1; lsPath2.style.opacity = 1; lsPath.removeAttribute('transform'); lsPath2.removeAttribute('transform');
+  lsPath.style.strokeDasharray = ''; lsPath.style.strokeDashoffset = ''; controls.enabled = false; drawPath();
+}
+function lsMove(e) {
+  if (LS.drag) return dragSel(e.clientX, e.clientY);
+  if (LS.phase !== 'draw') return;
+  const last = LS.poly[LS.poly.length - 1]; if (Math.hypot(e.clientX - last[0], e.clientY - last[1]) < 4) return;
+  LS.poly.push([e.clientX, e.clientY]); drawPath(); ropeTo(e.clientX, e.clientY);
+}
+function lsUp() {
+  if (LS.drag) return endDrag();
+  if (LS.phase !== 'draw') return;
+  setTimeout(() => controls.enabled = true, 0);
+  if (LS.poly.length < 6 || polyArea(LS.poly) < 400) { clearSel(); return; }     // a tap or a scribble: let go of everything
+  LS.pending = lassoPick(V, F, LS.poly, LS.kind, scr, facesToward);
+  LS.phase = 'throw'; LS.pt = 0; LS.hud.setMode('throw'); drawPath(true);
+  const len = lsPath.getTotalLength ? lsPath.getTotalLength() : 1000; lsPath.style.strokeDasharray = len; lsPath.style.strokeDashoffset = len; lsPath2.style.opacity = 0;
+}
+function lassoFrame(dt) {
+  if (!LS.hud) return;
+  const k = Math.max(26, Math.min(40, innerHeight * 0.035));
+  LS.hud.root.scale.setScalar(k); LS.hud.root.position.set(1.9 * k + 6, 14, 0); LS.hud.root.rotation.y = 0.55;
+  LS.hud.update(dt);
+  if (LS.phase === 'draw' && LS.poly) { const l = LS.poly[LS.poly.length - 1]; ropeTo(l[0], l[1]); }
+  else if (LS.phase === 'throw') {            // the rope flies out round the loop
+    LS.pt += dt; const u = Math.min(1, LS.pt / 0.28), len = parseFloat(lsPath.style.strokeDasharray) || 0;
+    lsPath.style.strokeDashoffset = len * (1 - u); const p0 = LS.poly[0]; ropeTo(p0[0], p0[1]);
+    if (u >= 1) { LS.phase = 'tight'; LS.pt = 0; lsPath.style.strokeDasharray = ''; lsPath.style.strokeDashoffset = ''; lsPath2.style.opacity = 1; }
+  } else if (LS.phase === 'tight') {          // ...and pulls tight around what it caught
+    LS.pt += dt; const u = Math.min(1, LS.pt / 0.2), cx = LS.poly.reduce((a, p) => a + p[0], 0) / LS.poly.length, cy = LS.poly.reduce((a, p) => a + p[1], 0) / LS.poly.length, sc = 1 - 0.06 * u;
+    const tf = `translate(${cx} ${cy}) scale(${sc}) translate(${-cx} ${-cy})`; lsPath.setAttribute('transform', tf); lsPath2.setAttribute('transform', tf);
+    ropeTo(cx, cy);
+    if (u >= 1) { LS.sel = LS.pending || new Set(); LS.pending = null; LS.ver = meshVer; LS.phase = 'held'; LS.fade = 0.45; lassoRefresh();
+      if (LS.sel.size) { LS.hud.setMode('hold'); hint('Caught ' + $('lsCount').textContent + '. Drag them to move, use Scale, or Delete', 4500); }
+      else { LS.hud.setMode('swing'); hint('Nothing inside that loop. Try again', 3000); } }
+  } else if (LS.phase === 'held') {
+    if (LS.fade > 0) { LS.fade = Math.max(0, LS.fade - dt); const o = LS.fade / 0.45; lsPath.style.opacity = o; lsPath2.style.opacity = o; }
+    const ids = selVerts(F, LS.sel, LS.kind).filter(i => V[i]);
+    if (ids.length) { const s = scr(centroidOf(ids)); ropeTo(s[0], s[1]); } else { lsTether.setAttribute('d', ''); if (LS.hud.mode !== 'swing') LS.hud.setMode('swing'); }
+  }
+}
+// moving and scaling the catch (mirror keeps the other side matched; snapping presses it back onto the sculpt on release)
+function onSel(x, y) {
+  const ids = selVerts(F, LS.sel, LS.kind);
+  for (const i of ids) { const s = scr(V[i]); if (Math.hypot(s[0] - x, s[1] - y) < 30) return true; }
+  if (LS.kind === 'faces') for (const fi of LS.sel) { const f = F[fi]; if (f && pointInPoly(x, y, f.map(v => scr(V[v])))) return true; }
+  return false;
+}
+function beginEdit(kind, x, y) {
+  const ids = selVerts(F, LS.sel, LS.kind), twins = [], center = new Set();
+  if (mirOn) { const set = new Set(ids); for (const i of ids) { const m = mir(i); if (m === i) center.add(i); else if (m >= 0 && !set.has(m)) twins.push([i, m]); } }
+  save(); LS.ver = meshVer;
+  const c = centroidOf(ids), plane = new THREE.Plane().setFromNormalAndCoplanarPoint(cam.getWorldDirection(new THREE.Vector3()), new THREE.Vector3(...c));
+  LS.drag = { kind, ids, twins, center, base: ids.map(i => V[i].slice()), c, x0: x, y0: y, plane, start: rayPlane(x, y, plane) };
+  controls.enabled = false;
+}
+function rayPlane(x, y, plane) { rc.setFromCamera(new THREE.Vector2(x / innerWidth * 2 - 1, -y / innerHeight * 2 + 1), cam); return rc.ray.intersectPlane(plane, new THREE.Vector3()); }
+function startMove(x, y) { beginEdit('move', x, y); }
+function dragSel(x, y) {
+  const D = LS.drag; if (!D) return;
+  if (D.kind === 'move') { const p = rayPlane(x, y, D.plane); if (!p || !D.start) return; const d = p.sub(D.start);
+    D.ids.forEach((i, k) => { V[i] = [D.base[k][0] + d.x, D.base[k][1] + d.y, D.base[k][2] + d.z]; }); }
+  else { const f = Math.exp((x - D.x0) / 120);
+    D.ids.forEach((i, k) => { V[i] = D.base[k].map((v, q) => D.c[q] + (v - D.c[q]) * f); }); }
+  for (const i of D.center) V[i][0] = 0;
+  for (const [i, m] of D.twins) V[m] = mp(V[i]);
+  rebuild();
+}
+function endDrag() {
+  const D = LS.drag; LS.drag = null; setTimeout(() => controls.enabled = true, 0); if (!D) return;
+  if (!free()) { for (const i of D.ids) { V[i] = snap(V[i], vnorm(i)); if (D.center.has(i)) V[i][0] = 0; } for (const [i, m] of D.twins) V[m] = mp(V[i]); }
+  LS.ver = meshVer; rebuild();
+}
+$('lsScale').addEventListener('pointerdown', e => { if (!LS.sel.size) return; e.preventDefault(); $('lsScale').setPointerCapture(e.pointerId); beginEdit('scale', e.clientX, e.clientY); hint('Drag right to grow, left to shrink', 2500); });
+$('lsScale').addEventListener('pointermove', e => { if (LS.drag && LS.drag.kind === 'scale') dragSel(e.clientX, e.clientY); });
+const endScale = () => { if (LS.drag && LS.drag.kind === 'scale') endDrag(); };
+$('lsScale').addEventListener('pointerup', endScale); $('lsScale').addEventListener('pointercancel', endScale);
+$('lsDel').onclick = () => {
+  if (!LS.sel.size) return; save();
+  const r = deleteSel(V, F, LS.sel, LS.kind, mirOn ? mir : null);
+  V = r.V; F = r.F; pend = []; LS.sel.clear(); LS.ver = meshVer; LS.phase = 'idle'; lsTether.setAttribute('d', ''); LS.hud.setMode('swing'); rebuild();
+  hint('Deleted ' + (LS.kind === 'pts' ? r.points + (r.points === 1 ? ' point' : ' points') : r.faces + (r.faces === 1 ? ' face' : ' faces')), 3000);
+};
+
+function resize(){hudResize();renderer.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
 addEventListener('resize',resize);resize();demo();TUTO.setOn(true);hint(HELP);
 const clock=new THREE.Clock();
-renderer.setAnimationLoop(()=>{const dt=clock.getDelta();controls.update();TUTO.update(dt);renderer.render(scene,cam)});
+renderer.setAnimationLoop(()=>{const dt=clock.getDelta();controls.update();TUTO.update(dt);renderer.render(scene,cam);
+  if(LS.on){lassoFrame(dt);renderer.autoClear=false;renderer.clearDepth();renderer.render(hudScene,hudCam);renderer.autoClear=true}});
 </script>
 </body>
 </html>
