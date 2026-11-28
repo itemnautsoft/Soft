@@ -946,10 +946,26 @@ async function addFolder(){
  if(FSA_OK){try{const h=await window.showDirectoryPicker({id:'stacks-lib',mode:'readwrite'});await linkHandle(h)}catch(e){if(e.name!=='AbortError')toast('Couldn’t open that folder: '+e.message)}return}
  $('#pickDir').click();
 }
+const GENERIC=/^(documents|downloads|files|inbox|mobile documents|file provider storage|picked folder|on my ipad|on my iphone|icloud drive)$/i;
+function matchFolder(list){
+ const keys=new Set(list.map(x=>baseName(x.rel).toLowerCase()+'|'+x.file.size));let best=null,bn=0;
+ for(const f of Object.values(S.folders)){if(f.mode==='files')continue;const bs=Object.values(S.books).filter(b=>b.folder===f.id&&b.kind!=='images');const n=bs.filter(b=>keys.has(String(b.name).toLowerCase()+'|'+b.size)).length;if(n>bn&&n>=Math.max(1,Math.ceil(bs.length*0.3))){bn=n;best=f.id}}
+ return best;
+}
+function pruneFolders(){for(const f of Object.values(S.folders)){if(f.mode==='linked'&&handles.has(f.id))continue;if(!Object.values(S.books).some(b=>b.folder===f.id))delete S.folders[f.id]}}
 $('#pickDir').addEventListener('change',async e=>{
  const fl=[...e.target.files];e.target.value='';if(!fl.length)return;
  const roots=new Map();for(const f of fl){const p=(f.webkitRelativePath||f.name).replace(/\\/g,'/');const i=p.indexOf('/');const root=i>0?p.slice(0,i):'Picked folder';const rel=i>0?p.slice(i+1):p;if(!roots.has(root))roots.set(root,[]);roots.get(root).push({file:f,rel})}
- for(const[root,list]of roots){const fid='f'+hash(root);const old=S.folders[fid]||{};S.folders[fid]={...old,id:fid,name:root,mode:old.mode==='linked'?'linked':'picked',keep:old.keep??!FSA_OK};scanning.on=true;scanning.name=root;banner();const n=await ingest(fid,list);scanning.on=false;toast('“'+root+'”: '+n+' book'+(n===1?'':'s')+' found')}
+ for(const[root,list]of roots){
+  // Safari reports the folder's real name on disk, which isn't always the name the Files app shows
+  // (a folder under "On My iPad › Some App" is really called "Documents"). So match by the books inside first.
+  const fid=matchFolder(list)||('f'+hash(root));const old=S.folders[fid]||{};const generic=GENERIC.test(root);
+  const name=old.customName?old.name:(generic&&old.name?old.name:root);
+  S.folders[fid]={...old,id:fid,name,rootName:root,mode:old.mode==='linked'?'linked':'picked',keep:old.keep??!FSA_OK};
+  scanning.on=true;scanning.name=name;banner();const n=await ingest(fid,list);scanning.on=false;pruneFolders();
+  if(generic&&!old.id&&!old.customName)setTimeout(()=>askText('Safari calls this folder “'+root+'”. What should Stacks call it?',root,v=>{if(v){S.folders[fid].name=v;S.folders[fid].customName=true;done();banner()}}),400);
+  else toast('“'+name+'”: '+n+' book'+(n===1?'':'s')+' found');
+ }
  banner();
 });
 $('#pickFiles').addEventListener('change',async e=>{
@@ -969,11 +985,11 @@ function banner(){
   if(needPerm.size){const n=[...needPerm].map(f=>S.folders[f]&&S.folders[f].name).filter(Boolean);parts.push('<span class="grow">'+(n.length===1?'“'+esc(n[0])+'” needs':n.length+' folders need')+' a tap to reconnect.</span><button class="btn sm pri" data-act="reconnect">Reconnect</button>')}
   const off=Object.values(S.folders).filter(f=>f.mode!=='linked'&&Object.values(S.books).some(b=>b.folder===f.id&&missing(b)));const unread=Object.values(S.books).filter(b=>b.readErr&&!missing(b)).length;
   if(unread&&!off.length)parts.push('<span class="grow">'+unread+' book'+(unread===1?'':'s')+' couldn’t be read. If they’re in iCloud Drive, open the folder in Files so they download, then tap Refresh.</span><button class="btn sm" data-act="refresh">Refresh</button>');
-  if(off.length&&!needPerm.size)parts.push('<span class="grow">'+(off.length===1?'Books from “'+esc(off[0].name)+'” are':'Books from '+off.length+' folders are')+' shown from your save file, but their files aren’t on this device. Pick '+(off.length===1?'the folder':'them')+' again to read'+(off.some(f=>!f.keep)?' (or turn on “Keep copies” in Folders so this doesn’t happen again)':'')+'.</span><button class="btn sm" data-act="'+(off[0].mode==='files'?'files':'pick')+'">Pick '+(off[0].mode==='files'?'files':'folder')+'</button>')}
+  if(off.length&&!needPerm.size)parts.push('<span class="grow">'+(off.length===1?'Books from “'+esc(off[0].name)+'” are':'Books from '+off.length+' folders are')+' shown from your save file, but their files aren’t on this device. Pick '+(off.length===1?'the folder':'them')+' again to read'+(off.some(f=>!f.keep)?' (or turn on “Keep copies” in Folders so this doesn’t happen again)':'')+'.</span><button class="btn sm" data-act="'+(off[0].mode==='files'?'files':'pick')+'">Pick '+(off[0].mode==='files'?'files':'folder')+'</button><button class="btn sm" data-act="folders">Folders</button>')}
  el.innerHTML=parts.join('');
 }
 $('#banner').addEventListener('click',async e=>{const a=e.target.closest('[data-act]');if(!a)return;const k=a.dataset.act;
- if(k==='reconnect'){for(const f of[...needPerm])await scanLinked(f,true)}else if(k==='refresh')refreshAll();else if(k==='pick')addFolder();else if(k==='files')$('#pickFiles').click()});
+ if(k==='reconnect'){for(const f of[...needPerm])await scanLinked(f,true)}else if(k==='refresh')refreshAll();else if(k==='folders'){foldersSheet();showUsage()}else if(k==='pick')addFolder();else if(k==='files')$('#pickFiles').click()});
 
 /* ---------- 3D book markup ---------- */
 function box(W,H,D,f){
@@ -1084,12 +1100,13 @@ function foldersSheet(){
  const li=f=>{const n=Object.values(S.books).filter(b=>b.folder===f.id).length,m=Object.values(S.books).filter(b=>b.folder===f.id&&missing(b)).length;
   const how=f.mode==='linked'?(needPerm.has(f.id)?'Linked · needs a tap to reconnect':'Linked · rescans itself'):f.mode==='files'?'Single files you added':(f.keep?'Picked · copies kept here':'Picked · pick again after reloading');
   const kept=Object.values(S.books).filter(b=>b.folder===f.id&&b.kept!==undefined).length;
-  return '<li style="flex-wrap:wrap"><svg class="ico"><use href="#i-folder"/></svg><div class="grow"><b>'+esc(f.name)+'</b><small>'+n+' books'+(m?' · '+m+' offline':'')+' · '+how+(f.keep?' · '+kept+' kept on this device':'')+'</small></div>'+(f.mode!=='linked'?'<button class="btn sm" data-a="keep:'+f.id+'" aria-pressed="'+!!f.keep+'">'+(f.keep?'Keeping copies ✓':'Keep copies')+'</button>':'')+'<button class="btn sm" data-a="scan:'+f.id+'">'+(f.mode==='linked'&&!needPerm.has(f.id)?'Rescan':'Reconnect')+'</button><button class="btn sm ghost" data-a="forget:'+f.id+'" aria-label="Forget folder"><svg class="ico"><use href="#i-x"/></svg></button></li>'};
+  return '<li style="flex-wrap:wrap"><svg class="ico"><use href="#i-folder"/></svg><div class="grow"><b>'+esc(f.name)+'</b><small>'+n+' books'+(m?' · '+m+' offline':'')+' · '+how+(f.keep?' · '+kept+' kept on this device':'')+(f.rootName&&f.rootName!==f.name?' · Safari calls it “'+esc(f.rootName)+'”':'')+'</small></div><button class="btn sm ghost" data-a="ren:'+f.id+'">Rename</button>'+(f.mode!=='linked'?'<button class="btn sm" data-a="keep:'+f.id+'" aria-pressed="'+!!f.keep+'">'+(f.keep?'Keeping copies ✓':'Keep copies')+'</button>':'')+'<button class="btn sm" data-a="scan:'+f.id+'">'+(f.mode==='linked'&&!needPerm.has(f.id)?'Rescan':'Reconnect')+'</button><button class="btn sm ghost" data-a="forget:'+f.id+'" aria-label="Forget folder"><svg class="ico"><use href="#i-x"/></svg></button></li>'};
  const offl=Object.values(S.books).filter(missing).length;
  sheet(X+'<h2>Folders</h2><p>'+(FSA_OK?'Linked folders are remembered and rescanned on every visit.':'This browser can’t remember where a folder is. With “Keep copies” on, Stacks stores each book inside the app, so your library opens offline and survives reloads. Tap Refresh and pick the folder again to add new books.')+'</p><p id="storeUse" style="font-size:13px"></p><div class="row"><button class="btn pri" data-a="add"><svg class="ico"><use href="#i-folder"/></svg>Add a folder</button><button class="btn" data-a="files"><svg class="ico"><use href="#i-file"/></svg>Add files</button></div>'+(fs.length?'<ul class="list">'+fs.map(li).join('')+'</ul>':'<p>No folders yet.</p>')+(offl?'<div class="row"><button class="btn sm" data-a="prune">Remove '+offl+' offline book'+(offl===1?'':'s')+' from the library</button></div>':''),(a)=>{
   if(a==='add'){closeSheet(true);addFolder()}else if(a==='files'){closeSheet(true);$('#pickFiles').click()}
   else if(a.startsWith('keep:')){const f=S.folders[a.slice(5)];closeSheet(true);if(f.keep){confirmSheet('Stop keeping copies of “'+f.name+'”?','The copies stored inside Stacks are deleted. Your original files aren’t touched. After a reload these books show as offline until you pick the folder again.','Stop keeping',async()=>{f.keep=false;await dropCopies(f.id);done('Copies removed');banner()})}else{f.keep=true;let n=0;for(const b of Object.values(S.books))if(b.folder===f.id&&files.has(b.id)&&b.kept!==b.size){enqueueCopy(b.id);n++}done(n?'Keeping copies of '+n+' books':'Copies will be kept next time you pick this folder');banner()}}
   else if(a.startsWith('scan:')){closeSheet(true);reconnect(a.slice(5))}
+  else if(a.startsWith('ren:')){const f=S.folders[a.slice(4)];closeSheet(true);setTimeout(()=>askText('Rename folder',f.name,v=>{if(v){f.name=v;f.customName=true;done();banner()}}),60)}
   else if(a.startsWith('forget:')){const fid=a.slice(7),f=S.folders[fid];closeSheet(true);confirmSheet('Forget “'+f.name+'”?','Its books leave your library and stacks. Nothing is deleted from your device.','Forget folder',()=>{for(const b of Object.values(S.books))if(b.folder===fid){detach(b.id);delete S.books[b.id];files.delete(b.id);idb.del('thumbs',b.id);idb.del('files',b.id)}delete S.folders[fid];handles.delete(fid);idb.del('handles',fid);needPerm.delete(fid);if(S.settings.saveFolder===fid)S.settings.saveFolder=null;done('Folder forgotten');banner()})}
   else if(a==='prune'){closeSheet(true);confirmSheet('Remove offline books?','Books whose files aren’t connected right now leave the library and their stacks.','Remove',()=>{for(const b of Object.values(S.books))if(missing(b)){detach(b.id);delete S.books[b.id];idb.del('thumbs',b.id);idb.del('files',b.id)}done('Offline books removed');banner()})}
  });
