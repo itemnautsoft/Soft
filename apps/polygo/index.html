@@ -6,8 +6,8 @@
 <meta name="description" content="Touch-friendly low-poly modelling and retopology over imported sculpts. A prototype by Claude (AI), made for itemnaut.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Polygo">
-<meta name="theme-color" content="#e9ecf1" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#14171c" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f3f4f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1430" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
@@ -15,21 +15,21 @@
 <title>Polygo</title>
 <style>
 /* Layout: full-screen 3D canvas, one slim tool column on the right, contextual bars only when needed */
-:root{--bg:#e9ecf1;--scene:#e9ecf1;--panel:#ffffff;--fg:#1c2330;--muted:#5b6474;--accent:#2f7de1;--danger:#d63a3a;--shadow:rgba(20,32,56,.2);--scrim:rgba(10,14,22,.45)}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#14171c;--scene:#1a1e25;--panel:#272c35;--fg:#e7eaf0;--muted:#9aa3b3;--accent:#5ba1ff;--danger:#ff6b6b;--shadow:rgba(0,0,0,.55);--scrim:rgba(0,0,0,.6);color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#14171c;--scene:#1a1e25;--panel:#272c35;--fg:#e7eaf0;--muted:#9aa3b3;--accent:#5ba1ff;--danger:#ff6b6b;--shadow:rgba(0,0,0,.55);--scrim:rgba(0,0,0,.6);color-scheme:dark}
+:root{--bg:#f3f4f6;--scene:#eceef2;--panel:#ffffff;--fg:#14213d;--muted:#5c6478;--accent:#e0182d;--accent2:#ffc20e;--danger:#c8102e;--shadow:rgba(20,33,61,.18);--scrim:rgba(11,20,48,.45)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0b1430;--scene:#0f1b3d;--panel:#1a2850;--fg:#f4f5f8;--muted:#a9b2c8;--accent:#ff3347;--accent2:#ffc20e;--danger:#ff4d5e;--shadow:rgba(0,0,0,.55);--scrim:rgba(0,0,0,.6);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b1430;--scene:#0f1b3d;--panel:#1a2850;--fg:#f4f5f8;--muted:#a9b2c8;--accent:#ff3347;--accent2:#ffc20e;--danger:#ff4d5e;--shadow:rgba(0,0,0,.55);--scrim:rgba(0,0,0,.6);color-scheme:dark}
 html,body{height:100%;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
 body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 canvas{display:block;position:fixed;inset:0}
 #bar{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(10px + env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:8px;align-items:flex-end;max-height:calc(100% - 20px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow-y:auto;padding:2px 4px 6px 8px}
-.b{width:44px;height:44px;flex:none;border-radius:50%;border:none;background:var(--panel);color:var(--fg);box-shadow:0 2px 6px var(--shadow);font-size:20px;cursor:pointer}
+.b{width:44px;height:44px;flex:none;border-radius:50%;border:2px solid var(--accent2);background:var(--panel);color:var(--fg);box-shadow:0 2px 6px var(--shadow);font-size:20px;cursor:pointer}
 .b:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .b.off{opacity:.4}
 .b.on{background:var(--accent);color:#fff}
 #lassoSvg{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:6;overflow:visible}
 #lassoSvg .rope{fill:none;stroke:#c9a06a;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
-#lassoSvg #lsPath{fill:rgba(255,138,31,.2)}
-#lassoSvg.drawing #lsPath{stroke:#ff8a1f;stroke-width:3}#lassoSvg.drawing #lsPath2{stroke:#b35400}
+#lassoSvg #lsPath{fill:rgba(255,194,14,.3)}
+#lassoSvg.drawing #lsPath{stroke:#f2a900;stroke-width:3}#lassoSvg.drawing #lsPath2{stroke:#e0182d}
 #lassoSvg .ropeTwist{fill:none;stroke:#7d5d2e;stroke-width:4;stroke-dasharray:2 7;stroke-linecap:round;stroke-linejoin:round}
 #lassoBar{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;max-width:calc(100% - 92px);z-index:8}
 #lassoBar button{min-height:40px;padding:6px 14px;border:none;border-radius:20px;background:var(--panel);color:var(--fg);box-shadow:0 2px 6px var(--shadow);font-size:14px;cursor:pointer;touch-action:none}
@@ -69,7 +69,18 @@ canvas{display:block;position:fixed;inset:0}
 #autoF #aGo{background:var(--accent);color:#fff;font-weight:600}#autoF #aGo:disabled{opacity:.5}
 #warn{position:fixed;left:calc(10px + env(safe-area-inset-left,0px));top:calc(30px + env(safe-area-inset-top,0px));border:none;border-radius:16px;min-height:32px;padding:6px 12px;background:var(--danger);color:#fff;font-size:13px;font-weight:600;box-shadow:0 2px 6px var(--shadow);cursor:pointer;max-width:calc(100% - 90px);text-align:left}
 #ringUI .b{position:fixed;z-index:15;background:var(--accent);color:#fff;font-size:22px}#ringUI .b span{display:inline-block}
-@media (prefers-reduced-motion:reduce){#hint{transition:none}}
+#leftBar{position:fixed;left:calc(14px + env(safe-area-inset-left,0px));bottom:calc(188px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;z-index:7}
+#pad{position:fixed;left:calc(14px + env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:8px;z-index:7;width:132px}
+#padModes{display:flex;gap:6px}
+#padModes button{width:40px;height:40px;border-radius:12px;border:2px solid var(--accent2);background:var(--panel);color:var(--accent);font:700 17px/1 system-ui,-apple-system,sans-serif;box-shadow:0 2px 6px var(--shadow);cursor:pointer}
+#padModes button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#padModes button:focus-visible,#padRing:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#padRing{position:relative;width:112px;height:112px;border-radius:50%;background:var(--panel);border:3px solid var(--accent);box-shadow:0 3px 10px var(--shadow);display:grid;place-items:center;touch-action:none;cursor:grab}
+#padRing::before{content:"";position:absolute;inset:14px;border-radius:50%;border:2px dashed var(--accent2)}
+#padKnob{width:44px;height:44px;border-radius:50%;background:var(--accent2);border:3px solid var(--accent);box-shadow:0 2px 6px var(--shadow);transition:transform .18s;pointer-events:none}
+@media (max-width:700px){#hint{padding-left:calc(150px + env(safe-area-inset-left,0px))}}
+body.lassoOn #hint{bottom:calc(170px + env(safe-area-inset-bottom,0px))}   /* clear of Tuto, who stands beside the pad */
+@media (prefers-reduced-motion:reduce){#hint{transition:none}#padKnob{transition:none}}
 </style>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
 </head>
@@ -81,8 +92,6 @@ canvas{display:block;position:fixed;inset:0}
 <input type="range" id="op" min="0.1" max="1" step="0.05" value="0.85" title="Low-poly opacity">
 <button class="b" id="bSnap" title="Snap to sculpt on/off">🧲</button>
 <button class="b off" id="bMir" title="Mirror edits across the centre">🪞</button>
-<button class="b" id="bLasso" title="Lasso: Tuto ropes in points or faces">➰</button>
-<button class="b" id="bTuto" title="Tuto on or off">🏀</button>
 <button class="b" id="bTex" title="Use sculpt texture on low-poly">🎨</button>
 <button class="b" id="bAuto" title="Auto retopology">✨</button>
 <button class="b" id="bUndo" title="Undo">↶</button>
@@ -115,6 +124,9 @@ canvas{display:block;position:fixed;inset:0}
 <div id="lassoBar" hidden><div id="lsMode"><button type="button" data-k="pts" class="on">Points</button><button type="button" data-k="faces">Faces</button></div>
 <span id="lsCount"></span><button type="button" id="lsScale" disabled title="Drag left or right to scale">⤢ Scale</button><button type="button" id="lsDel" disabled>Delete</button><button type="button" id="lsDone">Done</button></div>
 <div id="ringUI" hidden><button class="b" id="rA" title="Wrap a ring this way"><span>⟷</span></button><button class="b" id="rB" title="Wrap a ring this way"><span>⟷</span></button></div>
+<div id="leftBar"><button class="b" id="bTuto" title="Tuto on or off">🏀</button><button class="b" id="bLasso" title="Lasso: Tuto ropes in points or faces">➰</button></div>
+<div id="pad"><div id="padModes" role="group" aria-label="Controller mode"><button type="button" data-m="t" class="on" title="Move (transform)">T</button><button type="button" data-m="s" title="Scale">S</button><button type="button" data-m="r" title="Rotate">R</button></div>
+<div id="padRing" title="Drag here to move, scale or rotate" aria-label="Controller pad"><div id="padKnob"></div></div></div>
 <div id="hint"></div>
 <script type="text/plain" id="qremeshSrc">
 // Polygo quad remesher: the Instant Meshes method (Jakob, Tarini, Panozzo, Sorkine-Hornung 2015), written in JS.
@@ -637,7 +649,7 @@ const save=()=>{meshVer++;hist.push(JSON.stringify([V,F]));if(hist.length>80)his
 const undo=()=>{meshVer++;if(!hist.length)return;[V,F]=JSON.parse(hist.pop());pend=[];rebuild()};
 
 // ---------- high-res sculpt ----------
-const hiMat=new THREE.MeshStandardMaterial({color:0xb9b2a8,roughness:.8,flatShading:false});
+const hiMat=new THREE.MeshStandardMaterial({color:0xb7bac2,roughness:.8,flatShading:false});
 function geoMesh(g){g.computeVertexNormals();
   return new THREE.Mesh(g,g.attributes.color?new THREE.MeshStandardMaterial({vertexColors:true,roughness:.8}):hiMat)}
 let highGeo=null;
@@ -821,12 +833,12 @@ function snap(p,n){if(free())return p;const h=snapHit(p,n);return h?h.point.toAr
 const woodMode=false,refMode=false,woodHalf=[.55,.8,.55];   // wood carving and the reference box were removed (2026-11-27)
 
 // ---------- low-poly mesh display ----------
-const lowMat=new THREE.MeshStandardMaterial({color:0x4aa3ff,transparent:true,opacity:.85,side:THREE.DoubleSide,
+const lowMat=new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:.85,side:THREE.DoubleSide,
   polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,flatShading:true,depthWrite:false});
 const lowMesh=new THREE.Mesh(new THREE.BufferGeometry(),lowMat);
-const lines=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0x10305a,depthTest:false,transparent:true}));
-const pts=new THREE.Points(new THREE.BufferGeometry(),new THREE.PointsMaterial({color:0x10305a,size:9,sizeAttenuation:false,depthTest:false}));
-const pendL=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xff6a00,depthTest:false}));
+const lines=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xe0182d,depthTest:false,transparent:true}));
+const pts=new THREE.Points(new THREE.BufferGeometry(),new THREE.PointsMaterial({color:0xe0182d,size:9,sizeAttenuation:false,depthTest:false}));
+const pendL=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffc20e,depthTest:false}));
 lines.renderOrder=pts.renderOrder=pendL.renderOrder=5;
 scene.add(lowMesh,lines,pts,pendL);
 const ek=(a,b)=>a<b?a+'_'+b:b+'_'+a;
@@ -834,8 +846,8 @@ function edges(){const m=new Map();F.forEach((f,fi)=>f.forEach((a,i)=>{const b=f
   if(!m.has(k))m.set(k,{a,b,faces:[]});m.get(k).faces.push(fi)}));return m}
 // ---------- mirror (symmetry across the x = 0 centre plane) ----------
 let mirOn=false;
-const mirPlane=new THREE.Mesh(new THREE.PlaneGeometry(2.8,2.8),new THREE.MeshBasicMaterial({color:0xff4d6d,transparent:true,opacity:.1,side:THREE.DoubleSide,depthWrite:false}));
-mirPlane.rotation.y=Math.PI/2;mirPlane.add(new THREE.LineSegments(new THREE.EdgesGeometry(mirPlane.geometry),new THREE.LineBasicMaterial({color:0xff4d6d,transparent:true,opacity:.6})));
+const mirPlane=new THREE.Mesh(new THREE.PlaneGeometry(2.8,2.8),new THREE.MeshBasicMaterial({color:0xffc20e,transparent:true,opacity:.12,side:THREE.DoubleSide,depthWrite:false}));
+mirPlane.rotation.y=Math.PI/2;mirPlane.add(new THREE.LineSegments(new THREE.EdgesGeometry(mirPlane.geometry),new THREE.LineBasicMaterial({color:0xffc20e,transparent:true,opacity:.8})));
 mirPlane.visible=false;scene.add(mirPlane);
 const MT=()=>1e-4*size,CT=()=>.015*size,mp=p=>[-p[0],p[1],p[2]];
 function mir(i){const p=V[i],t=MT();if(Math.abs(p[0])<t)return i;
@@ -1220,7 +1232,7 @@ async function dl_(blob,n){
   const z=zip1(n,new Uint8Array(await blob.arrayBuffer()));
   try{await d.save({filename:n+'.zip',data:z});hint('Saved '+n+'.zip. Unzip it to get your '+n.split('.').pop().toUpperCase()+' file')}
   catch(e){hint(e&&e.code==='declined'?'Save cancelled':'Could not save the file'+(e&&e.code?' ('+e.code+')':''))}}
-function lowObj(){let mt=new THREE.MeshStandardMaterial({color:0x4aa3ff});if(lowMesh.material===texMat){mt=texMat.clone();Object.assign(mt,{transparent:false,opacity:1,depthWrite:true,polygonOffset:false})}
+function lowObj(){let mt=new THREE.MeshStandardMaterial({color:0xffffff});if(lowMesh.material===texMat){mt=texMat.clone();Object.assign(mt,{transparent:false,opacity:1,depthWrite:true,polygonOffset:false})}
   const m=new THREE.Mesh(lowMesh.geometry.clone(),mt);m.name='polygo';return m}
 function exportAs(fmt){if(!F.length)return hint('Nothing to export yet');
   if(fmt==='obj')return exportOBJ();
@@ -1285,7 +1297,7 @@ $('bTex').onclick=()=>{texOn=!texOn;$('bTex').classList.toggle('off',!texOn);
   if(texOn){sampleAll();if(!texMat)hint('No material found on the sculpt');else hint('Low-poly uses the sculpt texture')}else hint('Plain blue view');meshGeo()};
 $('bAuto').onclick=auto;$('bUndo').onclick=undo;$('bExp').onclick=()=>{const m=$('expMenu'),r=$('bExp').getBoundingClientRect();m.style.top=r.top+'px';m.style.display=m.style.display==='flex'?'none':'flex'};
 document.querySelectorAll('#expMenu button').forEach(b=>b.onclick=()=>{$('expMenu').style.display='none';exportAs(b.dataset.f)});
-const HELP='➰ Lasso: draw a loop and Tuto ropes in the points or faces inside; drag them to move, use Scale or Delete · Hold a quad: ring tool · Red faces overlap or fold, tap the warning to see each · Poke Tuto to shoo him, drag him to carry him · Mirror button: copy edits across the centre · Tap sculpt: drop point (4 make a quad, tap the first to close a triangle) · Drag point or edge: move it on the surface · Double-tap edge: extrude · Hold edge: edge loop · Hold point: delete · One finger on empty space: orbit · Two fingers: zoom and pan';
+const HELP='Controller (bottom left): pick T to move, S to scale, R to rotate, then drag on the pad; it works on the lasso catch, or the whole mesh · ➰ Lasso: draw a loop and Tuto ropes in the points or faces inside; drag them to move, use Scale or Delete · Hold a quad: ring tool · Red faces overlap or fold, tap the warning to see each · Poke Tuto to shoo him, drag him to carry him · Mirror button: copy edits across the centre · Tap sculpt: drop point (4 make a quad, tap the first to close a triangle) · Drag point or edge: move it on the surface · Double-tap edge: extrude · Hold edge: edge loop · Hold point: delete · One finger on empty space: orbit · Two fingers: zoom and pan';
 $('bHelp').onclick=()=>hint(HELP);
 addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='z')undo()});
 
@@ -1293,7 +1305,9 @@ addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='z')undo()});
 // Tuto, from itemnautsoft/Tuto (Tuto Maker). His body, poses and dribble below are copied from that game unchanged,
 // so he moves exactly as he does there. Only the outline shader, the ball and the behaviour at the end are new here.
 const TUTO = (() => {
-const COL = { head: 0xFDBA1C, face: 0xE4F400, torso: 0xF3C23C, pants: 0x2A2630, red: 0xE8502E, lav: 0xB0A2C4, lavDark: 0x7E6C9C, sticker: 0x5A4A78, ink: 0x161216 };
+// Polygo palette (itemnaut's red / white / yellow reference): white body, navy trousers, red boots, gloves and
+// joystick, yellow head. The Tuto game keeps its own colours; only this copy changes.
+const COL = { head: 0xFFC20E, face: 0xE4F400, torso: 0xF7F7F4, pants: 0x1F3F8F, red: 0xE0182D, lav: 0xE0182D, lavDark: 0x1B2B5E, sticker: 0xF7F7F4, ink: 0x161216 };
 const ramp = new THREE.DataTexture(new Uint8Array([120, 195, 255]), 3, 1, THREE.RedFormat);
 ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
 const matCache = {};
@@ -1764,7 +1778,22 @@ function mkDribbleStep(dt, mag, mx, mz) {
 // ---- Tuto in Polygo: he never edits anything. He laps the model dribbling, leaps up to hang and swing from
 // your points and edges (or stands on top ones), and reacts to pokes and drags. All of this reads V/F; nothing writes them.
 const TS = 0.11, HL = 1.95 * TS, Yv = new THREE.Vector3(0, 1, 0);
-const hero = buildCharacter(); hero.anim = newAnim(); hero.root.scale.setScalar(TS); scene.add(hero.root); TU.hero = hero;
+// Polygo outfit from itemnaut's sketch: yellow shoulder pads and a red V across the chest (the palette makes the
+// body white and the trousers navy). The V is shaped onto the chest cone so it hugs the body instead of sticking out.
+function dressTuto(h) {
+  const P = h.parts;
+  for (const [sh, s] of [[P.shL, -1], [P.shR, 1]]) {
+    const pad = mesh(new RoundedBoxGeometry(0.24, 0.17, 0.27, 3, 0.06), 0xFFC20E); pad.position.set(0.035 * s, 0.03, 0); pad.rotation.z = 0.25 * s; sh.add(pad);
+  }
+  const N = 8, top = 0.13, bot = -0.13, W = 0.15, pos = [], idx = [];
+  for (let i = 0; i <= N; i++) { const t = i / N, y = top + (bot - top) * t, half = W * (1 - t), R = 0.235 - y * 0.406 + 0.012;
+    for (let j = 0; j <= N; j++) { const x = -half + 2 * half * j / N; pos.push(x, y, Math.sqrt(Math.max(0, R * R - x * x))); } }
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const a = i * (N + 1) + j, b = a + 1, c = a + N + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  const v = mesh(g, 0xE0182D); v.position.y = 0.01; P.torso.add(v);
+  return h;
+}
+const hero = dressTuto(buildCharacter()); hero.anim = newAnim(); hero.root.scale.setScalar(TS); scene.add(hero.root); TU.hero = hero;
 const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.42 * TS * 1.6, 24).rotateX(-Math.PI / 2),
   new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }));
 scene.add(shadow);
@@ -1962,7 +1991,7 @@ refreshBox(); ST.floor = floorY(); ST.s = ST.sT = perim() * 0.1; atS(ST.s, ST.po
 // ---- lasso Tuto: a second Tuto drawn over the screen's bottom-left corner. He spins a rope loop over his head,
 // throws it when a selection is drawn, then holds the rope while the selection is in use.
 function makeLassoHud(hud) {
-  const h = buildCharacter(); h.anim = newAnim(); hud.add(h.root);
+  const h = dressTuto(buildCharacter()); h.anim = newAnim(); hud.add(h.root);
   const ROPE = 0xC9A06A, spin = new THREE.Group(); h.root.add(spin);
   const loop = mesh(new THREE.TorusGeometry(0.62, 0.045, 6, 40), ROPE); loop.position.set(0.85, 0, 0); loop.rotation.x = Math.PI / 2; spin.add(loop);
   const tail = mesh(new THREE.CylinderGeometry(0.04, 0.04, 1, 6), ROPE); tail.position.set(0.115, 0, 0); tail.scale.y = 0.23; tail.rotation.z = Math.PI / 2; spin.add(tail);
@@ -2033,8 +2062,8 @@ hudScene.add(new THREE.HemisphereLight(0xffffff, 0x888899, 2.2));
 const hudCam = new THREE.OrthographicCamera(0, 1, 1, 0, 1, 2000); hudCam.position.set(0, 0, 625);
 function hudResize() { hudCam.right = innerWidth; hudCam.top = innerHeight; hudCam.updateProjectionMatrix(); }
 const LS = { on: false, kind: 'pts', sel: new Set(), poly: null, phase: 'idle', pt: 0, hud: null, ver: -1, tutoWas: true, drag: null, pending: null, preview: null, pvT: 0, press: null, fade: 0 };
-const selPts = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ color: 0xff8a1f, size: 12, sizeAttenuation: false, depthTest: false }));
-const selFaces = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xff8a1f, transparent: true, opacity: .45, side: THREE.DoubleSide,
+const selPts = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ color: 0xFFC20E, size: 13, sizeAttenuation: false, depthTest: false }));
+const selFaces = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xFFC20E, transparent: true, opacity: .5, side: THREE.DoubleSide,
   depthWrite: false, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 }));
 selPts.renderOrder = 7; selFaces.renderOrder = 4; scene.add(selPts, selFaces);
 const lsPath = $('lsPath'), lsPath2 = $('lsPath2'), lsTether = $('lsTether');
@@ -2091,13 +2120,13 @@ function lassoRefresh() {
 rebuildHooks.push(lassoRefresh);
 function clearSel() { LS.sel.clear(); LS.pending = null; LS.preview = null; LS.phase = 'idle'; LS.poly = null; drawPath(); lsTether.setAttribute('d', ''); if (LS.hud) LS.hud.setMode('swing'); lassoRefresh(); }
 function lassoOn() {
-  LS.on = true; $('bLasso').classList.add('on'); $('lassoBar').hidden = false; $('lassoSvg').hidden = false; hideRing(); $('bX').style.display = 'none';
+  LS.on = true; $('bLasso').classList.add('on'); document.body.classList.add('lassoOn'); $('lassoBar').hidden = false; $('lassoSvg').hidden = false; hideRing(); $('bX').style.display = 'none';
   if (!LS.hud) LS.hud = TUTO.makeLassoHud(hudScene);
   LS.hud.root.visible = true; LS.tutoWas = TUTO.on; if (TUTO.on) TUTO.setOn(false);
   clearSel(); hint('Draw a loop around the ' + (LS.kind === 'pts' ? 'points' : 'faces') + ' you want, or tap them one by one. Tap again to let one go', 5500);
 }
 function lassoOff() {
-  LS.on = false; LS.drag = null; $('bLasso').classList.remove('on'); $('lassoBar').hidden = true; $('lassoSvg').hidden = true;
+  LS.on = false; LS.drag = null; $('bLasso').classList.remove('on'); document.body.classList.remove('lassoOn'); $('lassoBar').hidden = true; $('lassoSvg').hidden = true;
   clearSel(); if (LS.hud) LS.hud.root.visible = false; if (LS.tutoWas) TUTO.setOn(true); controls.enabled = true; rebuild();
 }
 $('bLasso').onclick = () => LS.on ? lassoOff() : lassoOn();
@@ -2150,7 +2179,7 @@ function tapToggle(x, y) {
 function lassoFrame(dt) {
   if (!LS.hud) return;
   const k = Math.max(26, Math.min(40, innerHeight * 0.035));
-  LS.hud.root.scale.setScalar(k); LS.hud.root.position.set(1.9 * k + 6, 14, 0); LS.hud.root.rotation.y = 0.55;
+  LS.hud.root.scale.setScalar(k); LS.hud.root.position.set(padRight() + 1.3 * k + 8, 14, 0); LS.hud.root.rotation.y = 0.55;   // stands just right of the controller
   LS.hud.update(dt);
   if (LS.phase === 'draw' && LS.poly) { const l = LS.poly[LS.poly.length - 1]; ropeTo(l[0], l[1]); }
   else if (LS.phase === 'throw') {            // the rope flies out round the loop
@@ -2177,9 +2206,9 @@ function onSel(x, y) {
   if (LS.kind === 'faces') for (const fi of LS.sel) { const f = F[fi]; if (f && pointInPoly(x, y, f.map(v => scr(V[v])))) return true; }
   return false;
 }
-function beginEdit(kind, x, y) {
-  const ids = selVerts(F, LS.sel, LS.kind), twins = [], center = new Set();
-  if (mirOn) { const set = new Set(ids); for (const i of ids) { const m = mir(i); if (m === i) center.add(i); else if (m >= 0 && !set.has(m)) twins.push([i, m]); } }
+function beginEdit(kind, x, y, only, useMirror = true) {
+  const ids = only || selVerts(F, LS.sel, LS.kind), twins = [], center = new Set();
+  if (mirOn && useMirror) { const set = new Set(ids); for (const i of ids) { const m = mir(i); if (m === i) center.add(i); else if (m >= 0 && !set.has(m)) twins.push([i, m]); } }
   save(); LS.ver = meshVer;
   const c = centroidOf(ids), plane = new THREE.Plane().setFromNormalAndCoplanarPoint(cam.getWorldDirection(new THREE.Vector3()), new THREE.Vector3(...c));
   LS.drag = { kind, ids, twins, center, base: ids.map(i => V[i].slice()), c, x0: x, y0: y, plane, start: rayPlane(x, y, plane) };
@@ -2190,15 +2219,20 @@ function dragSel(x, y) {
   const D = LS.drag; if (!D) return;
   if (D.kind === 'move') { const p = rayPlane(x, y, D.plane); if (!p || !D.start) return; const d = p.sub(D.start);
     D.ids.forEach((i, k) => { V[i] = [D.base[k][0] + d.x, D.base[k][1] + d.y, D.base[k][2] + d.z]; }); }
-  else { const f = Math.exp((x - D.x0) / 120);
+  else if (D.kind === 'scale') { const f = Math.exp((x - D.x0) / 120);
     D.ids.forEach((i, k) => { V[i] = D.base[k].map((v, q) => D.c[q] + (v - D.c[q]) * f); }); }
+  else padApply(D, x - D.x0, y - D.y0);
   for (const i of D.center) V[i][0] = 0;
   for (const [i, m] of D.twins) V[m] = mp(V[i]);
   rebuild();
 }
 function endDrag() {
   const D = LS.drag; LS.drag = null; setTimeout(() => controls.enabled = true, 0); if (!D) return;
-  if (!free()) { for (const i of D.ids) { V[i] = snap(V[i], vnorm(i)); if (D.center.has(i)) V[i][0] = 0; } for (const [i, m] of D.twins) V[m] = mp(V[i]); }
+  if (!free()) {
+    const g = getHighGeo(), tris = g.index ? g.index.count / 3 : g.attributes.position.count / 3;
+    if (D.ids.length * tris > 4e7) hint('Too many points to press back onto this sculpt at once. Move smaller catches to keep them on the surface', 4500);
+    else { for (const i of D.ids) { V[i] = snap(V[i], vnorm(i)); if (D.center.has(i)) V[i][0] = 0; } for (const [i, m] of D.twins) V[m] = mp(V[i]); }
+  }
   LS.ver = meshVer; rebuild();
 }
 $('lsScale').addEventListener('pointerdown', e => { if (!LS.sel.size) return; e.preventDefault(); $('lsScale').setPointerCapture(e.pointerId); beginEdit('scale', e.clientX, e.clientY); hint('Drag right to grow, left to shrink', 2500); });
@@ -2211,6 +2245,43 @@ $('lsDel').onclick = () => {
   V = r.V; F = r.F; pend = []; LS.sel.clear(); LS.ver = meshVer; LS.phase = 'idle'; lsTether.setAttribute('d', ''); LS.hud.setMode('swing'); rebuild();
   hint('Deleted ' + (LS.kind === 'pts' ? r.points + (r.points === 1 ? ' point' : ' points') : r.faces + (r.faces === 1 ? ' face' : ' faces')), 3000);
 };
+
+// ---- the T / S / R controller (bottom left): drag on the pad to move, scale or rotate the lasso catch,
+// or the whole low-poly mesh when nothing is caught
+const PAD = { mode: 't', id: null };
+const padRight = () => { const r = $('padRing').getBoundingClientRect(); return r.right || 140; };
+document.querySelectorAll('#padModes button').forEach(b => b.onclick = () => { PAD.mode = b.dataset.m;
+  document.querySelectorAll('#padModes button').forEach(x => x.classList.toggle('on', x === b));
+  hint({ t: 'Move: drag on the pad', s: 'Scale: drag right or up to grow, left or down to shrink', r: 'Rotate: drag to turn it like a trackball' }[PAD.mode], 2500); });
+function padApply(D, dx, dy) {
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion), upv = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
+  if (D.kind === 'pad-t') {        // finger travel on the pad = the same travel on screen
+    const dist = cam.position.distanceTo(new THREE.Vector3(...D.c)), wpp = 2 * dist * Math.tan(cam.fov * Math.PI / 360) / innerHeight;
+    const d = right.multiplyScalar(dx * wpp).add(upv.multiplyScalar(-dy * wpp));
+    D.ids.forEach((i, k) => { V[i] = [D.base[k][0] + d.x, D.base[k][1] + d.y, D.base[k][2] + d.z]; });
+  } else if (D.kind === 'pad-s') { const f = Math.exp((dx - dy) / 140);
+    D.ids.forEach((i, k) => { V[i] = D.base[k].map((v, q) => D.c[q] + (v - D.c[q]) * f); });
+  } else {
+    const q = new THREE.Quaternion().setFromAxisAngle(upv, dx * 0.012).multiply(new THREE.Quaternion().setFromAxisAngle(right, dy * 0.012)), c = new THREE.Vector3(...D.c);
+    D.ids.forEach((i, k) => { V[i] = new THREE.Vector3(...D.base[k]).sub(c).applyQuaternion(q).add(c).toArray(); });
+  }
+}
+$('padRing').addEventListener('pointerdown', e => {
+  if (LS.drag) return;
+  const caught = LS.on && LS.sel.size > 0, ids = caught ? selVerts(F, LS.sel, LS.kind) : V.map((_, i) => i);
+  if (!ids.length) return hint('Nothing to ' + ({ t: 'move', s: 'scale', r: 'rotate' }[PAD.mode]) + ' yet', 2000);
+  e.preventDefault(); $('padRing').setPointerCapture(e.pointerId); PAD.id = e.pointerId;
+  beginEdit('pad-' + PAD.mode, e.clientX, e.clientY, ids, caught);       // the whole mesh moves as one, so no mirror pinning
+  hint((caught ? 'The catch' : 'The whole mesh') + ': ' + ({ t: 'moving', s: 'scaling', r: 'rotating' }[PAD.mode]), 1500);
+});
+$('padRing').addEventListener('pointermove', e => {
+  if (e.pointerId !== PAD.id || !LS.drag) return;
+  const dx = e.clientX - LS.drag.x0, dy = e.clientY - LS.drag.y0, l = Math.hypot(dx, dy), m = Math.min(l, 38) / (l || 1);
+  $('padKnob').style.transition = 'none'; $('padKnob').style.transform = `translate(${dx * m}px, ${dy * m}px)`;
+  dragSel(e.clientX, e.clientY);
+});
+const padEnd = e => { if (e.pointerId !== PAD.id) return; PAD.id = null; $('padKnob').style.transition = ''; $('padKnob').style.transform = ''; if (LS.drag) endDrag(); };
+$('padRing').addEventListener('pointerup', padEnd); $('padRing').addEventListener('pointercancel', padEnd);
 
 function resize(){hudResize();renderer.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
 addEventListener('resize',resize);resize();demo();TUTO.setOn(true);hint(HELP);

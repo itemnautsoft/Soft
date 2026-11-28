@@ -33,6 +33,14 @@ the old address `apps/retopo-studio/` redirects here.
   *Scale* button left or right to shrink or grow it, or *Delete* it. Mirror keeps the other side matched, and with
   snapping on the catch is pressed back onto the sculpt when you let go. *Done* puts Tuto back in the scene.
 
+- **Controller (bottom left):** tap *T* (move), *S* (scale) or *R* (rotate), then drag on the round pad. It works on the
+  lasso catch, or on the whole low-poly mesh when nothing is caught. With snapping on, points press back onto the
+  sculpt when you let go (very large moves on very dense sculpts skip this, and say so). The 🏀 and ➰ buttons sit
+  above it.
+- **Look:** red, white and yellow, after itemnaut's reference board (RX-78 Gundam, Sakura, Sailor Moon, the Playskool
+  tape player), with the poster's deep navy for dark mode. Tuto wears the sketched outfit: white body, yellow shoulder
+  pads, a red V across the chest, navy trousers, red boots, gloves and joystick (only this app's copy of him).
+
 ## Tuto
 Tuto from [Tuto](https://github.com/itemnautsoft/Tuto) lives in the app, with his body, poses and basketball dribble
 copied straight from Tuto Maker. He laps your model dribbling (crossovers, spin moves, fingertip spins), leaps up

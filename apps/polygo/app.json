@@ -9,6 +9,6 @@
     "modelling",
     "tool"
   ],
-  "controls": "Tap to drop points (4 make a quad). Drag points or edges, double-tap an edge to extrude, hold an edge for a loop, hold a quad for a ring, ➰ to lasso. One finger orbits, two zoom",
+  "controls": "Tap to drop points (4 make a quad). Drag points or edges, double-tap an edge to extrude, hold an edge for a loop, hold a quad for a ring, ➰ to lasso, T/S/R pad to move, scale or rotate. One finger orbits, two zoom",
   "artifact": "https://claude.ai/artifact/9r6kfueP1DJ5TWi8ZPS6yf"
 }
